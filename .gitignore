@@ -1,0 +1,14 @@
+a.out
+.*.swp
+*.o
+*.a
+test/testvlu
+test/testplatform
+test/testaddress
+test/testclient
+test/server
+test/t2
+test/testchecksums
+test/testlist
+test/testperform
+test/tis
