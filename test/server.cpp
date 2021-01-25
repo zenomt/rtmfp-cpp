@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 
 	instance.onRecvFlow = [&rl] (std::shared_ptr<RecvFlow> flow) {
 		printf("new incoming flow!\n");
+		printf("RTT: %Lf\n", flow->getSRTT());
 		flow->onMessage = [] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount) {
 			printf("onMessage sn:%lu frags:%lu size:%lu\n", sequenceNumber, fragmentCount, len);
 			// Hex::print(" bytes:", bytes, len);

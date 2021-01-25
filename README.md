@@ -126,7 +126,6 @@ To Do
 * More unit tests
 * More examples
 * CMakeLists.txt
-* Initiator should take timestamp from RIKeying if present so responder can get an RTT measurement early
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
 * Timeout vs ping/reply race(?)

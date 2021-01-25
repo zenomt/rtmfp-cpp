@@ -1377,14 +1377,17 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho)
 	m_any_acks = false;
 	m_pre_ack_outstanding = m_outstandingFrags.sum();
 
-	if(S_OPEN == m_state)
+	if((S_OPEN == m_state) or (S_KEYING_SENT == m_state))
 	{
 		if((timestamp >= 0) and (timestamp != m_ts_rx))
 		{
 			m_ts_rx = timestamp;
 			m_ts_rx_time = m_rtmfp->getCurrentTime();
 		}
+	}
 
+	if(S_OPEN == m_state)
+	{
 		if((timestampEcho >= 0) and (timestampEcho != m_ts_echo_rx))
 		{
 			m_ts_echo_rx = timestampEcho;
