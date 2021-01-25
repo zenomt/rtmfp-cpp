@@ -110,6 +110,16 @@ size_t SendFlow::getBufferedSize() const
 	return m_send_queue.sum();
 }
 
+size_t SendFlow::getRecvBufferBytesAvailable() const
+{
+	return m_rx_buffer_size;
+}
+
+size_t SendFlow::getOutstandingBytes() const
+{
+	return m_outstanding_bytes;
+}
+
 std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Time startWithin, Time finishWithin)
 {
 	if((not isOpen()) or (not m_session) or (Session::S_OPEN != m_session->m_state))

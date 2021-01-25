@@ -54,7 +54,10 @@ static std::shared_ptr<SendFlow> openFlow(const std::shared_ptr<RTMFP> &rtmfp, c
 		printf("became writable!\n");
 
 		for(int count = 0; count < 60; count++)
-			flow->write(buf, sizeof(buf), 13)->onFinished = [count, pri] (bool abn) { printf("onFinished %d:%d (%d)\n", pri, count, abn); fflush(stdout); };
+			flow->write(buf, sizeof(buf), 13)->onFinished = [count, pri, flow] (bool abn) {
+				printf("onFinished %d:%d (%d) adv:%lu inflight:%lu\n", pri, count, abn, (unsigned long)flow->getRecvBufferBytesAvailable(), (unsigned long)flow->getOutstandingBytes());
+				fflush(stdout);
+			};
 		flow->close();
 		return false;
 	};

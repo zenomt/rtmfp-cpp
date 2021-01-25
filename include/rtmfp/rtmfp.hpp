@@ -229,6 +229,8 @@ public:
 	void setBufferCapacity(size_t bufferLengthInBytes); // Advisory maximum size of the send buffer.
 	size_t getBufferCapacity() const;
 	size_t getBufferedSize() const; // How many bytes (including overhead) are in the send buffer.
+	size_t getRecvBufferBytesAvailable() const; // Latest buffer advertised by the receiver §3.6.3.5.
+	size_t getOutstandingBytes() const; // Count of unacknowledged bytes in the network §3.5.
 
 	// Queue new data for transmission. Note the buffer capacity is advisory and writes are limited by
 	// available system memory. Writes are not allowed if the flow isn't open and bound to an S_OPEN session.
@@ -263,7 +265,7 @@ protected:
 	SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const RecvFlow *assoc, Priority pri);
 	~SendFlow();
 
-	std::shared_ptr<WriteReceipt> basicWrite(const void *message, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin);
 	void onSessionDidOpen(std::shared_ptr<SendFlow> myself, std::shared_ptr<Session> session);
 	void onSessionWillOpen(std::shared_ptr<Session> session);
 	void onSessionDidClose(std::shared_ptr<Session> session);
