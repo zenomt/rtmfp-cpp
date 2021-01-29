@@ -32,12 +32,14 @@ testaddress: testaddress.o $(LIBRARY)
 testplatform: testplatform.o $(LIBRARY)
 	$(CXX) -o $@ $+ -lpthread
 
+testclient.o: testclient.cpp addrlist.hpp
 testclient: testclient.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
 server: server.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
+t2.o: t2.cpp addrlist.hpp
 t2: t2.o $(LIBRARY)
 	$(CXX) -o $@ $+
 

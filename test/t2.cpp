@@ -8,6 +8,8 @@
 #include "rtmfp/PlainCryptoAdapter.hpp"
 #include "rtmfp/SelectRunLoop.hpp"
 
+#include "addrlist.hpp"
+
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
 
@@ -15,7 +17,7 @@ static int usage(const char *name, const char *message = nullptr)
 {
 	if(message)
 		printf("%s\n", message);
-	printf("usage: %s [-4] [-p port] [-n name] dstname dstport\n", name);
+	printf("usage: %s [-4] [-p port] [-n name] dstname dstaddr port [dstaddr port ...]\n", name);
 	return 1;
 }
 
@@ -52,7 +54,6 @@ int main(int argc, char *argv[])
 	int family = AF_INET6;
 	const char *name = argv[0];
 	const char *dstName;
-	int dstPort;
 	int ch;
 
 	srand(time(nullptr));
@@ -76,11 +77,13 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(argc - optind < 2)
-		return usage(argv[0], "specify dstname and dstport");
+	if(argc - optind < 3)
+		return usage(argv[0], "specify dstname and at least one destaddr port");
 
-	dstName = argv[optind];
-	dstPort = atoi(argv[optind + 1]);
+	dstName = argv[optind++];
+	std::vector<Address> dstAddrs;
+	if(not addrlist_parse(argc, argv, optind, false, dstAddrs))
+		return 1;
 
 	SelectRunLoop rl;
 
@@ -100,14 +103,9 @@ int main(int argc, char *argv[])
 	assert(addr);
 	printf("got port %d\n", addr->getPort());
 
-	uint8_t dst_ip[] = { 127, 0, 0, 1 };
-	Address dst;
-	dst.setIPAddress(dst_ip, sizeof(dst_ip));
-	dst.setPort(dstPort);
-	
-	openFlow(instance, dstName, PRI_ROUTINE)->addCandidateAddress(dst);
+	auto flow = openFlow(instance, dstName, PRI_ROUTINE);
+	add_candidates(flow, dstAddrs);
 
-	// rl.scheduleRel(Timer::makeAction([] (Time now) { printf("fire %Lf\n", now); }), 0, 1);
 	rl.scheduleRel(Timer::makeAction([instance] { printf("shutting down\n"); instance->shutdown(true); }), 30, 0);
 	rl.run();
 

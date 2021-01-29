@@ -21,9 +21,30 @@ static void _printHex(const uint8_t *buf, size_t len, bool nl=true)
 static void _printAddress(const Address& addr)
 {
 	uint8_t buf[Address::MAX_ENCODED_SIZE];
+	char presentation[Address::MAX_PRESENTATION_LENGTH];
+	addr.toPresentation(presentation, false);
+	printf("%s ", presentation);
+	addr.toPresentation(presentation);
+	printf("%s ", presentation);
 	size_t len = addr.encode(buf);
 	printf("(%lu) ", (unsigned long)len);
 	_printHex(buf, len);
+}
+
+static void _testAddress(const char *src, bool withPort, bool shouldWork)
+{
+	Address addr;
+	printf("testAddress %s %s-port expect-%s", src, withPort ? "with" : "sans", shouldWork ? "pass" : "fail");
+	bool result = addr.setFromPresentation(src, withPort);
+	printf(" did-%s\n", result ? "pass" : "fail");
+
+	assert(result == shouldWork);
+	if(not result)
+		return;
+
+	char presentation[Address::MAX_PRESENTATION_LENGTH];
+	addr.toPresentation(presentation, withPort);
+	printf("  parsed and back: %s\n", presentation);
 }
 
 int main(int argc, char *argv[])
@@ -122,6 +143,29 @@ int main(int argc, char *argv[])
 
 	a2.setPort(a4.getPort() - 1);
 	assert(a2 < a4);
+
+	_testAddress("2001:470:8192::2", false, true);
+	_testAddress("[2001:470:8192::2]", false, true);
+	_testAddress("[::127.0.0.1]", false, true);
+	_testAddress("[ffff:ffff:FFFF:ffff:ffff:ffff:255.255.255.255]", false, true);
+	_testAddress("10.10.10.255", false, true);
+
+	_testAddress("::gh2", false, false);
+	_testAddress("1.2.3.4:5678", false, false);
+	_testAddress("not an ip address", false, false);
+
+	_testAddress("10.1.1.1:12345", true, true);
+	_testAddress("[10.1.2.3]:12345", true, true);
+	_testAddress("[::]:54321", true, true);
+	_testAddress("[2001::1]:12345", true, true);
+	_testAddress("[ffff:ffff:FFFF:ffff:ffff:ffff:255.255.255.255]:55555", true, true);
+
+	_testAddress("[::]", true, false);
+	_testAddress("10.1.1.11", true, false);
+	_testAddress("not an ip address", true, false);
+	_testAddress(":1234", true, false);
+	_testAddress("::1234", true, false);
+	_testAddress("::12345", true, false);
 
 	return 0;
 }

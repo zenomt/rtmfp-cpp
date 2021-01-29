@@ -67,6 +67,11 @@ public:
 	bool operator< (const Address &rhs) const;
 	bool operator== (const Address &rhs) const;
 
+	// [ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]:65535
+	static const size_t MAX_PRESENTATION_LENGTH = 54; // including terminator
+	void toPresentation(char *dst, bool withPort = true) const; // dst at least MAX_PRESENTATION_LENGTH bytes
+	bool setFromPresentation(const char *src, bool withPort = true);
+
 protected:
 	union in_sockaddr m_addr;
 	Origin            m_origin;

@@ -3,6 +3,8 @@
 
 #include "../include/rtmfp/Address.hpp"
 
+#include <arpa/inet.h>
+#include <cstdio>
 #include <cstring>
 
 namespace com { namespace zenomt { namespace rtmfp {
@@ -285,6 +287,71 @@ bool Address::operator== (const Address &rhs) const
 	      && (0 == memcmp(getIPAddressPtr(), rhs.getIPAddressPtr(), getIPAddressLength()))
 	      && (getPort() == rhs.getPort())
 	);
+}
+
+void Address::toPresentation(char *dst, bool withPort) const
+{
+	char buf[INET6_ADDRSTRLEN]; // big enough for INET too
+
+	*dst = 0; // just in case
+
+	if(not inet_ntop(getFamily(), getIPAddressPtr(), buf, sizeof(buf)))
+		return;
+
+	if(not withPort)
+		snprintf(dst, MAX_PRESENTATION_LENGTH, "%s", buf);
+	else
+	{
+		if(AF_INET == getFamily())
+			snprintf(dst, MAX_PRESENTATION_LENGTH, "%s:%d", buf, getPort());
+		else
+			snprintf(dst, MAX_PRESENTATION_LENGTH, "[%s]:%d", buf, getPort());
+	}
+}
+
+static size_t _count_colons(const char *src)
+{
+	size_t rv = 0;
+	char ch;
+	while((ch = *src++))
+		if(':' == ch)
+			rv++;
+	return rv;
+}
+
+bool Address::setFromPresentation(const char *src, bool withPort)
+{
+	char ip[INET6_ADDRSTRLEN]; // INET6_ADDRSTRLEN is 46
+	int port = 0;
+	int family = _count_colons(src) > 1 ? AF_INET6 : AF_INET;
+
+	if(withPort)
+	{
+		if(2 != sscanf(src, "[%45[0-9a-fA-F:.]]:%d", ip, &port))
+		{
+			if(AF_INET6 == family)
+				return false;
+
+			if(2 != sscanf(src, "%45[0-9.]:%d", ip, &port))
+				return false;
+		}
+	}
+	else
+	{
+		if((1 != sscanf(src, "[%45[^]]]", ip)) and (1 != sscanf(src, "%45s", ip)))
+			return false;
+	}
+
+	uint8_t ipaddr[16]; // big enough for IPv6
+	if(inet_pton(family, ip, ipaddr) < 1)
+		return false;
+
+	setIPAddress(ipaddr, AF_INET6 == family ? 16 : 4);
+
+	if(withPort)
+		setPort(port);
+
+	return true;
 }
 
 } } } // namespace com::zenomt::rtmfp
