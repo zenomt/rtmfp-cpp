@@ -1,12 +1,12 @@
-namespace com { namespace zenomt { namespace rtmfp { namespace {
+namespace {
 
-bool addrlist_parse(int argc, char * const *argv, int start_at, bool combined, std::vector<Address> &dst)
+bool addrlist_parse(int argc, char * const *argv, int start_at, bool combined, std::vector<com::zenomt::rtmfp::Address> &dst)
 {
 	int parts = combined ? 1 : 2;
 
 	while(start_at < argc - parts + 1)
 	{
-		Address each;
+		com::zenomt::rtmfp::Address each;
 		if(not each.setFromPresentation(argv[start_at], combined))
 		{
 			printf("can't parse address: %s\n", argv[start_at]);
@@ -21,10 +21,10 @@ bool addrlist_parse(int argc, char * const *argv, int start_at, bool combined, s
 	return true;
 }
 
-void add_candidates(std::shared_ptr<SendFlow> flow, std::vector<Address> &addrs)
+void add_candidates(std::shared_ptr<com::zenomt::rtmfp::SendFlow> flow, std::vector<com::zenomt::rtmfp::Address> &addrs)
 {
 	for(auto it = addrs.begin(); it != addrs.end(); it++)
 		flow->addCandidateAddress(*it, 0);
 }
 
-} } } }
+} // anonymous namespace

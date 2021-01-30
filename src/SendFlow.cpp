@@ -43,6 +43,7 @@ SendFlow::SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const 
 	m_flow_id(-1),
 	m_epd(epd),
 	m_writablePending(false),
+	m_trimPending(false),
 	m_shouldNotifyWhenWritable(false),
 	m_priority(pri),
 	m_buffer_capacity(INITIAL_SEND_BUFFER),
@@ -185,7 +186,8 @@ void SendFlow::setPriority(Priority pri)
 
 std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin)
 {
-	auto rv = share_ref(new WriteReceipt(m_rtmfp->getCurrentTime(), startWithin, finishWithin), false);
+	Time now = m_rtmfp->getCurrentTime();
+	auto rv = share_ref(new WriteReceipt(now, startWithin, finishWithin), false);
 
 	const uint8_t *cursor = (const uint8_t *)message;
 	size_t remaining = len;
@@ -219,6 +221,7 @@ std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t l
 	} while(remaining);
 
 	scheduleForTransmission();
+	scheduleTrimSendQueue(); // keep buffer under control if we never get scheduled for transmit
 
 	return rv;
 }
@@ -326,6 +329,18 @@ void SendFlow::trimSendQueue(Time now)
 
 	if(anyTrimmed)
 		queueWritableNotify();
+
+	m_trimPending = false;
+}
+
+void SendFlow::scheduleTrimSendQueue()
+{
+	if(not m_trimPending)
+	{
+		auto myself = share_ref(this);
+		m_rtmfp->m_platform->perform(0, [myself] { myself->trimSendQueue(myself->m_rtmfp->getCurrentTime()); });
+		m_trimPending = true;
+	}
 }
 
 uintmax_t SendFlow::findForwardSequenceNumber(Time now)

@@ -24,8 +24,11 @@ static int usage(const char *name, const char *message = nullptr)
 static std::shared_ptr<SendFlow> openFlow(const std::shared_ptr<RTMFP> &rtmfp, const char *dst, Priority pri)
 {
 	auto flow = rtmfp->openFlow(dst, strlen(dst), "metadata", 8, pri);
+	flow->setBufferCapacity(1*1024*1024);
 	int count = 0;
-	flow->onWritable = [flow, pri, count, &rtmfp] () mutable {
+	Time lastUpdate = -1;
+	flow->onWritable = [flow, pri, count, lastUpdate, &rtmfp] () mutable {
+
 		uint8_t buf[16384] = { 0 };
 
 		count++;
@@ -36,8 +39,16 @@ static std::shared_ptr<SendFlow> openFlow(const std::shared_ptr<RTMFP> &rtmfp, c
 		}
 		auto receipt = flow->write(buf, sizeof(buf), 13);
 
-		if(0 == count % 10000)
-			receipt->onFinished = [count, pri, &rtmfp] (bool abn) { printf("onFinished %d:%d (%d) @%Lf\n", pri, count, abn, rtmfp->getInstanceAge()); fflush(stdout); };
+		Time now = rtmfp->getInstanceAge();
+		if((0 == count % 10000) or (now - lastUpdate >= 1.0))
+		{
+			lastUpdate = now;
+			printf("queuing %d:%d at %Lf cwnd:%lu outdanding:%lu buffered:%lu\n", pri, count, now, flow->getCongestionWindow(), flow->getOutstandingBytes(), flow->getBufferedSize());
+			receipt->onFinished = [count, pri, flow, &rtmfp] (bool abn) {
+				printf("onFinished %d:%d (%d) @%Lf cwnd:%lu outstanding:%lu buffered:%lu\n", pri, count, abn, rtmfp->getInstanceAge(), flow->getCongestionWindow(), flow->getOutstandingBytes(), flow->getBufferedSize());
+				fflush(stdout);
+			};
+		}
 
 		return true;
 	};
@@ -106,7 +117,7 @@ int main(int argc, char *argv[])
 	auto flow = openFlow(instance, dstName, PRI_ROUTINE);
 	add_candidates(flow, dstAddrs);
 
-	rl.scheduleRel(Timer::makeAction([instance] { printf("shutting down\n"); instance->shutdown(true); }), 30, 0);
+	rl.scheduleRel(Timer::makeAction([instance] { printf("shutting down\n"); instance->shutdown(true); }), 60, 0);
 	rl.run();
 
 	platform.close();

@@ -71,6 +71,12 @@ Time Flow::getSRTT() const
 	return m_session ? m_session->m_srtt : INFINITY;
 }
 
+Time Flow::getSafeSRTT() const
+{
+	Time srtt = getSRTT();
+	return srtt >= 0.0 ? srtt : SAFE_RTT;
+}
+
 Time Flow::getRTTVariance() const
 {
 	return m_session ? m_session->m_rttvar : INFINITY;

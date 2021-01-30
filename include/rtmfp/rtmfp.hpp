@@ -186,6 +186,7 @@ public:
 	Bytes   getFarCanonicalEPD()  const; // §3.2
 	Address getFarAddress()       const; // §3.5 DESTADDR. Is there any need for the interface ID?
 	Time    getSRTT()             const; // Smoothed round-trip time per §3.5.2.2.
+	Time    getSafeSRTT()         const; // Returns a default value if no RTT measurement has been made yet.
 	Time    getRTTVariance()      const; // Round-trip time variance §3.5.2.2.
 	size_t  getCongestionWindow() const;
 
@@ -274,6 +275,7 @@ protected:
 	void scheduleForTransmission();
 	bool isMaybeReadyForTransmission();
 	void trimSendQueue(Time now);
+	void scheduleTrimSendQueue();
 	uintmax_t findForwardSequenceNumber(Time now);
 	bool assembleData(PacketAssembler *packet, int pri);
 	void ackRange(long &name, uintmax_t ackFrom, uintmax_t ackTo);
@@ -289,6 +291,7 @@ protected:
 	long      m_flow_id;
 	Bytes     m_epd;
 	bool      m_writablePending;
+	bool      m_trimPending;
 	bool      m_shouldNotifyWhenWritable;
 	Bytes     m_startup_options;
 	Priority  m_priority;
