@@ -128,7 +128,6 @@ To Do
 * CMakeLists.txt
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
-* Timeout vs ping/reply race(?)
 
   [RFC 7016]: https://tools.ietf.org/html/rfc7016
   [RFC 7425]: https://tools.ietf.org/html/rfc7425

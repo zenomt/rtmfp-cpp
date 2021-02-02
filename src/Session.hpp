@@ -108,11 +108,11 @@ public:
 	bool sendAcks(PacketAssembler *packet, bool obligatory);
 	void sendPacket(const Bytes &chunks);
 	void scheduleFlowForTransmission(const std::shared_ptr<SendFlow> &flow, Priority pri);
-	bool isSendAllowed() const;
 	void rescheduleTimeoutAlarm();
 	void onTimeoutAlarm();
 	void rescheduleTransmission();
 	void updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any_naks);
+	void scheduleBurstAlarm();
 
 	static void onRHello(std::shared_ptr<Session> myself, const uint8_t *cookie, size_t cookieLen, const uint8_t *cert, size_t certLen, int interfaceID, const struct sockaddr *addr);
 	void onCookieChange(const uint8_t *oldCookie, size_t oldCookieLen, const uint8_t *newCookie, size_t newCookieLen, int interfaceID, const struct sockaddr *addr);
@@ -180,6 +180,7 @@ public:
 	bool      m_ack_now;
 	std::shared_ptr<Timer> m_delack_alarm;
 	std::shared_ptr<Timer> m_timeout_alarm;
+	std::shared_ptr<Timer> m_burst_alarm;
 	long      m_ts_tx;
 	long      m_ts_echo_rx;
 	Time      m_srtt;

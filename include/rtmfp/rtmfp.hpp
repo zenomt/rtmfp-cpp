@@ -246,7 +246,7 @@ public:
 	void setPriority(Priority pri);
 
 	// Called after notifyWhenWritable() while the flow is writable (open, in an S_OPEN session,
-	// and getBufferedSize() < getBufferCapacity() and while this function answers true. Answer
+	// and getBufferedSize() < getBufferCapacity()) and while this function answers true. Answer
 	// false to stop being called until after the next call to notifyWhenWritable().
 	std::function<bool(void)> onWritable;
 

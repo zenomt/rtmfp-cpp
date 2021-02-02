@@ -370,6 +370,9 @@ Session::~Session()
 
 	if(m_idle_timer)
 		m_idle_timer->cancel();
+
+	if(m_burst_alarm)
+		m_burst_alarm->cancel();
 }
 
 void Session::initiateToEPD(std::shared_ptr<Session> myself, const Bytes &epd)
@@ -476,6 +479,10 @@ void Session::abortFlowsAndTimers()
 	if(m_idle_timer)
 		m_idle_timer->cancel();
 	m_idle_timer.reset();
+
+	if(m_burst_alarm)
+		m_burst_alarm->cancel();
+	m_burst_alarm.reset();
 
 	auto myself = share_ref(this);
 	while(not m_sendFlows.empty())
@@ -916,11 +923,6 @@ void Session::scheduleFlowForTransmission(const std::shared_ptr<SendFlow> &flow,
 	}
 }
 
-bool Session::isSendAllowed() const
-{
-	return (m_cwnd > m_outstandingFrags.sum()) and (m_data_packet_count < MAX_DATA_PACKET_BURST);
-}
-
 void Session::rescheduleTimeoutAlarm()
 {
 	if(m_timeout_alarm)
@@ -1060,6 +1062,16 @@ void Session::updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any
 	}
 	else if(m_cwnd > m_pre_ack_outstanding + CWND_DECAY_MARGIN)
 		m_cwnd -= CWND_DECAY_SIZE;
+}
+
+void Session::scheduleBurstAlarm()
+{
+	m_burst_alarm = m_rtmfp->scheduleRel(DATA_PACKET_BURST_PERIOD);
+	m_burst_alarm->action = [this] (const std::shared_ptr<Timer> &sender, Time now) {
+		m_burst_alarm.reset();
+		m_data_packet_count = 0;
+		rescheduleTransmission();
+	};
 }
 
 namespace {
@@ -1323,19 +1335,27 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 	size_t startingSize = packet.remaining();
 
 	bool sentObligatoryAcks = sendAcks(&packet, true);
-	if((not sentObligatoryAcks) and isSendAllowed())
+	if((not sentObligatoryAcks) and (m_cwnd > m_outstandingFrags.sum()))
 	{
-		List<std::shared_ptr<SendFlow> > &flows = m_readyFlows[priority];
-		while(not flows.empty())
+		if(m_data_packet_count < MAX_DATA_PACKET_BURST)
 		{
-			if(flows.firstValue()->assembleData(&packet, priority))
+			List<std::shared_ptr<SendFlow> > &flows = m_readyFlows[priority];
+			while(not flows.empty())
 			{
-				flows.moveNameToTail(flows.first());
-				m_data_packet_count++;
-				break;
+				if(flows.firstValue()->assembleData(&packet, priority))
+				{
+					flows.moveNameToTail(flows.first());
+					m_data_packet_count++;
+					break;
+				}
+				else
+					flows.removeFirst();
 			}
-			else
-				flows.removeFirst();
+		}
+		else
+		{
+			if((m_srtt > BURST_RTT_THRESH) and not m_burst_alarm)
+				scheduleBurstAlarm();
 		}
 	}
 
@@ -1521,6 +1541,9 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 		size_t acked_bytes_this_packet = m_pre_ack_outstanding - m_outstandingFrags.sum();
 
 		m_data_packet_count = 0;
+		if(m_burst_alarm)
+			m_burst_alarm->cancel();
+		m_burst_alarm.reset();
 
 		// Negative Acknowledgement
 		bool any_loss = false;
