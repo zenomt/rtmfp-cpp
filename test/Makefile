@@ -6,7 +6,7 @@ LIBRARY = ../librtmfp.a
 
 default: all
 all: tests server testclient t2
-tests: tis testperform testchecksums testlist testvlu testaddress testplatform
+tests: tis testperform testchecksums testlist testvlu testaddress testplatform testhex
 
 $(LIBRARY):
 	@cd .. && $(MAKE)
@@ -32,6 +32,9 @@ testaddress: testaddress.o $(LIBRARY)
 testplatform: testplatform.o $(LIBRARY)
 	$(CXX) -o $@ $+ -lpthread
 
+testhex: testhex.o $(LIBRARY)
+	$(CXX) -o $@ $+
+
 testclient.o: testclient.cpp addrlist.hpp
 testclient: testclient.o $(LIBRARY)
 	$(CXX) -o $@ $+
@@ -51,6 +54,7 @@ ci: tests
 	./testlist
 	./testvlu
 	./testaddress
+	./testhex
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testplatform testclient server t2
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testplatform testclient server t2 testhex

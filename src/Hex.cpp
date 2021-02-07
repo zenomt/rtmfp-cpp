@@ -64,4 +64,79 @@ void Hex::dump(const char *msg, const void *bytes, size_t len, bool nl)
 	dump(msg, bytes, (const uint8_t *)bytes + len, nl);
 }
 
+std::string Hex::encode(const void *bytes, size_t len)
+{
+	return encode(bytes, ((const uint8_t *)bytes) + len);
+}
+
+static char _digits[] = "0123456789abcdef";
+
+std::string Hex::encode(const void *bytes_, const void *limit_)
+{
+	const uint8_t *bytes = (const uint8_t *)bytes_;
+	const uint8_t *limit = (const uint8_t *)limit_;
+	std::string rv;
+
+	while(bytes < limit)
+	{
+		uint8_t b = *bytes;
+		rv.push_back(_digits[b >> 4]);
+		rv.push_back(_digits[b & 0x0f]);
+		bytes++;
+	}
+
+	return rv;
+}
+
+static int _xdigitToInt(char d)
+{
+	if((d >= '0') and (d <= '9'))
+		return d - '0';
+	if((d >= 'a') and (d <= 'f'))
+		return d - 'a' + 0x0a;
+	if((d >= 'A') and (d <= 'F'))
+		return d - 'A' + 0x0a;
+	if(isspace(d))
+		return -1;
+	return -2;
+}
+
+bool Hex::decode(const char *hex, std::vector<uint8_t> &dst)
+{
+	const char *cursor = hex;
+	char d;
+	uint8_t val = 0;
+	bool onFirstDigit = true;
+	size_t originalSize = dst.size();
+
+	while((d = *cursor++))
+	{
+		int digit = _xdigitToInt(d);
+		if(digit < 0)
+		{
+			if((digit < -1) or not onFirstDigit)
+				goto fail;
+			continue;
+		}
+
+		val <<= 4;
+		val += digit;
+
+		if(not onFirstDigit)
+		{
+			dst.push_back(val);
+			val = 0;
+		}
+
+		onFirstDigit = not onFirstDigit;
+	}
+
+	if(onFirstDigit)
+		return true;
+
+fail:
+	dst.resize(originalSize);
+	return false;
+}
+
 } } // namespace com::zenomt

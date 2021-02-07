@@ -53,7 +53,7 @@ Bytes Flow::getFarNonce() const
 
 Bytes Flow::getFarCertificate() const
 {
-	return m_session ? m_session->m_rawCertificate : Bytes();
+	return (m_session and m_session->m_cryptoCert) ? m_session->m_cryptoCert->encode() : Bytes();
 }
 
 Bytes Flow::getFarCanonicalEPD() const

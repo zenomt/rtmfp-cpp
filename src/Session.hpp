@@ -148,7 +148,6 @@ public:
 	Bytes    m_resp_cookie;
 	Bytes    m_skrc;
 	Bytes    m_rikeying;
-	Bytes    m_rawCertificate;
 	Bytes    m_epd;
 	Bytes    m_tag;
 	Bytes    m_ihello;

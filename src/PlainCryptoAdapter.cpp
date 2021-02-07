@@ -12,9 +12,9 @@ namespace com { namespace zenomt { namespace rtmfp {
 
 namespace {
 
-std::vector<uint8_t> u16_bytes(uint16_t n)
+Bytes u16_bytes(uint16_t n)
 {
-	std::vector<uint8_t> rv;
+	Bytes rv;
 	rv.push_back(n >> 8);
 	rv.push_back(n & 0xff);
 	return rv;
@@ -73,17 +73,17 @@ public:
 		return true;
 	}
 
-	std::vector<uint8_t> getNearNonce() override
+	Bytes getNearNonce() override
 	{
 		return u16_bytes(m_rxSalt);
 	}
 
-	std::vector<uint8_t> getFarNonce() override
+	Bytes getFarNonce() override
 	{
 		return u16_bytes(m_txSalt);
 	}
 
-	bool generateInitiatorKeyingComponent(std::shared_ptr<CryptoCert> responder, std::vector<uint8_t> *outComponent) override
+	bool generateInitiatorKeyingComponent(std::shared_ptr<CryptoCert> responder, Bytes *outComponent) override
 	{
 		*outComponent = u16_bytes(m_rxSalt);
 		return true;
@@ -98,7 +98,7 @@ public:
 		return true;
 	}
 
-	bool generateResponderKeyingComponent(std::shared_ptr<CryptoCert> initiator, const uint8_t *initiatorComponent, size_t len, std::vector<uint8_t> *outComponent) override
+	bool generateResponderKeyingComponent(std::shared_ptr<CryptoCert> initiator, const uint8_t *initiatorComponent, size_t len, Bytes *outComponent) override
 	{
 		if(len < 2)
 			return false;
@@ -129,7 +129,7 @@ public:
 		return (len == m_identity.size()) and (0 == memcmp(bytes, m_identity.data(), len));
 	}
 
-	std::vector<uint8_t> getCanonicalEPD() override
+	Bytes getCanonicalEPD() override
 	{
 		return m_identity;
 	}
@@ -145,7 +145,12 @@ public:
 		return m_identity == other->m_identity;
 	}
 
-	std::vector<uint8_t> m_identity;
+	Bytes encode() override
+	{
+		return m_identity;
+	}
+
+	Bytes m_identity;
 };
 
 } // anonymous namespace
@@ -153,7 +158,7 @@ public:
 PlainCryptoAdapter::PlainCryptoAdapter(const char *identity)
 {
 	const uint8_t *bytes = (uint8_t *)identity;
-	m_identity = std::vector<uint8_t>(bytes, bytes + strlen(identity));
+	m_identity = Bytes(bytes, bytes + strlen(identity));
 }
 
 std::shared_ptr<SessionCryptoKey> PlainCryptoAdapter::getKeyForNewSession()
@@ -161,7 +166,7 @@ std::shared_ptr<SessionCryptoKey> PlainCryptoAdapter::getKeyForNewSession()
 	return share_ref(new PlainCryptoKey(), false);
 }
 
-std::vector<uint8_t> PlainCryptoAdapter::getNearEncodedCertForEPD(const uint8_t *epd, size_t epdLen)
+Bytes PlainCryptoAdapter::getNearEncodedCertForEPD(const uint8_t *epd, size_t epdLen)
 {
 	return m_identity;
 }
@@ -171,9 +176,9 @@ bool PlainCryptoAdapter::isSelectedByEPD(const uint8_t *bytes, size_t len)
 	return (len == m_identity.size()) and (0 == memcmp(bytes, m_identity.data(), len));
 }
 
-std::vector<uint8_t> PlainCryptoAdapter::sign(const uint8_t *msg, size_t msgLen, std::shared_ptr<CryptoCert> recipient)
+Bytes PlainCryptoAdapter::sign(const uint8_t *msg, size_t msgLen, std::shared_ptr<CryptoCert> recipient)
 {
-	return std::vector<uint8_t>(1, 'X');
+	return Bytes(1, 'X');
 }
 
 bool PlainCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> far)

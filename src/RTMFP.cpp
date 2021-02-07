@@ -545,7 +545,6 @@ struct IIKeyingState {
 		m_threadNum(threadNum),
 		m_isid(initiatorSessionID),
 		m_cookie(cookie, cookie + cookieLen),
-		m_rawCert(cert, cert + certLen),
 		m_skic(skic, skic + skicLen),
 		m_signedParams(signedParams, signedParams + signedParamsLen),
 		m_isignature(sig, sig + sigLen),
@@ -557,7 +556,6 @@ struct IIKeyingState {
 	unsigned long m_threadNum;
 	uint32_t m_isid;
 	Bytes m_cookie;
-	Bytes m_rawCert;
 	Bytes m_skic;
 	Bytes m_signedParams;
 	Bytes m_isignature;
@@ -649,7 +647,6 @@ void RTMFP::onIIKeying(uint32_t initiatorSessionID, const uint8_t *cookie, size_
 					auto session = myself->makeSession(state->m_key, HEADER_MODE_RESPONDER);
 
 					session->m_skic = state->m_skic;
-					session->m_rawCertificate = state->m_rawCert;
 					session->m_destInterfaceID = state->m_interfaceID;
 					session->m_destAddr = state->m_addr;
 					session->m_cryptoCert = state->m_cryptoCert;

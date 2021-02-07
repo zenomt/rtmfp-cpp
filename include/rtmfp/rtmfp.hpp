@@ -542,6 +542,9 @@ public:
 
 	// Answer true if other overrides a session with this certificate §3.2.
 	virtual bool doesCertOverrideSession(std::shared_ptr<CryptoCert> other) = 0;
+
+	// Answer the raw encoded certificate (implies the object must keep a copy of it).
+	virtual Bytes encode() = 0;
 };
 
 } } } // namespace com::zenomt::rtmfp

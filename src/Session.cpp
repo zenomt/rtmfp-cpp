@@ -1080,7 +1080,6 @@ struct InitiatorState {
 	InitiatorState(unsigned long threadNum, const uint8_t *cookie, size_t cookieLen, const uint8_t *cert, size_t certLen, std::shared_ptr<CryptoCert> cryptoCert, int interfaceID, const struct sockaddr *addr) :
 		m_threadNum(threadNum),
 		m_cryptoCert(cryptoCert),
-		m_rawCertificate(cert, cert + certLen),
 		m_cookie(cookie, cookie + cookieLen),
 		m_interfaceID(interfaceID),
 		m_addr(addr)
@@ -1088,7 +1087,6 @@ struct InitiatorState {
 
 	unsigned long m_threadNum;
 	std::shared_ptr<CryptoCert> m_cryptoCert;
-	Bytes   m_rawCertificate;
 	Bytes   m_cookie;
 	Bytes   m_canonicalEPD;
 	Bytes   m_skic;
@@ -1134,7 +1132,6 @@ void Session::onRHello(std::shared_ptr<Session> myself, const uint8_t *cookie, s
 			myself->m_destAddr = state->m_addr;
 			myself->m_resp_cookie = state->m_cookie;
 			myself->m_cryptoCert = state->m_cryptoCert;
-			myself->m_rawCertificate = state->m_rawCertificate;
 
 			myself->m_rtmfp->m_platform->perform(state->m_threadNum, [myself, state] {
 				if( (not myself->m_cryptoKey->generateInitiatorKeyingComponent(state->m_cryptoCert, &state->m_skic))
