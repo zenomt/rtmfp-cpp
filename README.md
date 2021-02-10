@@ -81,7 +81,7 @@ The library provides two example platform adapters that run in
 [`RunLoop`](include/rtmfp/RunLoop.hpp)s:
 [`PosixPlatformAdapter`](include/rtmfp/PosixPlatformAdapter.hpp) for pure
 single-threaded applications, and
-[`PerformerPosixPlatformAdapter`](include/rtmfp/PerformerPosixPlatformAdapter) to
+[`PerformerPosixPlatformAdapter`](include/rtmfp/PerformerPosixPlatformAdapter.hpp) to
 allow for offloading CPU-intensive public-key cryptography to a worker thread.
 These platform adapters should be suitable for many applications and should
 serve as examples of how to write single-threaded and multi-threaded platform

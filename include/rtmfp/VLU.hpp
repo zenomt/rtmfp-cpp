@@ -25,6 +25,7 @@ class Option {
 public:
 	static size_t parse(const uint8_t *src, const uint8_t *limit, uintmax_t *type_, const uint8_t **value, size_t *valueLen);
 	static void   append(uintmax_t type_, const void *value, size_t valueLen, std::vector<uint8_t> &dst);
+	static void   append(uintmax_t type_, const std::vector<uint8_t> &value, std::vector<uint8_t> &dst);
 	static void   append(uintmax_t type_, uintmax_t value, std::vector<uint8_t> &dst);
 	static void   append(uintmax_t type_, std::vector<uint8_t> &dst);
 	static void   append(std::vector<uint8_t> &dst);

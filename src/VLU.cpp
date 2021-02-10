@@ -133,6 +133,11 @@ void Option::append(uintmax_t type_, const void *value_, size_t valueLen, std::v
 	dst.insert(dst.end(), value, value + valueLen);
 }
 
+void Option::append(uintmax_t type_, const std::vector<uint8_t> &value, std::vector<uint8_t> &dst)
+{
+	append(type_, value.data(), value.size(), dst);
+}
+
 void Option::append(uintmax_t type_, uintmax_t value, std::vector<uint8_t> &dst)
 {
 	uint8_t valueVLU[VLU::MAX_VLU_SIZE];

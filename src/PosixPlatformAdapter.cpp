@@ -97,6 +97,9 @@ void PosixPlatformAdapter::close()
 		::close(fd);
 		m_interfaces.remove(name);
 	}
+
+	if(m_rtmfpAlarm)
+		m_rtmfpAlarm->cancel();
 }
 
 Time PosixPlatformAdapter::getCurrentTime()
