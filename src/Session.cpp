@@ -335,6 +335,7 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_cwnd(CWND_INIT),
 	m_ssthresh(SIZE_MAX),
 	m_acked_bytes_accumulator(0),
+	m_recovery_remaining(0),
 	m_pre_ack_outstanding(0),
 	m_any_acks(false),
 	m_tc_sent_time(-INFINITY),
@@ -943,6 +944,7 @@ void Session::onTimeoutAlarm()
 	m_data_packet_count = 0;
 	m_ssthresh = std::max(m_ssthresh, (m_cwnd * 3) / 4); // RFC 7016 §A.2
 	m_acked_bytes_accumulator = 0;
+	m_recovery_remaining = 0;
 
 	if(S_OPEN != m_state)
 		return;
@@ -998,12 +1000,21 @@ static inline size_t MAX(size_t l, size_t r)
 	return l > r ? l : r;
 }
 
-// implement CWND algorithm described in RFC 7016 Appendix A (page 112)
-void Session::updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any_naks)
+// implement CWND algorithm described in RFC 7016 Appendix A (page 112), with modifications
+void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_packet, bool any_loss, bool any_naks)
 {
 	Time now = m_rtmfp->getCurrentTime();
 	bool fastgrow_allowed = (m_tcr_recv_time + TIMECRITICAL_TIMEOUT < now) and (m_rtmfp->m_tc_sent_time + TIMECRITICAL_TIMEOUT < now);
 	bool tc_sent = m_tc_sent_time + TIMECRITICAL_TIMEOUT >= now;
+
+	size_t drained_bytes_this_packet = acked_bytes_this_packet + lost_bytes_this_packet;
+	if(m_recovery_remaining > drained_bytes_this_packet)
+	{
+		m_recovery_remaining -= drained_bytes_this_packet;
+		return;
+	}
+	else
+		m_recovery_remaining = 0;
 
 	if(any_loss)
 	{
@@ -1014,6 +1025,7 @@ void Session::updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any
 		m_ssthresh = MAX(m_ssthresh, CWND_INIT);
 		m_cwnd = m_ssthresh;
 		m_acked_bytes_accumulator = 0;
+		m_recovery_remaining = m_outstandingFrags.sum();
 	}
 	else if((not any_naks) and (m_pre_ack_outstanding > m_cwnd * 63 / 64))
 	{
@@ -1536,6 +1548,7 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 	if(m_any_acks)
 	{
 		size_t acked_bytes_this_packet = m_pre_ack_outstanding - m_outstandingFrags.sum();
+		size_t lost_bytes_this_packet = 0;
 
 		m_data_packet_count = 0;
 		if(m_burst_alarm)
@@ -1566,6 +1579,7 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 					any_loss = true;
 
 				each->m_owner->onLoss(each->m_transmit_size);
+				lost_bytes_this_packet += each->m_transmit_size;
 
 				m_outstandingFrags.remove(name);
 			}
@@ -1573,7 +1587,7 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 			name = next;
 		}
 
-		updateCWND(acked_bytes_this_packet, any_loss, any_naks);
+		updateCWND(acked_bytes_this_packet, lost_bytes_this_packet, any_loss, any_naks);
 
 		rescheduleTransmission();
 		rescheduleTimeoutAlarm();

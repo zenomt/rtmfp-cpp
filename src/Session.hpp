@@ -111,7 +111,7 @@ public:
 	void rescheduleTimeoutAlarm();
 	void onTimeoutAlarm();
 	void rescheduleTransmission();
-	void updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any_naks);
+	void updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_packet, bool any_loss, bool any_naks);
 	void scheduleBurstAlarm();
 
 	static void onRHello(std::shared_ptr<Session> myself, const uint8_t *cookie, size_t cookieLen, const uint8_t *cert, size_t certLen, int interfaceID, const struct sockaddr *addr);
@@ -188,6 +188,7 @@ public:
 	size_t    m_cwnd;
 	size_t    m_ssthresh;
 	size_t    m_acked_bytes_accumulator;
+	size_t    m_recovery_remaining;
 	size_t    m_pre_ack_outstanding;
 	bool      m_any_acks;
 	Time      m_tc_sent_time;
