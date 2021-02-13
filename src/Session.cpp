@@ -1015,7 +1015,7 @@ void Session::updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any
 		m_cwnd = m_ssthresh;
 		m_acked_bytes_accumulator = 0;
 	}
-	else if((not any_naks) and (m_pre_ack_outstanding > m_cwnd - SENDER_MSS))
+	else if((not any_naks) and (m_pre_ack_outstanding > m_cwnd * 63 / 64))
 	{
 		size_t increase = 0;
 
@@ -1047,20 +1047,20 @@ void Session::updateCWND(size_t acked_bytes_this_packet, bool any_loss, bool any
 			}
 			else
 			{
-				size_t aithresh = MIN(MAX(m_cwnd / 16, 64), tc_sent ? 2400 : 4800);
+				size_t aithresh = MIN(MAX(m_cwnd / 16, 64), 4800);
 				m_acked_bytes_accumulator += acked_bytes_this_packet;
 
 				while(m_acked_bytes_accumulator >= aithresh)
 				{
 					m_acked_bytes_accumulator -= aithresh;
-					increase += 24;
+					increase += tc_sent ? 48 : 24;
 				}
 			}
 		}
 
 		m_cwnd = MAX(m_cwnd + MIN(increase, SENDER_MSS), CWND_INIT);
 	}
-	else if(m_cwnd > m_pre_ack_outstanding + CWND_DECAY_MARGIN)
+	else if((not any_naks) and m_cwnd > m_pre_ack_outstanding + CWND_DECAY_MARGIN)
 		m_cwnd -= CWND_DECAY_SIZE;
 }
 

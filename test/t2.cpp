@@ -43,7 +43,7 @@ static std::shared_ptr<SendFlow> openFlow(const std::shared_ptr<RTMFP> &rtmfp, c
 		if((0 == count % 10000) or (now - lastUpdate >= 1.0))
 		{
 			lastUpdate = now;
-			printf("queuing %d:%d at %Lf cwnd:%lu outdanding:%lu buffered:%lu\n", pri, count, now, flow->getCongestionWindow(), flow->getOutstandingBytes(), flow->getBufferedSize());
+			printf("queuing %d:%d at %Lf cwnd:%lu outstanding:%lu buffered:%lu\n", pri, count, now, flow->getCongestionWindow(), flow->getOutstandingBytes(), flow->getBufferedSize());
 			receipt->onFinished = [count, pri, flow, &rtmfp] (bool abn) {
 				printf("onFinished %d:%d (%d) @%Lf cwnd:%lu outstanding:%lu buffered:%lu\n", pri, count, abn, rtmfp->getInstanceAge(), flow->getCongestionWindow(), flow->getOutstandingBytes(), flow->getBufferedSize());
 				fflush(stdout);
