@@ -1,7 +1,7 @@
 Secure Real-Time Media Flow Protocol Library
 ============================================
 This is a C++11 implementation of the Secure Real-Time Media Flow Protocol
-(RTMFP) as described in [RFC 7016][]. This library is currently at alpha
+(RTMFP) as described in [RFC 7016][]. This library is currently at beta
 quality and is a **WORK IN PROGRESS**. There are probably bugs still, and
 there is lots of room for optimization.  It is not currently recommended for
 use in production.
@@ -14,12 +14,6 @@ environment.
 The library is intended for clients, servers, and P2P applications. It includes
 the necessary helpers and callbacks to support P2P introduction and load
 balancing.
-
-The *Cryptography Profile* for Flash Communication described in [RFC 7425][]
-is **NOT CURRENTLY PROVIDED** in this library. It’s on the list to do. A
-[`PlainCryptoAdater`](include/rtmfp/PlainCryptoAdapter.hpp) is provided for
-testing, evaluation, and example, but it provides no encryption and it is
-therefore not suitable for use in production on the open Internet.
 
 How to Use
 ----------
@@ -73,7 +67,7 @@ are abstracted to a *Platform Adapter* provided by the host program.
 
 The *Platform Adapter* will be a concrete implementation of
 [`com::zenomt::rtmfp::IPlatformAdapter`](include/rtmfp/rtmfp.hpp), that calls
-the `RTMFP` public instance methods in its "Used by the Platform Adapter"
+the `RTMFP` public instance methods in its “Used by the Platform Adapter”
 section.  The adapter provides the current time, reading and writing to
 sockets, timing, and synchronization.
 
@@ -100,28 +94,48 @@ to enable invoking a task inside/synchronized with the run loop from any
 thread. `Performer`s are used with the `PerformPosixPlatformAdapter`.
 
 ### Cryptography Adapter
-[RFC 7016][] describes a generalized framework for securing its communications
-according to the needs of its application, and leaves cryptographic specifics
+[RFC 7016][] describes a generalized framework for securing RTMFP communication
+according to the needs of the application, and leaves cryptographic specifics
 to a *Cryptography Profile*. This library doesn’t lock its application to any
 particular cryptography profile, and is written to support many potential
 profiles. The cryptography profile is implemented by a concrete
 [`ICryptoAdapter`](include/rtmfp/rtmfp.hpp) provided to the `RTMFP` on
 instantiation.
 
-Most applications of RTMFP will use the [Flash cryptography profile described
-in RFC 7425][RFC 7425]. At this time, this library doesn’t provide an
-implementation of that profile, though one is planned. RTMFP is not limited
-to Flash platform communication.
+Most applications of RTMFP will use the
+[*Cryptography Profile for Flash Communication* described in RFC 7425][RFC 7425].
+This is provided by the [`FlashCryptoAdapter`](include/rtmfp/FlashCryptoAdapter.hpp).
+Note that this adapter is abstract and must be subclassed to provide concrete
+implementations of the required cryptographic primitives. A
+[concrete implementation](src/FlashCryptoAdapter_OpenSSL.cpp) using OpenSSL is
+provided by
+[`FlashCryptoAdapter_OpenSSL`](include/rtmfp/FlashCryptoAdapter_OpenSSL.hpp),
+which can also serve as an example for how to use other cryptography
+libraries. If you don’t have OpenSSL or you don’t want to use it, you can suppress
+building this module by defining `make` variable `WITHOUT_OPENSSL`. If your
+OpenSSL is installed outside of your compiler’s default include and linker
+search paths, you can define `make` variables `OPENSSL_INCLUDEDIR` and
+`OPENSSL_LIBDIR` with appropriate directives (see the [`Makefile`](Makefile)
+for examples).
 
-This library provides a [`PlainCryptoAdapter`](include/rtmfp/PlainCryptoAdapter.hpp)
+The OpenSSL implementation of the `FlashCryptoAdapter` implements
+[4096-bit Internet Key Exchange (IKE) Group 16][MODP 4096],
+[2048-bit IKE Group 14][MODP 2048], and [1024-bit IKE Group 2][MODP 1024] for
+Diffie-Hellman key agreement. All implementations of the
+Flash Communication cryptography profile
+[**MUST** implement at least Group 2](https://tools.ietf.org/html/rfc7425#section-4.2);
+some also implement Group 14. This implementation prefers the strongest
+common group.
+
+Note that RTMFP is not limited to Flash platform communication.  This library
+provides a [`PlainCryptoAdapter`](include/rtmfp/PlainCryptoAdapter.hpp)
 suitable for testing and evaluation. As it provides no actual cryptography
-(and its `cryptoHash256()` and `pseudoRandomBytes()` methods are especially weak),
-it is not suitable for production use in the open Internet. Don’t.
+(and its `cryptoHash256()` and `pseudoRandomBytes()` methods are especially
+weak), it is not suitable for production use in the open Internet. Don’t.
 
 
 To Do
 -----
-* [Flash Crypto][RFC 7425]
 * More documentation
 * More unit tests
 * More examples
@@ -129,5 +143,8 @@ To Do
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
 
+  [MODP 1024]: https://tools.ietf.org/html/rfc7296#appendix-B.2
+  [MODP 2048]: https://tools.ietf.org/html/rfc3526#section-3
+  [MODP 4096]: https://tools.ietf.org/html/rfc3526#section-5
   [RFC 7016]: https://tools.ietf.org/html/rfc7016
   [RFC 7425]: https://tools.ietf.org/html/rfc7425
