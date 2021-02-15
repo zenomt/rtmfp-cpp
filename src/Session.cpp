@@ -514,6 +514,7 @@ void Session::abort()
 void Session::setOpen(std::shared_ptr<Session> myself, uint32_t txSessionID)
 {
 	m_state = S_OPEN;
+	m_epd = m_cryptoCert->getCanonicalEPD();
 	m_txSessionID = txSessionID;
 	m_last_keepalive_tx_time = m_last_idle_time = m_rtmfp->getCurrentTime();
 	m_retransmit_deadline_epoch = INFINITY;

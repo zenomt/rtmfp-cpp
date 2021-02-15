@@ -47,6 +47,11 @@ void Hex::print(const char *msg, const void *bytes_, size_t len)
 	printf("%08lx\n", (unsigned long)x);
 }
 
+void Hex::print(const char *msg, const std::vector<uint8_t> &bytes)
+{
+	print(msg, bytes.data(), bytes.size());
+}
+
 void Hex::dump(const char *msg, const void *bytes_, const void *limit_, bool nl)
 {
 	const uint8_t *bytes = (uint8_t *)bytes_;
@@ -86,6 +91,11 @@ std::string Hex::encode(const void *bytes_, const void *limit_)
 	}
 
 	return rv;
+}
+
+std::string Hex::encode(const std::vector<uint8_t> &bytes)
+{
+	return encode(bytes.data(), bytes.size());
 }
 
 static int _xdigitToInt(char d)
