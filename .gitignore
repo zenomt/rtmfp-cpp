@@ -13,3 +13,5 @@ test/testlist
 test/testperform
 test/tis
 test/testhex
+test/fcclient
+test/fcechoserver

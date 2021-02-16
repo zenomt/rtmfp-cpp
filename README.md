@@ -91,7 +91,7 @@ This library provides a [simple `select()` based](include/rtmfp/SelectRunLoop.hp
 
 A [`Performer`](include/rtmfp/Performer.hpp) can be attached to a run loop
 to enable invoking a task inside/synchronized with the run loop from any
-thread. `Performer`s are used with the `PerformPosixPlatformAdapter`.
+thread. `Performer`s are used with the `PerformerPosixPlatformAdapter`.
 
 ### Cryptography Adapter
 [RFC 7016][] describes a generalized framework for securing RTMFP communication
