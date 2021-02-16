@@ -203,15 +203,12 @@ protected:
 
 class DH_Context_OpenSSL : public DH_Context {
 public:
-	DH_Context_OpenSSL(FlashCryptoAdapter_OpenSSL *owner) :
-		m_owner(owner),
+	DH_Context_OpenSSL() :
 		m_exponent(nullptr),
 		m_g(nullptr),
 		m_modulus(nullptr)
 	{
 	}
-
-	DH_Context_OpenSSL() = delete;
 
 	~DH_Context_OpenSSL()
 	{
@@ -355,7 +352,6 @@ protected:
 		return rv;
 	}
 
-	FlashCryptoAdapter_OpenSSL *m_owner; // weak ref, for getting pseudorandom bytes
 	Bytes   m_public;
 	BIGNUM *m_exponent;
 	BIGNUM *m_g;
@@ -400,7 +396,7 @@ std::shared_ptr<AES_Context> FlashCryptoAdapter_OpenSSL::makeAES_Context()
 
 std::shared_ptr<DH_Context> FlashCryptoAdapter_OpenSSL::makeDH_Context()
 {
-	return share_ref(new DH_Context_OpenSSL(this), false);
+	return share_ref(new DH_Context_OpenSSL(), false);
 }
 
 
