@@ -1,7 +1,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include <cassert>
+#include <climits>
 #include <cstring>
 
 #include "../include/rtmfp/FlashCryptoAdapter.hpp"
@@ -548,8 +548,6 @@ size_t FlashCryptoKey::getEncryptSrcFrontMargin()
 
 bool FlashCryptoKey::encrypt(uint8_t *dst, size_t &ioDstLen, uint8_t *src, size_t srcLen, size_t srcFrontMargin)
 {
-	assert(srcFrontMargin == getEncryptSrcFrontMargin());
-
 	bool complete = m_complete;
 	bool useSSeq = complete and m_sseqSendAlways;
 	bool useHMAC = complete and m_hmacSendAlways;

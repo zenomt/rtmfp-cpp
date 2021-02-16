@@ -9,7 +9,7 @@
 // implement. This is to allow an implementation flexibility in choice of cryptography
 // library to use (such as OpenSSL, libraries supplied natively by the runtime platform,
 // ones already being used in an application, or bring-your-own). A concrete reference
-// implementation using OpenSSL is provided in the "extras" directory. Porting to
+// implementation using OpenSSL is provided in FlashCryptoAdapter_OpenSSL. Porting to
 // other libraries using that as a guide should be straightforard.
 
 // Section references ("§") in this module refer to RFC 7425 unless otherwise indicated.

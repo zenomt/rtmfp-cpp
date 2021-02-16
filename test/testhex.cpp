@@ -17,7 +17,7 @@ static void _testHexDecode(const char *hex, int expectedLength)
 
 	assert(rv == expectPass);
 	if(expectPass)
-		assert(expectedLength == b.size());
+		assert((size_t)expectedLength == b.size());
 
 	if(rv)
 		printf("  got %s\n", Hex::encode(b.data(), b.size()).c_str());

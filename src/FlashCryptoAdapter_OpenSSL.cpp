@@ -191,7 +191,7 @@ public:
 		)
 			return false;
 
-		if(outl != len)
+		if(outl != (int)len)
 			return false;
 
 		return true;
