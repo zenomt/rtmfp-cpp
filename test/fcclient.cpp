@@ -24,7 +24,8 @@ static int usage(const char *prog, const char *message, int rv)
 	if(message)
 		printf("%s\n", message);
 	printf("usage: %s [options] dstaddr dstport [dstaddr dstport...]\n", prog);
-	printf("  -4              -- bind to IPv4 socket (default IPv6)\n");
+	printf("  -4              -- bind to IPv4 socket only\n");
+	printf("  -6              -- bind to IPv6 socket only\n");
 	printf("  -p port         -- bind to port (default random)\n");
 	printf("  -f fingerprint  -- require fingerprint (default any server)\n");
 	printf("  -n name         -- required hostname (default any server)\n");
@@ -68,10 +69,22 @@ static std::shared_ptr<SendFlow> openFlow(const std::shared_ptr<RTMFP> &rtmfp, c
 	return flow;
 }
 
+static bool addInterface(PosixPlatformAdapter *platform, int port, int family)
+{
+	const char *familyName = (AF_INET6 == family) ? "IPv6" : "IPv4";
+	auto addr = platform->addUdpInterface(port, family);
+	if(addr)
+		printf("bound to %s port %d\n", familyName, addr->getPort());
+	else
+		printf("error: couldn't bind to %s port %d\n", familyName, port);
+	return !!addr;
+}
+
 int main(int argc, char * const argv[])
 {
 	int port = 0;
-	int family = AF_INET6;
+	bool ipv4 = true;
+	bool ipv6 = true;
 	const char *uri = "rtmfp:";
 	const char *requiredHostname = NULL;
 	const char *requiredFingerprint = NULL;
@@ -81,12 +94,17 @@ int main(int argc, char * const argv[])
 
 	srand(time(nullptr));
 
-	while((ch = getopt(argc, argv, "4p:f:n:HSXl:vh")) != -1)
+	while((ch = getopt(argc, argv, "46p:f:n:HSXl:vh")) != -1)
 	{
 		switch(ch)
 		{
 		case '4':
-			family = AF_INET;
+			ipv4 = true;
+			ipv6 = false;
+			break;
+		case '6':
+			ipv4 = false;
+			ipv6 = true;
 			break;
 		case 'p':
 			port = atoi(optarg);
@@ -150,9 +168,12 @@ int main(int argc, char * const argv[])
 	instance->setDefaultSessionRetransmitLimit(10);
 	instance->setDefaultSessionIdleLimit(10);
 
-	auto addr = platform.addUdpInterface(port, family);
-	assert(addr);
-	printf("got port %d\n", addr->getPort());
+	// do IPv4 first in case IPv6 binds to both families
+	if(ipv4 and not addInterface(&platform, port, AF_INET))
+		return 1;
+
+	if(ipv6 and not addInterface(&platform, port, AF_INET6))
+		return 1;
 
 	auto flow = openFlow(instance, epd, PRI_ROUTINE);
 	add_candidates(flow, dstAddrs);

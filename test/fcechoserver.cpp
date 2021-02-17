@@ -140,12 +140,24 @@ void worker(RunLoop *rl)
 	printf("worker run loop and thread end\n");
 }
 
+bool addInterface(PerformerPosixPlatformAdapter *platform, int port, int family)
+{
+	const char *familyName = (AF_INET6 == family) ? "IPv6" : "IPv4";
+	auto addr = platform->addUdpInterface(port, family);
+	if(addr)
+		printf("bound to %s port %d\n", familyName, addr->getPort());
+	else
+		printf("error: couldn't bind to %s port %d\n", familyName, port);
+	return !!addr;
+}
+
 int usage(const char *prog, const char *msg, int rv)
 {
 	if(msg)
 		printf("%s\n", msg);
 	printf("usage: %s [options]\n", prog);
-	printf("  -4       -- bind to IPv4 socket (default IPv6)\n");
+	printf("  -4       -- bind to IPv4 only\n");
+	printf("  -6       -- bind to IPv6 only\n");
 	printf("  -p port  -- bind to port (default %d)\n", port);
 	printf("  -n name  -- hostname (default %s)\n", name);
 	printf("  -N       -- require hostname to connect\n");
@@ -160,12 +172,13 @@ int usage(const char *prog, const char *msg, int rv)
 
 int main(int argc, char **argv)
 {
-	int family = AF_INET6;
+	bool ipv4 = true;
+	bool ipv6 = true;
 	int ch;
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vh4NHSn:p:")) != -1)
+	while((ch = getopt(argc, argv, "vh46NHSn:p:")) != -1)
 	{
 		switch(ch)
 		{
@@ -173,7 +186,12 @@ int main(int argc, char **argv)
 			verbose++;
 			break;
 		case '4':
-			family = AF_INET;
+			ipv4 = true;
+			ipv6 = false;
+			break;
+		case '6':
+			ipv4 = false;
+			ipv6 = true;
 			break;
 		case 'N':
 			requireHostname = true;
@@ -208,14 +226,14 @@ int main(int argc, char **argv)
 	crypto.setSSeqSendAlways(requireSSEQ);
 	crypto.setSSeqRecvRequired(requireSSEQ);
 	printf("my fingerprint: %s\n", Hex::encode(crypto.getFingerprint()).c_str());
+	printf("my name: %s\n", name);
 
 	SelectRunLoop rl;
 	Performer performer(&rl);
 	SelectRunLoop workerRL;
 	Performer workerPerformer(&workerRL);
-	auto workerThread = std::thread(worker, &workerRL);
-
 	PerformerPosixPlatformAdapter platform(&rl, &performer, &workerPerformer);
+
 
 	RTMFP rtmfp(&platform, &crypto);
 	platform.setRtmfp(&rtmfp);
@@ -226,19 +244,15 @@ int main(int argc, char **argv)
 
 	rtmfp.onRecvFlow = Client::newClient;
 
-	auto addr = platform.addUdpInterface(port, family);
-	if(addr)
-	{
-		printf("listening on port %d\n", addr->getPort());
-		rl.run();
-	}
-	else
-	{
-		printf("error: couldn't bind to port %d\n", port);
-		workerPerformer.perform([&workerRL] { workerRL.stop(); });
-	}
+	// do IPv4 first in case IPv6 binds to both families
+	if(ipv4 and not addInterface(&platform, port, AF_INET))
+		return 1;
 
-	workerThread.join();
+	if(ipv6 and not addInterface(&platform, port, AF_INET6))
+		return 1;
+
+	auto workerThread = std::thread(worker, &workerRL);
+	rl.run();
 
 	return 0;
 }

@@ -1,6 +1,7 @@
 #include "rtmfp/Address.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 
 using namespace com::zenomt::rtmfp;

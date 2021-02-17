@@ -12,7 +12,7 @@ endif
 
 default: all
 all: tests server testclient t2 $(FC_OPENSSL_SAMPLES)
-tests: tis testperform testchecksums testlist testvlu testaddress testplatform testhex
+tests: tis testperform testchecksums testlist testvlu testaddress testhex
 
 $(LIBRARY):
 	@cd .. && $(MAKE)
@@ -35,30 +35,29 @@ testvlu: testvlu.o $(LIBRARY)
 testaddress: testaddress.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
-testplatform: testplatform.o $(LIBRARY)
-	$(CXX) -o $@ $+ -lpthread
-
 testhex: testhex.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
-testclient.o: testclient.cpp addrlist.hpp
+testclient.o: addrlist.hpp
 testclient: testclient.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
 server: server.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
-t2.o: t2.cpp addrlist.hpp
+t2.o: addrlist.hpp
 t2: t2.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
+fcclient.o: addrlist.hpp
 fcclient: fcclient.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto
 
 fcechoserver: fcechoserver.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
-ci: tests
+# make ci build all, but only run the automated tests.
+ci: all
 	./tis
 	./testperform
 	./testchecksums
@@ -68,4 +67,4 @@ ci: tests
 	./testhex
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testplatform testclient server t2 testhex fcclient fcechoserver
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient fcechoserver
