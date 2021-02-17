@@ -542,6 +542,7 @@ void Session::setNearclose()
 		}
 		myself->sendClose(false);
 	};
+	m_rtmfp->onSessionDidClose(myself, false);
 }
 
 void Session::setFarcloseLinger()
@@ -551,6 +552,7 @@ void Session::setFarcloseLinger()
 
 	auto myself = share_ref(this);
 	m_rtmfp->scheduleRel(FARCLOSE_LINGER_PERIOD)->action = Timer::makeAction([myself] { myself->abort(); });
+	m_rtmfp->onSessionDidClose(myself, false);
 }
 
 void Session::setKeepalivePeriod(Time keepalive)
