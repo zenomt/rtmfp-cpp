@@ -289,6 +289,13 @@ bool Address::operator== (const Address &rhs) const
 	);
 }
 
+std::string Address::toPresentation(bool withPort) const
+{
+	char presentation[MAX_PRESENTATION_LENGTH] = { 0 };
+	toPresentation(presentation, withPort);
+	return std::string(presentation);
+}
+
 void Address::toPresentation(char *dst, bool withPort) const
 {
 	char buf[INET6_ADDRSTRLEN]; // big enough for INET too

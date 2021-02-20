@@ -59,15 +59,14 @@ public:
 		if(not m_recv)
 			return;
 
-		char addr_p[Address::MAX_PRESENTATION_LENGTH] = { 0 };
-		m_recv->getFarAddress().toPresentation(addr_p);
-		printf("        addr: %s\n", addr_p);
+		printf("         addr: %s\n", m_recv->getFarAddress().toPresentation().c_str());
 
 		auto epd = m_recv->getFarCanonicalEPD();
 		if((epd.size() == 34) and (0x21 == epd[0]) and (0x0f == epd[1]))
 			printf("  fingerprint: %s\n", Hex::encode(epd.data() + 2, 32).c_str());
 		else
-			printf("          EPD: %s\n", Hex::encode(m_recv->getFarCanonicalEPD()).c_str());
+			printf("          EPD: %s\n", Hex::encode(epd.data(), epd.size()).c_str());
+
 		printf("     metadata: %s\n", Hex::encode(m_recv->getMetadata()).c_str());
 		printf("   near nonce: %s\n", Hex::encode(m_recv->getNearNonce()).c_str());
 		printf("    far nonce: %s\n", Hex::encode(m_recv->getFarNonce()).c_str());
@@ -158,6 +157,7 @@ int usage(const char *prog, const char *msg, int rv)
 	printf("usage: %s [options]\n", prog);
 	printf("  -4       -- bind to IPv4 only\n");
 	printf("  -6       -- bind to IPv6 only\n");
+	printf("  -B addr  -- bind to addr explicitly\n");
 	printf("  -p port  -- bind to port (default %d)\n", port);
 	printf("  -n name  -- hostname (default %s)\n", name);
 	printf("  -N       -- require hostname to connect\n");
@@ -174,11 +174,12 @@ int main(int argc, char **argv)
 {
 	bool ipv4 = true;
 	bool ipv6 = true;
+	std::vector<Address> bindAddrs;
 	int ch;
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vh46NHSn:p:")) != -1)
+	while((ch = getopt(argc, argv, "vh46B:NHSn:p:")) != -1)
 	{
 		switch(ch)
 		{
@@ -192,6 +193,17 @@ int main(int argc, char **argv)
 		case '6':
 			ipv4 = false;
 			ipv6 = true;
+			break;
+		case 'B':
+			{
+				Address addr;
+				if(not addr.setFromPresentation(optarg))
+				{
+					printf("can't parse address %s\n", optarg);
+					return 1;
+				}
+				bindAddrs.push_back(addr);
+			}
 			break;
 		case 'N':
 			requireHostname = true;
@@ -243,6 +255,20 @@ int main(int argc, char **argv)
 	rtmfp.setDefaultSessionIdleLimit(300);
 
 	rtmfp.onRecvFlow = Client::newClient;
+
+	if(bindAddrs.size())
+		ipv4 = ipv6 = false;
+
+	for(auto it = bindAddrs.begin(); it != bindAddrs.end(); it++)
+	{
+		auto boundAddr = platform.addUdpInterface(it->getSockaddr());
+		if(not boundAddr)
+		{
+			printf("can't bind to requested address: %s\n", it->toPresentation().c_str());
+			return 1;
+		}
+		printf("bound to %s\n", boundAddr->toPresentation().c_str());
+	}
 
 	// do IPv4 first in case IPv6 binds to both families
 	if(ipv4 and not addInterface(&platform, port, AF_INET))

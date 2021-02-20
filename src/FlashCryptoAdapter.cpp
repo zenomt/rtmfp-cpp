@@ -401,7 +401,7 @@ bool FlashCryptoAdapter::isSelectedByEPD(const uint8_t *epdBytes, size_t len)
 
 Bytes FlashCryptoAdapter::sign(const uint8_t *msg, size_t len, std::shared_ptr<CryptoCert> recipient)
 {
-	return Bytes('X');
+	return Bytes(1, 'X');
 }
 
 bool FlashCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> far)

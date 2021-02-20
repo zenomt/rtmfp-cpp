@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <string>
 #include <vector>
 
 #include "Object.hpp"
@@ -66,6 +67,8 @@ public:
 	Address& operator= (const Address &rhs);
 	bool operator< (const Address &rhs) const;
 	bool operator== (const Address &rhs) const;
+
+	std::string toPresentation(bool withPort = true) const;
 
 	// [ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]:65535
 	static const size_t MAX_PRESENTATION_LENGTH = 54; // including terminator
