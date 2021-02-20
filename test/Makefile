@@ -7,7 +7,7 @@ CXXFLAGS = -Os -Wall -pedantic -std=c++11 -I../include
 LIBRARY = ../librtmfp.a
 
 ifndef WITHOUT_OPENSSL
-FC_OPENSSL_SAMPLES = fcclient fcechoserver
+FC_OPENSSL_SAMPLES = fcclient fcechoserver rtclient
 endif
 
 default: all
@@ -56,6 +56,10 @@ fcclient: fcclient.o $(LIBRARY)
 fcechoserver: fcechoserver.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
+rtclient.o: addrlist.hpp
+rtclient: rtclient.o $(LIBRARY)
+	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto
+
 # make ci build all, but only run the automated tests.
 ci: all
 	./tis
@@ -67,4 +71,4 @@ ci: all
 	./testhex
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient fcechoserver
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient fcechoserver rtclient

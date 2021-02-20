@@ -155,16 +155,16 @@ int usage(const char *prog, const char *msg, int rv)
 	if(msg)
 		printf("%s\n", msg);
 	printf("usage: %s [options]\n", prog);
-	printf("  -4       -- bind to IPv4 only\n");
-	printf("  -6       -- bind to IPv6 only\n");
-	printf("  -B addr  -- bind to addr explicitly\n");
-	printf("  -p port  -- bind to port (default %d)\n", port);
-	printf("  -n name  -- hostname (default %s)\n", name);
-	printf("  -N       -- require hostname to connect\n");
-	printf("  -H       -- don't require HMAC\n");
-	printf("  -S       -- don't require session sequence numbers\n");
-	printf("  -v       -- increase verbose output\n");
-	printf("  -h       -- show this help\n");
+	printf("  -p port       -- bind to port (default %d)\n", port);
+	printf("  -4            -- bind to IPv4\n");
+	printf("  -6            -- bind to IPv6\n");
+	printf("  -B addr:port  -- bind to addr:port explicitly\n");
+	printf("  -n name       -- hostname (default %s)\n", name);
+	printf("  -N            -- require hostname to connect\n");
+	printf("  -H            -- don't require HMAC\n");
+	printf("  -S            -- don't require session sequence numbers\n");
+	printf("  -v            -- increase verbose output\n");
+	printf("  -h            -- show this help\n");
 	return rv;
 }
 
@@ -172,8 +172,8 @@ int usage(const char *prog, const char *msg, int rv)
 
 int main(int argc, char **argv)
 {
-	bool ipv4 = true;
-	bool ipv6 = true;
+	bool ipv4 = false;
+	bool ipv6 = false;
 	std::vector<Address> bindAddrs;
 	int ch;
 
@@ -188,10 +188,8 @@ int main(int argc, char **argv)
 			break;
 		case '4':
 			ipv4 = true;
-			ipv6 = false;
 			break;
 		case '6':
-			ipv4 = false;
 			ipv6 = true;
 			break;
 		case 'B':
@@ -227,6 +225,12 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if(not (bindAddrs.size() or ipv4 or ipv6))
+	{
+		printf("specify at least -4, -6, or -B\n");
+		return 1;
+	}
+
 	FlashCryptoAdapter_OpenSSL crypto;
 	if(not crypto.init(not requireHostname, name))
 	{
@@ -255,9 +259,6 @@ int main(int argc, char **argv)
 	rtmfp.setDefaultSessionIdleLimit(300);
 
 	rtmfp.onRecvFlow = Client::newClient;
-
-	if(bindAddrs.size())
-		ipv4 = ipv6 = false;
 
 	for(auto it = bindAddrs.begin(); it != bindAddrs.end(); it++)
 	{
