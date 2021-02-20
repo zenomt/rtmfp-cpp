@@ -7,7 +7,7 @@ CXXFLAGS = -Os -Wall -pedantic -std=c++11 -I../include
 LIBRARY = ../librtmfp.a
 
 ifndef WITHOUT_OPENSSL
-FC_OPENSSL_SAMPLES = fcclient fcechoserver rtclient
+FC_OPENSSL_SAMPLES = fcclient echoserver rtclient
 endif
 
 default: all
@@ -53,7 +53,7 @@ fcclient.o: addrlist.hpp
 fcclient: fcclient.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto
 
-fcechoserver: fcechoserver.o $(LIBRARY)
+echoserver: echoserver.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
 rtclient.o: addrlist.hpp
@@ -71,4 +71,4 @@ ci: all
 	./testhex
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient fcechoserver rtclient
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient
