@@ -154,10 +154,10 @@ int usage(const char *prog, const char *msg, int rv)
 {
 	if(msg)
 		printf("%s\n", msg);
-	printf("usage: %s [options]\n", prog);
-	printf("  -p port       -- bind to port (default %d)\n", port);
-	printf("  -4            -- bind to IPv4\n");
-	printf("  -6            -- bind to IPv6\n");
+	printf("usage: %s (-4 | -6 | -B addr:port) [options]\n", prog);
+	printf("  -p port       -- port for -4/-6 (default %d)\n", port);
+	printf("  -4            -- bind to IPv4 0.0.0.0:%d\n", port);
+	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
 	printf("  -n name       -- hostname (default %s)\n", name);
 	printf("  -N            -- require hostname to connect\n");
@@ -226,10 +226,7 @@ int main(int argc, char **argv)
 	}
 
 	if(not (bindAddrs.size() or ipv4 or ipv6))
-	{
-		printf("specify at least -4, -6, or -B\n");
-		return 1;
-	}
+		return usage(argv[0], "specify at least -4, -6, or -B", 1);
 
 	FlashCryptoAdapter_OpenSSL crypto;
 	if(not crypto.init(not requireHostname, name))
