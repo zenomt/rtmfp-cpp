@@ -291,29 +291,20 @@ protected:
 
 		size_t num0 = 0;
 		size_t num1 = 0;
-		bool leading = true;
 		for(size_t i = 0; i < pLen; i++)
 		{
 			uint8_t b = pBytes[i];
 
-			if(leading and not b)
+			if((not num1) and not b)
 				continue;
-			leading = false;
 
-			if(0 == b)
-				num0 += 8;
-			else if(0xff == b)
-				num1 += 8;
-			else
+			for(int bit = 0; bit < 8; bit++)
 			{
-				for(int bit = 0; bit < 8; bit++)
-				{
-					if(b & 1)
-						num1++;
-					else
-						num0++;
-					b >>= 1;
-				}
+				if(b & 1)
+					num1++;
+				else
+					num0++;
+				b >>= 1;
 			}
 		}
 

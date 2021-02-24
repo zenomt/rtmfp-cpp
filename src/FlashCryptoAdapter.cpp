@@ -963,7 +963,7 @@ bool FlashCryptoCert::init(const uint8_t *cert, size_t len, FlashCryptoAdapter *
 
 	owner->sha256(m_fingerprint, m_raw.data(), canonicalLength);
 
-	return m_isStatic xor isEphemeral;
+	return m_isStatic != isEphemeral;
 }
 
 bool FlashCryptoCert::isStatic() const
