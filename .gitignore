@@ -16,3 +16,5 @@ test/testhex
 test/fcclient
 test/echoserver
 test/rtclient
+test/testamf
+test/testtcmsg
