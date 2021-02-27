@@ -295,14 +295,11 @@ protected:
 		{
 			uint8_t b = pBytes[i];
 
-			if((not num1) and not b)
-				continue;
-
 			for(int bit = 0; bit < 8; bit++)
 			{
 				if(b & 1)
 					num1++;
-				else
+				else if(num1) // don't count leading 0s
 					num0++;
 				b >>= 1;
 			}
