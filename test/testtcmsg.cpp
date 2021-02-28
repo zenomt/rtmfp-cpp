@@ -5,6 +5,7 @@
 #include "rtmfp/Hex.hpp"
 
 using namespace com::zenomt::rtmfp;
+using namespace com::zenomt::rtmp;
 using namespace com::zenomt;
 
 int main(int argc, char **argv)
@@ -42,6 +43,19 @@ int main(int argc, char **argv)
 	assert(TCMetadata::parse(out2, &streamID, &rxOrder));
 	assert(9 == streamID);
 	assert(RO_NETWORK == rxOrder);
+
+	Bytes tc1 = TCMessage::command("command", 6,
+		AMF0::Object()->putValueAtKey(AMF0::String("command value"), "command key"),
+		AMF0::Object()->putValueAtKey(AMF0::String("param value"), "param key"));
+	Hex::print("TCMessage command", tc1);
+
+	{
+		uint8_t t;
+		uint32_t ts;
+		size_t rv = TCMessage::parseHeader(tc1.data(), tc1.data() + tc1.size(), &t, &ts);
+		assert(5 == rv);
+		printf("parse TCMessage got type %u timestamp %lu read %lu\n", t, (unsigned long)ts, (unsigned long)rv);
+	}
 
 	return 0;
 }

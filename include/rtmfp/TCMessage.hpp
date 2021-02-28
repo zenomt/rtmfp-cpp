@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "rtmfp.hpp"
+#include "AMF.hpp"
 
 namespace com { namespace zenomt { namespace rtmfp {
 
@@ -46,6 +47,18 @@ public:
 	static size_t parse(const Bytes &metadata, uint32_t *outStreamID, ReceiveOrder *outRxOrder);
 
 	static Bytes encode(uint32_t streamID, ReceiveOrder rxOrder);
+};
+
+class TCMessage {
+public:
+	static size_t parseHeader(const uint8_t *message, const uint8_t *limit, uint8_t *outType, uint32_t *outTimestamp);
+
+	static Bytes message(uint8_t type_, uint32_t timestamp, const uint8_t *msg, size_t len);
+
+	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const uint8_t *payload, size_t len, bool ext = false);
+	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const Bytes &payload, bool ext = false);
+	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const rtmp::AMF0 *infoObject);
+	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const std::shared_ptr<rtmp::AMF0> &infoObject);
 };
 
 } } } // namespace com::zenomt::rtmfp
