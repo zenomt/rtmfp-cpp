@@ -387,5 +387,4 @@ std::shared_ptr<DH_Context> FlashCryptoAdapter_OpenSSL::makeDH_Context()
 	return share_ref(new DH_Context_OpenSSL(), false);
 }
 
-
 } } } // namespace com::zenomt::rtmfp

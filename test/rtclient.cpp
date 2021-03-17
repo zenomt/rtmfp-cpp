@@ -152,7 +152,7 @@ static int usage(const char *name, const char *msg, int rv)
 {
 	if(msg)
 		printf("%s\n", msg);
-	printf("usage: %s [options] dstname dstaddr port [dstaddr port]\n", name);
+	printf("usage: %s [options] dstaddr port [dstaddr port]\n", name);
 	printf("  -n name   -- require hostname\n");
 	printf("  -f 30|60  -- set frames per second (30* or 60)\n");
 	printf("  -r vbps   -- set video bits per second, default 1000000\n");
@@ -162,6 +162,8 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -C        -- don't chain GOP\n");
 	printf("  -H        -- don't require HMAC\n");
 	printf("  -S        -- don't require session sequence numbers\n");
+	printf("  -4        -- only bind to 0.0.0.0\n");
+	printf("  -6        -- only bind to [::]\n");
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
 	return rv;
