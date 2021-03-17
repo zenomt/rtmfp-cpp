@@ -20,7 +20,7 @@ const char frameNames[] = "Kabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
 bool interleave = false;
 bool flushGop = true;
 bool chainGop = true;
-Time ifLifetime = 2.000;
+Time pfLifetime = 2.000;
 
 class Stream : public Object {
 public:
@@ -77,7 +77,7 @@ public:
 
 		size_t frameSizeBytes = size_t(ceil(frameSize));
 		Bytes frame(frameSizeBytes);
-		auto receipt = m_video->write(frame, (keyframe ? 2 : ifLifetime) + rtt, 3);
+		auto receipt = m_video->write(frame, (keyframe ? 2 : pfLifetime) + rtt, 3);
 		if(not receipt)
 			return false;
 		receipt->onFinished = [this, frameIdx, receipt, frameSizeBytes] (bool abn) {
@@ -156,7 +156,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -n name   -- require hostname\n");
 	printf("  -f 30|60  -- set frames per second (30* or 60)\n");
 	printf("  -r vbps   -- set video bits per second, default 1000000\n");
-	printf("  -l secs   -- set video I-frame lifetime, default %Lf\n", ifLifetime);
+	printf("  -l secs   -- set video P-frame lifetime, default %Lf\n", pfLifetime);
 	printf("  -i        -- interleave audio and video on same flow\n");
 	printf("  -E        -- don't expire previous GOP\n");
 	printf("  -C        -- don't chain GOP\n");
@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 			videoRate = atof(optarg) / 8;
 			break;
 		case 'l':
-			ifLifetime = atof(optarg);
+			pfLifetime = atof(optarg);
 			break;
 		case 'i':
 			interleave = true;
