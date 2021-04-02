@@ -69,7 +69,11 @@ int main(int argc, char *argv[])
 		});
 	}), 5);
 
+	size_t cycleCount = 0;
+	rl->onEveryCycle = [&cycleCount] { cycleCount++; };
+
 	rl->run();
+	printf("rl ran %lu cycles\n", (unsigned long)cycleCount);
 
 	// now we can join
 	printf("wait for worker thread to stop\n");

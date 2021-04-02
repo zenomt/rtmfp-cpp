@@ -44,6 +44,9 @@ public:
 
 	virtual void clear();
 
+	// called every time through the run loop
+	Task onEveryCycle;
+
 protected:
 	void cacheTime();
 	void uncacheTime();

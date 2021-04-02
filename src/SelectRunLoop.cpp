@@ -121,6 +121,9 @@ void SelectRunLoop::run(Time runInterval, Time minSleep)
 
 		if(not m_stopping)
 			m_timers.fireDueTimers(getCurrentTime());
+
+		if(onEveryCycle and not m_stopping)
+			onEveryCycle();
 	} while(not m_stopping);
 
 	m_runningInThread = std::thread::id();

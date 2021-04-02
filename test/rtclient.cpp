@@ -1,3 +1,4 @@
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -21,6 +22,12 @@ bool interleave = false;
 bool flushGop = true;
 bool chainGop = true;
 Time pfLifetime = 2.000;
+bool interrupted = false;
+
+void signal_handler(int unused)
+{
+	interrupted = true;
+}
 
 class Stream : public Object {
 public:
@@ -280,6 +287,11 @@ int main(int argc, char **argv)
 	};
 	pilot->onException = [&rtmfp] (uintmax_t reason) { printf("pilot exception: shutdown\n"); rtmfp.shutdown(true); };
 	pilot->notifyWhenWritable();
+
+	::signal(SIGINT, signal_handler);
+	::signal(SIGTERM, signal_handler);
+	rl.onEveryCycle = [&rtmfp] { if(interrupted) { interrupted = false; rtmfp.shutdown(true); printf("interrupted. shutting down.\n"); } };
+	platform.onShutdownCompleteCallback = [&rl] { rl.stop(); };
 
 	rl.run();
 

@@ -1,3 +1,4 @@
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -18,6 +19,12 @@ int port = 0;
 bool requireHMAC = true;
 bool requireSSEQ = true;
 bool requireHostname = false;
+bool interrupted = false;
+
+void signal_handler(int param)
+{
+	interrupted = true;
+}
 
 class Client : public Object {
 public:
@@ -247,7 +254,6 @@ int main(int argc, char **argv)
 	Performer workerPerformer(&workerRL);
 	PerformerPosixPlatformAdapter platform(&rl, &performer, &workerPerformer);
 
-
 	RTMFP rtmfp(&platform, &crypto);
 	platform.setRtmfp(&rtmfp);
 
@@ -275,8 +281,19 @@ int main(int argc, char **argv)
 	if(ipv6 and not addInterface(&platform, port, AF_INET6))
 		return 1;
 
+	::signal(SIGINT, signal_handler);
+	::signal(SIGTERM, signal_handler);
+
+	rl.onEveryCycle = [&rtmfp] { if(interrupted) { interrupted = false; rtmfp.shutdown(true); printf("interrupted. shutting down.\n"); } };
+	platform.onShutdownCompleteCallback = [&rl] { rl.stop(); };
+
 	auto workerThread = std::thread(worker, &workerRL);
 	rl.run();
+
+	workerPerformer.perform([&workerRL] { workerRL.stop(); });
+	workerThread.join();
+
+	printf("end.\n");
 
 	return 0;
 }
