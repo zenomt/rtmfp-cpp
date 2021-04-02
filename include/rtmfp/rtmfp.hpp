@@ -3,7 +3,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-// Implemenation of the Secure Real-Time Media Flow Protocol (RTMFP) as
+// Implementation of the Secure Real-Time Media Flow Protocol (RTMFP) as
 // described in RFC 7016. Section references ("§") refer to that document.
 
 #include <cmath>

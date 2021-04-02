@@ -12,7 +12,7 @@ endif
 
 default: all
 all: tests server testclient t2 $(FC_OPENSSL_SAMPLES)
-tests: tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg
+tests: tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync
 
 $(LIBRARY):
 	@cd .. && $(MAKE)
@@ -42,6 +42,9 @@ testamf: testamf.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
 testhex: testhex.o $(LIBRARY)
+	$(CXX) -o $@ $+
+
+testflowsync: testflowsync.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
 testclient.o: addrlist.hpp
@@ -77,6 +80,7 @@ ci: all
 	./testhex
 	./testamf
 	./testtcmsg
+	./testflowsync
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient testamf testtcmsg
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient testamf testtcmsg testflowsync

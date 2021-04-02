@@ -43,7 +43,7 @@ by per-message deadlines, or by arbitrary application logic using `WriteReceipt`
 The application can be notified by callback when a message is delivered or
 abandoned.
 
-Sending flows with priority `PRI_4` or higher (`PRI_PRIORITY`, `PRI_IMMEDIATE`,
+Sending flows set to priority `PRI_4` or higher (`PRI_PRIORITY`, `PRI_IMMEDIATE`,
 `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
 [time critical](https://tools.ietf.org/html/rfc7016#section-3.1). Sending
 messages on time critical flows affects congestion control.
@@ -136,12 +136,15 @@ weak), it is not suitable for production use in the open Internet. Don’t.
 
 To Do
 -----
+* SendFlow unsent low water mark
+* RecvFlow source quench on RO_HOLD
 * More documentation
 * More unit tests
 * More examples
 * CMakeLists.txt
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
+* FLV sender/receiver command-line tools
 
   [MODP 1024]: https://tools.ietf.org/html/rfc7296#appendix-B.2
   [MODP 2048]: https://tools.ietf.org/html/rfc3526#section-3

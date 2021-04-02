@@ -21,7 +21,7 @@ struct MODP_Group {
 	size_t               exponent_len_bits;
 };
 
-const uint8_t TWO[] = { 2 };
+const unsigned char TWO[] = { 2 };
 
 // RFC 7296 §B.2, also RFC 2409 §6.2
 const unsigned char MODP_1024[] = {
@@ -186,7 +186,7 @@ public:
 	{
 		int outl = len;
 
-		if( (not EVP_CipherInit_ex(m_ctx, NULL, NULL, NULL, (const unsigned char *) iv, -1))
+		if( (not EVP_CipherInit_ex(m_ctx, NULL, NULL, NULL, (const unsigned char *)iv, -1))
 		 or (not EVP_CipherUpdate(m_ctx, (unsigned char *)dst, &outl, (const unsigned char *)src, len))
 		)
 			return false;
