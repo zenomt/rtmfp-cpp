@@ -1,10 +1,9 @@
 Secure Real-Time Media Flow Protocol Library
 ============================================
 This is a C++11 implementation of the Secure Real-Time Media Flow Protocol
-(RTMFP) as described in [RFC 7016][]. This library is currently at beta
-quality and is a **WORK IN PROGRESS**. There are probably bugs still, and
-there is lots of room for optimization.  It is not currently recommended for
-use in production.
+(RTMFP) as described in [RFC 7016][]. This library is currently a
+**WORK IN PROGRESS**. There are probably bugs still, and there is lots of
+room for optimization.
 
 The library includes sample Platform Adapters and other utilities, such as a
 simple `select()` based run loop, but these are not required to be used. The
@@ -14,6 +13,8 @@ environment.
 The library is intended for clients, servers, and P2P applications. It includes
 the necessary helpers and callbacks to support P2P introduction and load
 balancing.
+
+The [`test`](test/) directory includes unit tests and examples.
 
 How to Use
 ----------
