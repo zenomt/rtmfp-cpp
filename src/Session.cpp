@@ -258,6 +258,7 @@ void StartupSession::onRedirectChunk(uint8_t mode, uint8_t chunkType, const uint
 		if(0 == (rv = tmp.setFromEncoding(cursor, limit)))
 			return;
 		redirectDestinations.emplace_back(tmp);
+		cursor += rv;
 	}
 
 	if(redirectDestinations.empty())

@@ -19,3 +19,4 @@ test/rtclient
 test/testamf
 test/testtcmsg
 test/testflowsync
+test/static-redirector
