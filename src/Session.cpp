@@ -409,7 +409,7 @@ bool Session::isOpeningToAddress(const Address &addr) const
 	switch(m_state)
 	{
 	case S_IHELLO_SENT:
-		return m_openingAddresses.find(addr) != m_openingAddresses.end();
+		return m_openingAddresses.count(addr);
 	case S_KEYING_SENT:
 		return addr == m_destAddr;
 	default:
@@ -720,7 +720,7 @@ void Session::addCandidateAddress(const Address &addr, Time delay, bool fromRedi
 {
 	if( (S_IHELLO_SENT != m_state)
 	 or (fromRedirect and (m_openingAddresses.size() >= REDIRECT_THRESHOLD))
-	 or (m_openingAddresses.find(addr) != m_openingAddresses.end()) // already opening to this address
+	 or (m_openingAddresses.count(addr)) // already opening to this address
 	)
 		return;
 
