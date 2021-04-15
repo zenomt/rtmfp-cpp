@@ -382,6 +382,8 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 
 		uint8_t flag_fin = frag->m_sequence_number == m_final_sn ? USERDATA_FLAG_FIN : 0;
 
+		if(frag->m_ever_sent and not frag->m_receipt->retransmit)
+			frag->m_receipt->abandon();
 		frag->m_receipt->abandonIfNeeded(now);
 		uint8_t flag_abn = frag->m_receipt->isAbandoned() ? USERDATA_FLAG_ABN : 0;
 

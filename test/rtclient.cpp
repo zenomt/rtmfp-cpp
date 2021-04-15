@@ -21,6 +21,7 @@ const char frameNames[] = "Kabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
 bool interleave = false;
 bool flushGop = true;
 bool chainGop = true;
+bool audioRetransmit = true;
 Time pfLifetime = 2.000;
 bool interrupted = false;
 
@@ -109,6 +110,7 @@ public:
 		auto receipt = m_audio->write(frame, 1 + rtt + .1, 2);
 		if(not receipt)
 			return false;
+		receipt->retransmit = audioRetransmit;
 		receipt->onFinished = [] (bool abn) {
 			if(abn)
 				printf("_");
@@ -165,6 +167,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -r vbps   -- set video bits per second, default 1000000\n");
 	printf("  -l secs   -- set video P-frame lifetime, default %Lf\n", pfLifetime);
 	printf("  -i        -- interleave audio and video on same flow\n");
+	printf("  -A        -- don't retransmit lost audio frames\n");
 	printf("  -E        -- don't expire previous GOP\n");
 	printf("  -C        -- don't chain GOP\n");
 	printf("  -H        -- don't require HMAC\n");
@@ -189,7 +192,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "h46HSn:f:r:l:iECv")) != -1)
+	while((ch = getopt(argc, argv, "h46HSn:f:r:l:iAECv")) != -1)
 	{
 		switch(ch)
 		{
@@ -223,6 +226,9 @@ int main(int argc, char **argv)
 			break;
 		case 'i':
 			interleave = true;
+			break;
+		case 'A':
+			audioRetransmit = false;
 			break;
 		case 'E':
 			flushGop = false;

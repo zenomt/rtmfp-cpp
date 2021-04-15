@@ -8,6 +8,7 @@ namespace com { namespace zenomt { namespace rtmfp {
 WriteReceipt::WriteReceipt(Time origin, Time startWithin, Time finishWithin) :
 	startBy(origin + startWithin),
 	finishBy(origin + finishWithin),
+	retransmit(true),
 	m_origin(origin),
 	m_started(false),
 	m_abandoned(false),

@@ -44,7 +44,7 @@ by per-message deadlines, or by arbitrary application logic using `WriteReceipt`
 The application can be notified by callback when a message is delivered or
 abandoned.
 
-Sending flows set to priority `PRI_4` or higher (`PRI_PRIORITY`, `PRI_IMMEDIATE`,
+`SendFlow`s set to priority `PRI_4` or higher (`PRI_PRIORITY`, `PRI_IMMEDIATE`,
 `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
 [time critical](https://tools.ietf.org/html/rfc7016#section-3.1). Sending
 messages on time critical flows affects congestion control.
@@ -138,7 +138,6 @@ weak), it is not suitable for production use in the open Internet. Don’t.
 To Do
 -----
 * SendFlow unsent low water mark
-* RecvFlow source quench on RO_HOLD
 * More documentation
 * More unit tests
 * More examples

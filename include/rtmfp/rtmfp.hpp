@@ -384,6 +384,11 @@ public:
 	Time startBy;
 	Time finishBy;
 
+	// Whether any fragment of this message should be retransmitted
+	// if it is lost. Default true. Set to false for "best effort"
+	// delivery, where each fragment will be sent at most once.
+	bool retransmit;
+
 	// If set, this message will be abandoned if the parent is abandoned. Useful for
 	// chaining dependent messages together (such as a predictive-coded video frame that
 	// can't be decoded if the previous one is not received).
