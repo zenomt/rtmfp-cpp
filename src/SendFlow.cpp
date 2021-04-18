@@ -10,7 +10,7 @@
 
 namespace com { namespace zenomt { namespace rtmfp {
 
-SendFlow::SendFrag::SendFrag(SendFlow *owner, const uint8_t *data, size_t len, uintmax_t sequenceNumber, uint8_t fra, std::shared_ptr<WriteReceipt> &receipt) :
+SendFlow::SendFrag::SendFrag(SendFlow *owner, const uint8_t *data, size_t len, uintmax_t sequenceNumber, uint8_t fra, const std::shared_ptr<IssuerWriteReceipt> &receipt) :
 	m_owner(owner),
 	m_sequence_number(sequenceNumber),
 	m_fra(fra),
@@ -187,7 +187,7 @@ void SendFlow::setPriority(Priority pri)
 std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin)
 {
 	Time now = m_rtmfp->getCurrentTime();
-	auto rv = share_ref(new WriteReceipt(now, startWithin, finishWithin), false);
+	auto rv = share_ref(new IssuerWriteReceipt(now, startWithin, finishWithin), false);
 
 	const uint8_t *cursor = (const uint8_t *)message;
 	size_t remaining = len;

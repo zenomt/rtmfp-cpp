@@ -1,9 +1,9 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include "../include/rtmfp/rtmfp.hpp"
+#include "../include/rtmfp/WriteReceipt.hpp"
 
-namespace com { namespace zenomt { namespace rtmfp {
+namespace com { namespace zenomt {
 
 WriteReceipt::WriteReceipt(Time origin, Time startWithin, Time finishWithin) :
 	startBy(origin + startWithin),
@@ -26,6 +26,18 @@ void WriteReceipt::abandon()
 			onFinished(true);
 		onFinished = nullptr;
 	}
+}
+
+void WriteReceipt::abandonIfNeeded(Time now)
+{
+	if(m_abandoned)
+		return;
+
+	if( (now > finishBy)
+	 or ((not m_started) and (now > startBy))
+	 or (parent and parent->isAbandoned())
+	)
+		abandon();
 }
 
 void WriteReceipt::setStartWithin(Time age)
@@ -63,12 +75,14 @@ bool WriteReceipt::isFinished() const
 	return 0 == m_useCount;
 }
 
-void WriteReceipt::useCountUp()
+// --- methods for the issuer
+
+void IssuerWriteReceipt::useCountUp()
 {
 	m_useCount++;
 }
 
-void WriteReceipt::useCountDown()
+void IssuerWriteReceipt::useCountDown()
 {
 	if(0 == --m_useCount)
 	{
@@ -79,21 +93,9 @@ void WriteReceipt::useCountDown()
 	}
 }
 
-void WriteReceipt::start()
+void IssuerWriteReceipt::start()
 {
 	m_started = true;
 }
 
-void WriteReceipt::abandonIfNeeded(Time now)
-{
-	if(m_abandoned)
-		return;
-
-	if( (now > finishBy)
-	 or ((not m_started) and (now > startBy))
-	 or (parent and parent->isAbandoned())
-	)
-		abandon();
-}
-
-} } } // namespace com::zenomt::rtmfp
+} } // namespace com::zenomt

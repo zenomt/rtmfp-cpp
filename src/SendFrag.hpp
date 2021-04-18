@@ -17,9 +17,9 @@ struct SendFlow::SendFrag : public Object {
 	uintmax_t m_tsn;
 	long      m_session_outstanding_name;
 	Bytes     m_data;
-	std::shared_ptr<WriteReceipt> m_receipt;
+	std::shared_ptr<IssuerWriteReceipt> m_receipt;
 
-	SendFrag(SendFlow *owner, const uint8_t *data, size_t len, uintmax_t sequenceNumber, uint8_t fra, std::shared_ptr<WriteReceipt> &receipt);
+	SendFrag(SendFlow *owner, const uint8_t *data, size_t len, uintmax_t sequenceNumber, uint8_t fra, const std::shared_ptr<IssuerWriteReceipt> &receipt);
 
 	static size_t size_queue(const std::shared_ptr<SendFrag>& value);
 	static size_t size_outstanding(const std::shared_ptr<SendFrag>& value);
