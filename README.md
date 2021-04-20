@@ -40,7 +40,8 @@ return flows).
 The application can send messages over sending flow(s) to far peers, and
 receive messages from far peers by implementing the `onMessage` callback on
 `RecvFlow`s.  Messages can expire and be abandoned if not started or delivered
-by per-message deadlines, or by arbitrary application logic using `WriteReceipt`s.
+by per-message deadlines, or by arbitrary application logic using
+[`WriteReceipt`](include/rtmfp/WriteReceipt.hpp)s.
 The application can be notified by callback when a message is delivered or
 abandoned.
 
@@ -141,7 +142,6 @@ To Do
 * More documentation
 * More unit tests
 * More examples
-* CMakeLists.txt
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
 * FLV sender/receiver command-line tools

@@ -2,6 +2,7 @@ a.out
 .*.swp
 *.o
 *.a
+build/
 test/testvlu
 test/testplatform
 test/testaddress
