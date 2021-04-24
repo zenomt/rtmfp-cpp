@@ -18,7 +18,7 @@ what's going on in each, check the source.
   [Redirector](https://tools.ietf.org/html/rfc7016#section-3.5.1.4) for FlashCrypto
   that redirects any new incoming connection to one or more other addresses.
 * [`fcclient`](fcclient.cpp): A simple connection maker using `FlashCryptoAdapter_OpenSSL`
-  (but not RTMP-over-RTMFP messages or metadat). Exercises opening to FlashCrypto EPDs with
+  (but not RTMP-over-RTMFP messages or metadata). Exercises opening to FlashCrypto EPDs with
   fingerprints, required hostnames, or RTMFP URIs. Exercises HMAC and Session Sequence Number
   negotiation. Sends a short burst and terminates after 30 seconds. Use with `echoserver`.
 * [`server`](server.cpp): A simple connection sink using PlainCrypto (no encryption) to

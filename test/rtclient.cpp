@@ -24,6 +24,7 @@ bool chainGop = true;
 bool audioRetransmit = true;
 Time pfLifetime = 2.000;
 bool interrupted = false;
+double keyframeMult = 5;
 
 void signal_handler(int unused)
 {
@@ -34,8 +35,7 @@ class Stream : public Object {
 public:
 	Stream(int fps, double videoRate) : m_fps(fps), m_frame(0), m_videoRate(videoRate), m_audioRate(192000./8), m_videoBytesDelivered(0)
 	{
-		m_keyframeMult = (30 == m_fps) ? 5 : 3.2;
-		m_frameSize = 2.0 * m_videoRate / (2. * m_fps - 1 + m_keyframeMult);
+		m_frameSize = 2.0 * m_videoRate / (2. * m_fps - 1 + keyframeMult);
 	}
 
 	void publish(const std::shared_ptr<Flow> pilot, RunLoop *rl)
@@ -63,7 +63,7 @@ public:
 		double frameSize = m_frameSize;
 		if(keyframe)
 		{
-			frameSize *= m_keyframeMult;
+			frameSize *= keyframeMult;
 			while(not m_gop.empty())
 			{
 				auto &front = m_gop.front();
@@ -136,7 +136,6 @@ protected:
 	double m_videoRate;
 	double m_audioRate;
 	double m_frameSize;
-	double m_keyframeMult;
 	size_t m_videoBytesDelivered;
 	std::shared_ptr<SendFlow> m_video;
 	std::shared_ptr<SendFlow> m_audio;
@@ -164,6 +163,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("usage: %s [options] dstaddr port [dstaddr port]\n", name);
 	printf("  -n name   -- require hostname\n");
 	printf("  -f 30|60  -- set frames per second (30* or 60)\n");
+	printf("  -k mult   -- keyframe multiplier (size times regular frames, default %.3f)\n", keyframeMult);
 	printf("  -r vbps   -- set video bits per second, default 1000000\n");
 	printf("  -l secs   -- set video P-frame lifetime, default %Lf\n", pfLifetime);
 	printf("  -i        -- interleave audio and video on same flow\n");
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "h46HSn:f:r:l:iAECv")) != -1)
+	while((ch = getopt(argc, argv, "h46HSn:f:k:r:l:iAECv")) != -1)
 	{
 		switch(ch)
 		{
@@ -217,6 +217,9 @@ int main(int argc, char **argv)
 			fps = atoi(optarg);
 			if((30 != fps) and (60 != fps))
 				return usage(argv[0], "fps must be 30 or 60", 1);
+			break;
+		case 'k':
+			keyframeMult = atof(optarg);
 			break;
 		case 'r':
 			videoRate = atof(optarg) / 8;
@@ -275,6 +278,10 @@ int main(int argc, char **argv)
 	PosixPlatformAdapter platform(&rl);
 	RTMFP rtmfp(&platform, &crypto);
 	platform.setRtmfp(&rtmfp);
+
+	::signal(SIGINT, signal_handler);
+	::signal(SIGTERM, signal_handler);
+	rl.onEveryCycle = [&rtmfp] { if(interrupted) { interrupted = false; rtmfp.shutdown(true); printf("interrupted. shutting down.\n"); } };
 	platform.onShutdownCompleteCallback = [&rl] { rl.stop(); };
 
 	if(ipv4 and not addInterface(&platform, 0, AF_INET))
@@ -293,11 +300,6 @@ int main(int argc, char **argv)
 	};
 	pilot->onException = [&rtmfp] (uintmax_t reason) { printf("pilot exception: shutdown\n"); rtmfp.shutdown(true); };
 	pilot->notifyWhenWritable();
-
-	::signal(SIGINT, signal_handler);
-	::signal(SIGTERM, signal_handler);
-	rl.onEveryCycle = [&rtmfp] { if(interrupted) { interrupted = false; rtmfp.shutdown(true); printf("interrupted. shutting down.\n"); } };
-	platform.onShutdownCompleteCallback = [&rl] { rl.stop(); };
 
 	rl.run();
 

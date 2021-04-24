@@ -37,11 +37,11 @@ The application can accept new flows by implementing the `onRecvFlow` callbacks
 on the `RTMFP` (for bare incoming flows) or on `SendFlow`s (for associated
 return flows).
 
-The application can send messages over sending flow(s) to far peers, and
+The application can send messages to far peers with `SendFlow::write()`, and
 receive messages from far peers by implementing the `onMessage` callback on
 `RecvFlow`s.  Messages can expire and be abandoned if not started or delivered
-by per-message deadlines, or by arbitrary application logic using
-[`WriteReceipt`](include/rtmfp/WriteReceipt.hpp)s.
+by per-message deadlines, or by arbitrary application logic using the
+[`WriteReceipt`](include/rtmfp/WriteReceipt.hpp)s returned by `SendFlow::write()`.
 The application can be notified by callback when a message is delivered or
 abandoned.
 
