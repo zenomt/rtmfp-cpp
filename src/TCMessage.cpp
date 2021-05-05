@@ -4,7 +4,48 @@
 #include "../include/rtmfp/TCMessage.hpp"
 #include "../include/rtmfp/VLU.hpp"
 
-namespace com { namespace zenomt { namespace rtmfp {
+namespace com { namespace zenomt {
+
+namespace rtmp {
+
+Bytes Message::command(const char *commandName, double transactionID, const AMF0 *commandObject, const uint8_t *payload, size_t len, bool ext)
+{
+	Bytes rv;
+
+	if(ext)
+		rv.push_back(0); // see note at RFC 7425 §5.3.3
+
+	AMF0String(commandName).encode(rv);
+	AMF0Number(transactionID).encode(rv);
+	if(commandObject)
+		commandObject->encode(rv);
+	else
+		AMF0Null().encode(rv);
+
+	if(payload)
+		rv.insert(rv.end(), payload, payload + len);
+
+	return rv;
+}
+
+Bytes Message::command(const char *commandName, double transactionID, const AMF0 *commandObject, const Bytes &payload, bool ext)
+{
+	return command(commandName, transactionID, commandObject, payload.data(), payload.size(), ext);
+}
+
+Bytes Message::command(const char *commandName, double transactionID, const AMF0 *commandObject, const AMF0 *infoObject)
+{
+	return command(commandName, transactionID, commandObject, AMF0::encode(infoObject), false);
+}
+
+Bytes Message::command(const char *commandName, double transactionID, const AMF0 *commandObject, const std::shared_ptr<AMF0> &infoObject)
+{
+	return command(commandName, transactionID, commandObject, infoObject.get());
+}
+
+} // namespace rtmp
+
+namespace rtmfp {
 
 using namespace com::zenomt::rtmp;
 
@@ -94,25 +135,14 @@ Bytes TCMessage::message(uint8_t type_, uint32_t timestamp, const uint8_t *msg, 
 	return rv;
 }
 
+Bytes TCMessage::message(uint8_t type_, uint32_t timestamp, const Bytes &msg)
+{
+	return message(type_, timestamp, msg.data(), msg.size());
+}
 
 Bytes TCMessage::command(const char *commandName, double transactionID, const AMF0 *commandObject, const uint8_t *payload, size_t len, bool ext)
 {
-	auto rv = message(ext ? TCMSG_COMMAND_EX : TCMSG_COMMAND, 0, nullptr, 0);
-
-	if(ext)
-		rv.push_back(0); // see note at RFC 7425 §5.3.3
-
-	AMF0String(commandName).encode(rv);
-	AMF0Number(transactionID).encode(rv);
-	if(commandObject)
-		commandObject->encode(rv);
-	else
-		AMF0Null().encode(rv);
-
-	if(payload)
-		rv.insert(rv.end(), payload, payload + len);
-
-	return rv;
+	return message(ext ? TCMSG_COMMAND_EX : TCMSG_COMMAND, 0, Message::command(commandName, transactionID, commandObject, payload, len, ext));
 }
 
 Bytes TCMessage::command(const char *commandName, double transactionID, const AMF0 *commandObject, const Bytes &payload, bool ext)
@@ -122,10 +152,7 @@ Bytes TCMessage::command(const char *commandName, double transactionID, const AM
 
 Bytes TCMessage::command(const char *commandName, double transactionID, const AMF0 *commandObject, const AMF0 *infoObject)
 {
-	auto rv = command(commandName, transactionID, commandObject, nullptr, 0, false);
-	if(infoObject)
-		infoObject->encode(rv);
-	return rv;
+	return command(commandName, transactionID, commandObject, AMF0::encode(infoObject), false);
 }
 
 Bytes TCMessage::command(const char *commandName, double transactionID, const AMF0 *commandObject, const std::shared_ptr<AMF0> &infoObject)
@@ -133,4 +160,6 @@ Bytes TCMessage::command(const char *commandName, double transactionID, const AM
 	return command(commandName, transactionID, commandObject, infoObject.get());
 }
 
-} } } // namespace com::zenomt::rtmfp
+} // namespace rtmfp
+
+} } // namespace com::zenomt
