@@ -6,9 +6,16 @@
 #include "rtmfp.hpp"
 #include "AMF.hpp"
 
-namespace com { namespace zenomt { namespace rtmfp {
+namespace com { namespace zenomt {
+
+namespace rtmp {
 
 enum {
+	TCMSG_SET_CHUNK_SIZE   = 1, // not used with RTMFP
+	TCMSG_ABORT_MESSAGE    = 2, // not used with RTMFP
+	TCMSG_ACKNOWLEDGEMENT  = 3, // not used with RTMFP
+	TCMSG_WINDOW_ACK_SIZE  = 5, // not used with RTMFP
+	TCMSG_SET_PEER_BW      = 6, // not used with RTMFP
 	TCMSG_USER_CONTROL     = 4,
 	TCMSG_COMMAND          = 20,
 	TCMSG_COMMAND_EX       = 17,
@@ -32,6 +39,16 @@ enum {
 	TC_USERCONTROL_FLOW_SYNC     = 34, // RFC 7425 §5.2
 	TC_USERCONTROL_SET_KEEPALIVE = 41  // RFC 7425 §5.3.4
 };
+
+enum {
+	TC_SET_PEER_BW_LIMIT_HARD = 0,
+	TC_SET_PEER_BW_LIMIT_SOFT,
+	TC_SET_PEER_BW_LIMIT_DYNAMIC
+};
+
+} // namespace rtmp
+
+namespace rtmfp {
 
 const uint8_t TCMETADATA_FLAG_SID = 0x04; // Stream ID Present, required
 const uint8_t TCMETADATA_FLAG_RXI_MASK = 0x01; // Receive Intent

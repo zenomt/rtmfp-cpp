@@ -384,7 +384,7 @@ public:
 	virtual void onHowLongToSleepDidChange() {}
 
 	// Start calling onwritable when interface is writable until onwritable answers false.
-	virtual bool notifyWhenInterfaceWritable(int interfaceID, std::function<bool(void)> onwritable) = 0;
+	virtual bool notifyWhenInterfaceWritable(int interfaceID, const std::function<bool(void)> &onwritable) = 0;
 
 	// Write a datagram via interfaceID.
 	virtual bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen) = 0;

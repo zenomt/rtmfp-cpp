@@ -112,7 +112,7 @@ void PosixPlatformAdapter::onHowLongToSleepDidChange()
 	m_rtmfpAlarm->setNextFireTime(getCurrentTime() + m_rtmfp->howLongToSleep());
 }
 
-bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, std::function<bool(void)> onwritable)
+bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, const std::function<bool(void)> &onwritable)
 {
 	if(m_interfaces.has(interfaceID))
 	{
