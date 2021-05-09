@@ -490,7 +490,7 @@ void Session::abortFlowsAndTimers()
 	while(not m_sendFlows.empty())
 	{
 		long firstName = m_sendFlows.first();
-		m_sendFlows.firstValue()->onSessionDidClose(myself); // should unbind, removing itself from m_sendFlows
+		m_sendFlows.at(firstName)->onSessionDidClose(myself); // should unbind, removing itself from m_sendFlows
 		assert(not m_sendFlows.has(firstName));
 	}
 

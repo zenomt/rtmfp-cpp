@@ -144,7 +144,7 @@ To Do
 * More examples
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
-* FLV sender/receiver command-line tools
+* RTMFP ←→ RTMP proxy
 
   [MODP 1024]: https://tools.ietf.org/html/rfc7296#appendix-B.2
   [MODP 2048]: https://tools.ietf.org/html/rfc3526#section-3

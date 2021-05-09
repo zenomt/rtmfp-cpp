@@ -5,6 +5,7 @@ OPENSSL_LIBDIR = -L/usr/local/openssl/lib
 CXXFLAGS = -Os -Wall -pedantic -std=c++11 -I../include
 
 LIBRARY = ../librtmfp.a
+RTMP = RTMP.o PosixRTMPPlatformAdapter.o
 
 ifndef WITHOUT_OPENSSL
 FC_OPENSSL_SAMPLES = fcclient echoserver rtclient static-redirector
@@ -88,6 +89,10 @@ rtclient: rtclient.o $(LIBRARY)
 static-redirector: static-redirector.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
+rtmpserver: rtmpserver.o $(RTMP) $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+
 
 # make ci: build all, but only run the automated tests.
 ci: all
