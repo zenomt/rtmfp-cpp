@@ -193,7 +193,7 @@ int usage(const char *prog, const char *msg, int rv)
 {
 	if(msg)
 		printf("%s\n", msg);
-	printf("usage: %s [-4|-6] [-p port]\n", prog);
+	printf("usage: %s [options]\n", prog);
 	printf("  -p port   -- listen on port (default %d)\n", port);
 	printf("  -s        -- set simple mode for compatibility with bad RTMPs\n");
 	printf("  -4        -- listen on IPv4 (default IPv6)\n");
