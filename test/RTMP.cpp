@@ -978,15 +978,19 @@ void RTMP::clearCallbacks()
 
 void RTMP::setClosedState()
 {
+	Task onerror_f;
+
 	if(m_state != RT_PROTOCOL_ERROR)
 	{
 		m_state = RT_PROTOCOL_ERROR;
 		trimSendQueues(true);
 		m_platform->onClosed();
-		if(onerror)
-			onerror();
+		swap(onerror_f, onerror);
 	}
 	clearCallbacks();
+
+	if(onerror_f)
+		onerror_f();
 }
 
 } } } // namespace com::zenomt::rtmp

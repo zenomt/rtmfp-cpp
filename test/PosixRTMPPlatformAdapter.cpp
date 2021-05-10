@@ -37,9 +37,12 @@ PosixRTMPPlatformAdapter::~PosixRTMPPlatformAdapter()
 
 void PosixRTMPPlatformAdapter::close()
 {
-	m_runloop->unregisterDescriptor(m_fd);
-	::close(m_fd); // TODO really?
-	m_fd = -1;
+	if(m_fd >= 0)
+	{
+		m_runloop->unregisterDescriptor(m_fd);
+		::close(m_fd); // TODO really?
+		m_fd = -1;
+	}
 }
 
 bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
