@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -16,7 +17,10 @@ namespace com { namespace zenomt { namespace rtmp {
 
 static const size_t INPUT_BUFFER_SIZE = 65536;
 static const size_t WRITE_SIZE_PER_SELECT = 8192;
+
+#ifdef TCP_NOTSENT_LOWAT
 static const int UNSENT_LOWAT = 16384;
+#endif
 
 PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop) :
 	m_rtmp(nullptr),
