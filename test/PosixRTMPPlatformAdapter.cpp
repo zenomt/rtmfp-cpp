@@ -162,7 +162,7 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 				m_rtmp->onInterfaceDidClose();
 			return;
 		}
-		else if(rv < len)
+		else if((size_t)rv < len)
 		{
 			::memmove(buf, buf + rv, len - rv);
 			m_outputBuffer.resize(len - rv);
