@@ -108,4 +108,4 @@ ci: all
 	./testflowsync
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient testamf testtcmsg testflowsync static-redirector
+	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient testamf testtcmsg testflowsync static-redirector rtmpserver

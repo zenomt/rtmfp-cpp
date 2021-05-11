@@ -130,9 +130,8 @@ void PosixRTMPPlatformAdapter::onInterfaceReadable()
 	{
 		if((EAGAIN == errno) or (EINTR == errno))
 			return;
-		::perror("recvfrom");
-		if(m_rtmpOpen)
-			m_rtmp->onInterfaceDidClose();
+		if(errno)
+			::perror("recvfrom");
 		goto error;
 	}
 
@@ -143,6 +142,8 @@ void PosixRTMPPlatformAdapter::onInterfaceReadable()
 
 error:
 	close();
+	if(m_rtmpOpen)
+		m_rtmp->onInterfaceDidClose();
 }
 
 void PosixRTMPPlatformAdapter::onInterfaceWritable()
@@ -161,7 +162,7 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 		ssize_t rv = ::sendto(m_fd, buf, len, 0, nullptr, 0);
 		if(rv < 0)
 		{
-			if(EAGAIN == errno) // this shouldn't happen because we select()ed
+			if((EAGAIN == errno) or (EINTR == errno))
 				return;
 			::perror("sendto");
 			close();

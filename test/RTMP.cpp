@@ -323,8 +323,10 @@ size_t RTMP::queueStartChunk(int chunkStreamID, uint32_t streamID, uint8_t type_
 	{
 		int extendedChunkStreamID = chunkStreamID - 64;
 		m_rawOutputBuffer.push_back(chunkType | 1);
-		m_rawOutputBuffer.push_back((extendedChunkStreamID >> 8) & 0xff);
+
+		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
 		m_rawOutputBuffer.push_back((extendedChunkStreamID     ) & 0xff);
+		m_rawOutputBuffer.push_back((extendedChunkStreamID >> 8) & 0xff);
 	}
 	else if(chunkStreamID > 63)
 	{
@@ -382,7 +384,7 @@ size_t RTMP::queueNextChunk(int chunkStreamID, const uint8_t *payload, size_t cu
 		int extendedChunkStreamID = chunkStreamID - 64;
 		m_rawOutputBuffer.push_back(CHUNK_TYPE_3 | 1);
 
-		// spec mis-match, Adobe sends little-endian, spec implies big-endian :(
+		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
 		m_rawOutputBuffer.push_back((extendedChunkStreamID     ) & 0xff);
 		m_rawOutputBuffer.push_back((extendedChunkStreamID >> 8) & 0xff);
 	}
@@ -781,7 +783,7 @@ long RTMP::onOpenInput(const uint8_t *bytes, const uint8_t *limit, size_t remain
 		chunkStreamID = *cursor++ + 64;
 	else if(1 == maybeChunkStreamID)
 	{
-		// spec mismatch, Adobe's implementation is little-endian, spec implies big-endian
+		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
 		chunkStreamID = cursor[0] + (cursor[1] << 8) + 64;
 		cursor += 2;
 	}
