@@ -61,6 +61,27 @@ static void _setu32(uint8_t *dst, size_t val)
 	dst[3] = (val      ) & 0xff;
 }
 
+static void _pushChunkBasicHeader(RTMP::Bytes &dst, uint8_t chunkType, int chunkStreamID)
+{
+	if(chunkStreamID > 319)
+	{
+		int extendedChunkStreamID = chunkStreamID - 64;
+		dst.push_back(chunkType | 1);
+
+		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
+		dst.push_back((extendedChunkStreamID     ) & 0xff);
+		dst.push_back((extendedChunkStreamID >> 8) & 0xff);
+	}
+	else if(chunkStreamID > 63)
+	{
+		int extendedChunkStreamID = chunkStreamID - 64;
+		dst.push_back(chunkType | 0);
+		dst.push_back(extendedChunkStreamID & 0xff);
+	}
+	else
+		dst.push_back(chunkType | (chunkStreamID & 0x3f));
+}
+
 RTMP::ChunkStreamState::ChunkStreamState() :
 	m_streamID(0),
 	m_timestamp(0),
@@ -319,23 +340,7 @@ size_t RTMP::queueStartChunk(int chunkStreamID, uint32_t streamID, uint8_t type_
 	cs.m_lastUsed = getCurrentTime();
 	cs.m_timestampDeltaValid = CHUNK_TYPE_0 != chunkType;
 
-	if(chunkStreamID > 319)
-	{
-		int extendedChunkStreamID = chunkStreamID - 64;
-		m_rawOutputBuffer.push_back(chunkType | 1);
-
-		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
-		m_rawOutputBuffer.push_back((extendedChunkStreamID     ) & 0xff);
-		m_rawOutputBuffer.push_back((extendedChunkStreamID >> 8) & 0xff);
-	}
-	else if(chunkStreamID > 63)
-	{
-		int extendedChunkStreamID = chunkStreamID - 64;
-		m_rawOutputBuffer.push_back(chunkType | 0);
-		m_rawOutputBuffer.push_back(extendedChunkStreamID & 0xff);
-	}
-	else
-		m_rawOutputBuffer.push_back(chunkType | (chunkStreamID & 0x3f));
+	_pushChunkBasicHeader(m_rawOutputBuffer, chunkType, chunkStreamID);
 
 	switch(chunkType)
 	{
@@ -379,27 +384,11 @@ size_t RTMP::queueNextChunk(int chunkStreamID, const uint8_t *payload, size_t cu
 	auto &cs = m_sendChunkStreams[chunkStreamID];
 	assert(cs.m_busy);
 
-	if(chunkStreamID > 319)
-	{
-		int extendedChunkStreamID = chunkStreamID - 64;
-		m_rawOutputBuffer.push_back(CHUNK_TYPE_3 | 1);
+	_pushChunkBasicHeader(m_rawOutputBuffer, CHUNK_TYPE_3, chunkStreamID);
 
-		// spec mismatch, Adobe sends little-endian, spec implies big-endian :(
-		m_rawOutputBuffer.push_back((extendedChunkStreamID     ) & 0xff);
-		m_rawOutputBuffer.push_back((extendedChunkStreamID >> 8) & 0xff);
-	}
-	else if(chunkStreamID > 63)
-	{
-		int extendedChunkStreamID = chunkStreamID - 64;
-		m_rawOutputBuffer.push_back(CHUNK_TYPE_3 | 0);
-		m_rawOutputBuffer.push_back(extendedChunkStreamID & 0xff);
-	}
-	else
-		m_rawOutputBuffer.push_back(CHUNK_TYPE_3 | (chunkStreamID & 0x3f));
-
-	uint32_t extendedTimestamp = cs.m_timestampDelta;
-	if(extendedTimestamp)
-		_pushu32(m_rawOutputBuffer, extendedTimestamp);
+	uint32_t maybeExtendedTimestamp = cs.m_timestampDelta;
+	if(maybeExtendedTimestamp >= 0xffffff)
+		_pushu32(m_rawOutputBuffer, maybeExtendedTimestamp);
 
 	size_t writeAmount = std::min(cs.m_length - cursor, m_sendChunkSize);
 	m_rawOutputBuffer.insert(m_rawOutputBuffer.end(), payload + cursor, payload + cursor + writeAmount);

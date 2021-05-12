@@ -183,7 +183,7 @@ void Client::onCreateStreamCommand(const Args &args)
 
 void Client::onPublishCommand(uint32_t streamID, const Args &args)
 {
-	m_rtmp->write(PRI_ROUTINE, 1, TCMSG_COMMAND, streamID, Message::command("onStatus", 0, nullptr, 
+	m_rtmp->write(PRI_ROUTINE, streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 		AMF0::Object()
 			->putValueAtKey(AMF0::String("status"), "level")
 			->putValueAtKey(AMF0::String("NetStream.Publish.Start"), "code")
