@@ -48,6 +48,7 @@ RecvFlow::RecvFlow(std::shared_ptr<Session> session, uintmax_t flowID, const uin
 	m_final_sn_seen(false),
 	m_recv_buffer(RecvFrag::size_frag),
 	m_buffer_capacity(INITIAL_RECV_BUFFER),
+	m_window_limit(~0), // unlimited
 	m_prev_rwnd(0),
 	m_should_ack(false),
 	m_exception_code(0),
@@ -127,6 +128,17 @@ void RecvFlow::setBufferCapacity(size_t len)
 size_t RecvFlow::getBufferedSize() const
 {
 	return m_recv_buffer.sum();
+}
+
+size_t RecvFlow::getWindowLimit() const
+{
+	return m_window_limit;
+}
+
+void RecvFlow::setWindowLimit(size_t len)
+{
+	m_window_limit = len;
+	scheduleAck(true);
 }
 
 Bytes RecvFlow::getMetadata() const
@@ -394,10 +406,10 @@ bool RecvFlow::assembleAck(PacketAssembler *packet, bool truncateAllowed)
 	if(buffered_size >= m_buffer_capacity)
 		advertise_bytes = 0;
 	else
-		advertise_bytes = m_buffer_capacity - buffered_size;
+		advertise_bytes = std::min(m_buffer_capacity - buffered_size, m_window_limit);
 	size_t advertise_blocks = (advertise_bytes + 1023) / 1024;
 
-	if((0 == advertise_blocks) and (m_buffer_capacity > 0) and (RO_HOLD != m_rxOrder))
+	if((0 == advertise_blocks) and (m_buffer_capacity > 0) and (m_window_limit > 0) and (RO_HOLD != m_rxOrder))
 		advertise_blocks = 1;
 
 	if(RF_REJECTED == m_state)

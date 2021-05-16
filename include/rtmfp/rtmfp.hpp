@@ -317,6 +317,8 @@ public:
 	void         setBufferCapacity(size_t bufferLengthInBytes); // §3.6.3
 	size_t       getBufferCapacity() const;
 	size_t       getBufferedSize() const; // §3.6.3
+	void         setWindowLimit(size_t windowLengthInBytes); // Limit inflight regardless of buffer.
+	size_t       getWindowLimit() const;
 	void         close() override; // Reject this flow with default (0) reason §3.6.3.7.
 	void         close(uintmax_t reason); // Reject this flow with reason EXCEPTION_CODE.
 
@@ -366,6 +368,7 @@ protected:
 	bool         m_final_sn_seen;
 	SumList<std::shared_ptr<RecvFrag> > m_recv_buffer;
 	size_t       m_buffer_capacity;
+	size_t       m_window_limit;
 	size_t       m_prev_rwnd;
 	bool         m_should_ack;
 	uintmax_t    m_exception_code;
