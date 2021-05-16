@@ -123,7 +123,7 @@ size_t SendFlow::getOutstandingBytes() const
 
 std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Time startWithin, Time finishWithin)
 {
-	if((not isOpen()) or (not m_session) or (Session::S_OPEN != m_session->m_state))
+	if(not isOpen())
 		return std::shared_ptr<WriteReceipt>();
 
 	return basicWrite(message, len, startWithin, finishWithin);
@@ -137,6 +137,10 @@ std::shared_ptr<WriteReceipt> SendFlow::write(const Bytes &message, Time startWi
 void SendFlow::close()
 {
 	auto myself = share_ref(this);
+
+	onWritable = nullptr;
+	onException = nullptr;
+	onRecvFlow = nullptr;
 
 	Flow::close();
 
@@ -162,10 +166,6 @@ void SendFlow::close()
 		gotoStateClosed();
 
 	m_rtmfp->sendFlowIsNotOpening(myself);
-
-	onWritable = nullptr;
-	onException = nullptr;
-	onRecvFlow = nullptr;
 }
 
 Priority SendFlow::getPriority() const
@@ -220,8 +220,10 @@ std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t l
 		remaining -= fragSize;
 	} while(remaining);
 
-	scheduleForTransmission();
-	scheduleTrimSendQueue(); // keep buffer under control if we never get scheduled for transmit
+	if(m_session and (Session::S_OPEN == m_session->m_state))
+		scheduleForTransmission();
+
+	scheduleTrimSendQueue(); // keep buffer under control in case we never get scheduled for transmit
 
 	return rv;
 }
@@ -245,6 +247,7 @@ void SendFlow::onSessionDidOpen(std::shared_ptr<SendFlow> myself, std::shared_pt
 			m_openingSession.reset();
 		}
 
+		scheduleForTransmission();
 		queueWritableNotify();
 	}
 }
@@ -269,14 +272,7 @@ void SendFlow::onSessionWillOpen(std::shared_ptr<Session> session)
 void SendFlow::onSessionDidClose(std::shared_ptr<Session> session)
 {
 	if((m_session == session) or ((not m_session) and (m_openingSession == session)))
-	{
-		bool wasOpen = isOpen();
-		std::function<void(uintmax_t reason)> exception_f;
-		swap(exception_f, onException);
-		close();
-		if(wasOpen and exception_f)
-			exception_f(0);
-	}
+		onExceptionReport(0);
 }
 
 void SendFlow::queueWritableNotify()
@@ -561,14 +557,11 @@ void SendFlow::onExceptionReport(uintmax_t exceptionCode)
 {
 	m_exception = true;
 
-	if(F_OPEN == m_state)
-	{
-		std::function<void(uintmax_t reason)> exception_f;
-		swap(exception_f, onException);
-		close();
-		if(exception_f)
-			exception_f(exceptionCode);
-	}
+	std::function<void(uintmax_t reason)> exception_f;
+	swap(exception_f, onException);
+	close();
+	if(exception_f)
+		exception_f(exceptionCode);
 
 	m_send_queue.valuesDo([] (std::shared_ptr<SendFrag> &frag) { frag->m_receipt->abandon(); return true; });
 }

@@ -132,6 +132,8 @@ int main(int argc, char * const argv[])
 	auto flow = openFlow(instance, dstName, PRI_ROUTINE);
 	add_candidates(flow, dstAddrs);
 
+	flow->write("early", 5)->onFinished = [] (bool abn) { printf("early onFinished (%d)\n", abn); };
+
 	openFlow(instance, dstName, PRI_PRIORITY);
 
 	// rl.scheduleRel(Timer::makeAction([] (Time now) { printf("fire %Lf\n", now); }), 0, 1);

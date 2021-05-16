@@ -240,6 +240,11 @@ int main(int argc, char **argv)
 		perror("socket");
 		return 1;
 	}
+	{
+		int val = 1;
+		if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)))
+			::perror("SO_REUSEADDR");
+	}
 
 	rtmfp::Address addr;
 	addr.setFamily(family);
@@ -248,10 +253,6 @@ int main(int argc, char **argv)
 	{
 		perror("bind");
 		return 1;
-	}
-	{
-		int val = 1;
-		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 	}
 
 	if(listen(fd, 5))

@@ -233,8 +233,9 @@ public:
 	size_t getRecvBufferBytesAvailable() const; // Latest buffer advertised by the receiver §3.6.3.5.
 	size_t getOutstandingBytes() const; // Count of unacknowledged bytes in the network §3.5.
 
-	// Queue new data for transmission. Note the buffer capacity is advisory and writes are limited by
-	// available system memory. Writes are not allowed if the flow isn't open and bound to an S_OPEN session.
+	// Queue new data for transmission. Note the buffer capacity is advisory and writes are limited only by
+	// available system memory. Writes are not allowed if the flow is closed. Writes are allowed before the
+	// flow is bound to a session.
 	// Answers a WriteReceipt on success or an empty shared_ptr on error.
 	// startWithin and finishWithin are the initial values for the WriteReceipt, which can be changed later.
 	std::shared_ptr<WriteReceipt> write(const void *message, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
