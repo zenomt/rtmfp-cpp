@@ -69,6 +69,8 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 	}
 #endif
 
+	tryRegisterDescriptors();
+
 	return true;
 }
 
@@ -79,11 +81,11 @@ int PosixRTMPPlatformAdapter::getSocketFd() const
 
 bool PosixRTMPPlatformAdapter::setRTMP(RTMP *rtmp)
 {
-	if(rtmp and (not m_rtmp) and m_fd >= 0)
+	if(rtmp and not m_rtmp)
 	{
 		m_rtmp = rtmp;
 		m_rtmpOpen = true;
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+		tryRegisterDescriptors();
 		return true;
 	}
 	return false;
@@ -96,11 +98,9 @@ Time PosixRTMPPlatformAdapter::getCurrentTime()
 
 void PosixRTMPPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable)
 {
+	m_onwritable = onwritable;
 	if(m_fd >= 0)
-	{
-		m_onwritable = onwritable;
 		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
-	}
 }
 
 bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
@@ -122,6 +122,16 @@ void PosixRTMPPlatformAdapter::onClosed()
 }
 
 // ---
+
+void PosixRTMPPlatformAdapter::tryRegisterDescriptors()
+{
+	if((m_fd >= 0) and m_rtmp)
+	{
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+		if(m_onwritable)
+			m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
+	}
+}
 
 void PosixRTMPPlatformAdapter::onInterfaceReadable()
 {

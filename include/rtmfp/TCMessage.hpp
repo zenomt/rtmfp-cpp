@@ -51,10 +51,10 @@ enum {
 class Message {
 public:
 	// answer AMF message payload suitable for TCMSG_COMMAND (or TCMSG_COMMAND_EX with ext=true)
-	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const uint8_t *payload, size_t len, bool ext = false);
-	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const Bytes &payload, bool ext = false);
-	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const rtmp::AMF0 *infoObject);
-	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const std::shared_ptr<rtmp::AMF0> &infoObject);
+	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const uint8_t *payload, size_t len, bool ext = false);
+	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const Bytes &payload, bool ext = false);
+	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const AMF0 *infoObject);
+	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const std::shared_ptr<AMF0> &infoObject);
 };
 
 } // namespace rtmp

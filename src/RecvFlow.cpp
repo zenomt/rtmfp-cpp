@@ -69,7 +69,7 @@ bool RecvFlow::isOpen() const
 
 void RecvFlow::close()
 {
-	auto myself = share_ref(this);
+	retain();
 
 	if(RF_OPEN == m_state)
 	{
@@ -84,7 +84,7 @@ void RecvFlow::close()
 
 	Flow::close();
 
-	myself.reset();
+	release();
 }
 
 void RecvFlow::close(uintmax_t reason)

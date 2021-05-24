@@ -101,7 +101,15 @@ std::shared_ptr<Client> Client::newClient(RunLoop *rl, int fd)
 
 void Client::onMessage(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
 {
-	printf("got message streamID:%u type:%d timestamp:%u len:%lu\n", streamID, messageType, timestamp, (unsigned long)len);
+	if(verbose)
+	{
+		printf("streamID,%u,type,%d,timestamp,%u,len,%lu,time,%.3f,", streamID, messageType, timestamp, (unsigned long)len, (double)m_rtmp->getInstanceAge());
+		if((TCMSG_VIDEO == messageType) and len)
+			printf("%s", (0x10 == (payload[0] & 0xf0)) ? "keyframe" : "");
+		if(0 == len)
+			printf("silence");
+		printf("\n");
+	}
 	switch(messageType)
 	{
 	case TCMSG_COMMAND:

@@ -15,7 +15,7 @@ public:
 
 	void close();
 
-	bool setSocketFd(int fd); // set the socket fd before setting the RTMP
+	bool setSocketFd(int fd);
 	int  getSocketFd() const;
 
 	bool setRTMP(RTMP *rtmp);
@@ -26,6 +26,7 @@ public:
 	void onClosed() override;
 
 protected:
+	void tryRegisterDescriptors();
 	void onInterfaceReadable();
 	void onInterfaceWritable();
 	void closeIfDone();
