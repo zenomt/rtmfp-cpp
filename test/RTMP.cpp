@@ -905,8 +905,6 @@ long RTMP::onVersionSentInput(const uint8_t *bytes, size_t remaining)
 {
 	if(remaining < 1536)
 		return 0;
-	if(remaining > 1536)
-		return -1; // probably not speaking RTMP
 
 	queueHandshake2(bytes);
 	m_state = RT_ACK_SENT;
