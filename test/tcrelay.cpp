@@ -288,11 +288,11 @@ protected:
 			pri = PRI_IMMEDIATE;
 			break;
 		case TCMSG_AUDIO:
-			pri = interleave ? PRI_IMMEDIATE : PRI_PRIORITY;
-			break;
-		case TCMSG_VIDEO:
 		case TCMSG_DATA:
 		case TCMSG_DATA_EX:
+			pri = interleave ? PRI_PRIORITY : PRI_IMMEDIATE;
+			break;
+		case TCMSG_VIDEO:
 			pri = PRI_PRIORITY;
 			break;
 		}
@@ -314,7 +314,6 @@ public:
 		if(m_controlRecv)
 			m_controlRecv->close(); // needed for AIR compatibility; this is not good, clean close should be on all RecvFlows closing.
 		m_netStreams.clear(); // closes all NetStream SendFlows
-		auto myself = share_ref(this);
 		checkFinishedLater();
 	}
 
@@ -365,15 +364,16 @@ protected:
 
 		SendFlow * openFlowForType(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType)
 		{
-			Priority pri = PRI_PRIORITY;
+			Priority pri = PRI_IMMEDIATE;
 			std::shared_ptr<SendFlow> *flowRef = &m_data;
 			if(TCMSG_VIDEO == messageType)
-				flowRef = &m_video;
-			else if(TCMSG_AUDIO == messageType)
 			{
-				flowRef = &m_audio;
-				pri = interleave ? PRI_PRIORITY : PRI_IMMEDIATE;
+				flowRef = &m_video;
+				if(not interleave)
+					pri = PRI_PRIORITY; // lower than audio/data but still time-critical
 			}
+			else if(TCMSG_AUDIO == messageType)
+				flowRef = &m_audio;
 
 			if(not *flowRef)
 			{
