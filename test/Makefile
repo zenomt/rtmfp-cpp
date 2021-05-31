@@ -8,12 +8,17 @@ LIBRARY = ../librtmfp.a
 RTMP = RTMP.o PosixRTMPPlatformAdapter.o
 
 ifndef WITHOUT_OPENSSL
-FC_OPENSSL_SAMPLES = fcclient echoserver rtclient static-redirector
+FC_OPENSSL_EXAMPLES = fcclient echoserver rtclient static-redirector tcrelay
 endif
 
+TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync
+EXAMPLES = server testclient t2 rtmpserver $(FC_OPENSSL_EXAMPLES)
+
 default: all
-all: tests server testclient t2 $(FC_OPENSSL_SAMPLES)
-tests: tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync
+test-all: all
+all: tests examples
+tests: $(TESTS)
+examples: $(EXAMPLES)
 
 $(LIBRARY):
 	@cd .. && $(MAKE)
@@ -94,6 +99,10 @@ rtmpserver: rtmpserver.o $(RTMP) $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+
 
+tcrelay: tcrelay.o $(RTMP) $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
 # make ci: build all, but only run the automated tests.
 ci: all
 	./tis
@@ -108,4 +117,4 @@ ci: all
 	./testflowsync
 
 clean:
-	rm -f *.o tis testperform testchecksums testlist testvlu testaddress testclient server t2 testhex fcclient echoserver rtclient testamf testtcmsg testflowsync static-redirector rtmpserver
+	rm -f *.o $(TESTS) $(EXAMPLES)

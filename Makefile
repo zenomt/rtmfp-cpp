@@ -25,14 +25,14 @@ LIBOBJS = $(UTILS) $(PROTOCOL) $(SAMPLES) $(SAMPLES_OPENSSL)
 
 default: librtmfp.a
 
-all: default tests
+all: default test-all
 
 librtmfp.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) -r $@ $+
 	$(RANLIB) $@
 
-tests ci: default
+tests ci test-all examples: default
 	@cd test && $(MAKE) $@
 
 clean:

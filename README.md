@@ -14,7 +14,8 @@ The library is intended for clients, servers, and P2P applications. It includes
 the necessary helpers and callbacks to support P2P introduction and load
 balancing.
 
-The [`test`](test/) directory includes unit tests and examples.
+The [`test`](test/) directory includes unit tests and examples. Of special
+note is [`tcrelay`](test/tcrelay.cpp), an RTMFP ←→ RTMP relay/proxy.
 
 How to Use
 ----------
@@ -144,7 +145,6 @@ To Do
 * More examples
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
-* RTMFP ←→ RTMP proxy
 
   [MODP 1024]: https://tools.ietf.org/html/rfc7296#appendix-B.2
   [MODP 2048]: https://tools.ietf.org/html/rfc3526#section-3

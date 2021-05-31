@@ -20,6 +20,8 @@ public:
 
 	bool setRTMP(RTMP *rtmp);
 
+	Task onShutdownCompleteCallback;
+
 	Time getCurrentTime() override;
 	void notifyWhenWritable(const onwritable_f &onwritable) override;
 	bool writeBytes(const void *bytes, size_t len) override;

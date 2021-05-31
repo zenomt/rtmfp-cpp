@@ -22,3 +22,4 @@ test/testtcmsg
 test/testflowsync
 test/static-redirector
 test/rtmpserver
+test/tcrelay

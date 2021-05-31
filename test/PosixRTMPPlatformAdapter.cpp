@@ -47,6 +47,11 @@ void PosixRTMPPlatformAdapter::close()
 		::close(m_fd); // TODO really?
 		m_fd = -1;
 	}
+
+	Task cb;
+	swap(cb, onShutdownCompleteCallback);
+	if(cb)
+		cb();
 }
 
 bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
