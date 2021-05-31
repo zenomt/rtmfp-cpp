@@ -14,6 +14,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" {
 #include <fcntl.h>
@@ -21,7 +22,7 @@ extern "C" {
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-};
+}
 
 #include "rtmfp/rtmfp.hpp"
 #include "rtmfp/SelectRunLoop.hpp"
