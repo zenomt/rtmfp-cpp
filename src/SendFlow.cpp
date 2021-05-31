@@ -555,6 +555,8 @@ void SendFlow::onAck(uint8_t chunkType, size_t bufferBytesAvailable, uintmax_t c
 
 void SendFlow::onExceptionReport(uintmax_t exceptionCode)
 {
+	retain();
+
 	m_exception = true;
 
 	std::function<void(uintmax_t reason)> exception_f;
@@ -564,6 +566,8 @@ void SendFlow::onExceptionReport(uintmax_t exceptionCode)
 		exception_f(exceptionCode);
 
 	m_send_queue.valuesDo([] (std::shared_ptr<SendFrag> &frag) { frag->m_receipt->abandon(); return true; });
+
+	release();
 }
 
 void SendFlow::setPersistTimer()
