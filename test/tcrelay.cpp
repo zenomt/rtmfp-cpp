@@ -345,6 +345,9 @@ public:
 
 		controlRecv->onComplete = [this] (bool error) { callOnError(); };
 
+		if(verbose)
+			controlRecv->onFarAddressDidChange = [this, controlRecv] { printf("RTMFPConnection %p address changed %s\n", (void *)this, controlRecv->getFarAddress().toPresentation().c_str()); };
+
 		controlRecv->accept();
 		m_controlRecv = controlRecv;
 
@@ -572,7 +575,7 @@ public:
 		auto rv = share_ref(new RTMFPConnection(), false);
 		if(not rv->acceptControl(flow))
 			return;
-		if(verbose) printf("accepted RTMFP from %s\n", flow->getFarAddress().toPresentation().c_str());
+		if(verbose) printf("RTMFPConnection %p accepted from %s\n", (void *)rv.get(), flow->getFarAddress().toPresentation().c_str());
 
 		newClient(rv);
 	}
