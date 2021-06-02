@@ -925,6 +925,8 @@ long RTMP::onAckSentInput(const uint8_t *, size_t remaining)
 	if(m_sendChunkSize != DEFAULT_CHUNK_SIZE)
 		queueSetChunkSize();
 
+	scheduleWrite(); // in case there are queued messages
+
 	if(onopen)
 		onopen();
 
