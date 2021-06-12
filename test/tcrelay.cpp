@@ -105,11 +105,13 @@ public:
 		switch(messageType)
 		{
 		case TCMSG_VIDEO:
-			startWithin = videoLifetime;
+			if(not isVideoSequenceSpecial(data, len))
+				startWithin = videoLifetime;
 			break;
 
 		case TCMSG_AUDIO:
-			startWithin = audioLifetime;
+			if(not isAudioSequenceSpecial(data, len))
+				startWithin = audioLifetime;
 			break;
 		}
 
@@ -135,8 +137,11 @@ public:
 				q.clear();
 			}
 
-			rv->parent = previous;
-			q.append(rv);
+			if(startWithin < INFINITY)
+			{
+				rv->parent = previous;
+				q.append(rv);
+			}
 		}
 
 		if(rv and verbose)
@@ -169,6 +174,25 @@ protected:
 		swap(cb, onShutdownCompleteCallback);
 		if(cb)
 			cb();
+	}
+
+	bool isVideoSequenceSpecial(const uint8_t *payload, size_t len) const
+	{
+		if(0 == len)
+			return true;
+		if(len < 2)
+			return false;
+		return (0x07 == (payload[0] & 0x0f)) and (0x01 != payload[1]);
+			return true;
+	}
+
+	bool isAudioSequenceSpecial(const uint8_t *payload, size_t len) const
+	{
+		if(0 == len)
+			return true;
+		if(len < 2)
+			return false;
+		return (0xa0 == (payload[0] & 0xf0)) and (0 == payload[1]);
 	}
 
 	std::map<uint32_t, List<std::shared_ptr<WriteReceipt>>> m_receiptsByStream;
@@ -934,6 +958,10 @@ int main(int argc, char **argv)
 
 	workerThread.join();
 	lookupThread.join();
+
+	mainPerformer.close();
+	workerPerformer.close();
+	lookupPerformer.close();
 
 	printf("end.\n");
 

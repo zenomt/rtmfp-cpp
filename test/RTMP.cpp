@@ -160,6 +160,8 @@ void RTMP::setChunkSize(size_t newSize)
 
 	if(newSize < DEFAULT_CHUNK_SIZE)
 		newSize = DEFAULT_CHUNK_SIZE;
+	if(newSize > (size_t)(INT32_MAX))
+		newSize = INT32_MAX; // §5.4.1
 
 	if(newSize != m_sendChunkSize)
 	{
@@ -312,7 +314,7 @@ size_t RTMP::queueStartChunk(int chunkStreamID, uint32_t streamID, uint8_t type_
 
 	uint8_t chunkType = CHUNK_TYPE_0; // default
 	auto &cs = m_sendChunkStreams[chunkStreamID];
-	if(cs.m_initted and (timestamp - cs.m_timestamp <= UINT32_C(0x7ffffff)) and not m_simpleMode)
+	if(cs.m_initted and (timestamp - cs.m_timestamp <= (uint32_t)(INT32_MAX)) and not m_simpleMode)
 	{
 		// maybe we can use a more compact chunk type
 		if(streamID == cs.m_streamID)
