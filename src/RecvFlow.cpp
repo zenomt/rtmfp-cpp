@@ -44,6 +44,7 @@ RecvFlow::RecvFlow(std::shared_ptr<Session> session, uintmax_t flowID, const uin
 	m_metadata(metadata, metadata + metadataLen),
 	m_accepted(false),
 	m_rxOrder(RO_SEQUENCE),
+	m_forward_sn(0),
 	m_final_sn(0),
 	m_final_sn_seen(false),
 	m_recv_buffer(RecvFrag::size_frag),
@@ -81,6 +82,7 @@ void RecvFlow::close()
 
 	onMessage = nullptr;
 	onComplete = nullptr;
+	onCumulativeAckDidMerge = nullptr;
 
 	Flow::close();
 
@@ -146,6 +148,16 @@ Bytes RecvFlow::getMetadata() const
 	return m_metadata;
 }
 
+uintmax_t RecvFlow::getForwardSequenceNumber() const
+{
+	return m_forward_sn;
+}
+
+uintmax_t RecvFlow::getCumulativeAckSequenceNumber() const
+{
+	return m_sequence_set.firstRange().end;
+}
+
 std::shared_ptr<SendFlow> RecvFlow::getAssociatedSendFlow() const
 {
 	return m_associatedFlow;
@@ -190,10 +202,12 @@ void RecvFlow::onData(uint8_t flags, uintmax_t sequenceNumber, uintmax_t fsn, co
 	bool fresh = not m_sequence_set.contains(sequenceNumber);
 	bool abandoned = flags & USERDATA_FLAG_ABN;
 
+	size_t preRangeCount = m_sequence_set.countRanges();
+
 	// RFC 7016 §3.6.3.2 session.ACK_NOW checks
 	if( (m_prev_rwnd < 2)
 	 or (abandoned)
-	 or (m_sequence_set.countRanges() != 1)
+	 or (preRangeCount != 1)
 	 or (not fresh)
 	)
 		ack_now = true;
@@ -208,11 +222,15 @@ void RecvFlow::onData(uint8_t flags, uintmax_t sequenceNumber, uintmax_t fsn, co
 		ack_now = true;
 	}
 
+	if(fsn > m_forward_sn)
+		m_forward_sn = fsn;
+
+	uintmax_t preCSN = getCumulativeAckSequenceNumber();
+
 	m_sequence_set.add(0, fsn);
 	m_sequence_set.add(sequenceNumber);
 
-	if(m_sequence_set.countRanges() != 1)
-		ack_now = true;
+	size_t postRangeCount = m_sequence_set.countRanges();
 
 	long deliveryHint = -1;
 	if(fresh and (not abandoned) and (RF_OPEN == m_state))
@@ -235,6 +253,19 @@ void RecvFlow::onData(uint8_t flags, uintmax_t sequenceNumber, uintmax_t fsn, co
 	}
 
 	tryDelivery(deliveryHint);
+
+	if(preRangeCount != postRangeCount)
+	{
+		ack_now = true;
+
+		if(  (postRangeCount < preRangeCount)
+		 and (RO_NETWORK == m_rxOrder)
+		 and (RF_OPEN == m_state)
+		 and (preCSN < getCumulativeAckSequenceNumber())
+		 and onCumulativeAckDidMerge
+		)
+			onCumulativeAckDidMerge();
+	}
 
 	if(RF_OPEN != m_state)
 		ack_now = true;
@@ -351,8 +382,7 @@ void RecvFlow::tryDelivery(long hint)
 		deliverMessage(hint);
 
 	// deliver complete messages
-	Range cumulative = m_sequence_set.firstRange();
-	uintmax_t csn = cumulative.end;
+	uintmax_t csn = getCumulativeAckSequenceNumber();
 	while((RO_HOLD != m_rxOrder) and isOpen() and m_recv_buffer.size())
 	{
 		long name = m_recv_buffer.first();
@@ -398,8 +428,7 @@ bool RecvFlow::assembleAck(PacketAssembler *packet, bool truncateAllowed)
 {
 	uint8_t *checkpoint = packet->m_cursor; // we might roll back over a committed exception chunk
 	bool didTruncate = false;
-	Range cumulative = m_sequence_set.firstRange();
-	uintmax_t ackCursor = cumulative.end;
+	uintmax_t ackCursor = getCumulativeAckSequenceNumber();
 	size_t advertise_bytes;
 	size_t buffered_size = m_recv_buffer.sum();
 

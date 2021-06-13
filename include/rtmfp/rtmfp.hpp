@@ -317,6 +317,9 @@ public:
 
 	Bytes getMetadata() const;
 
+	uintmax_t getForwardSequenceNumber() const; // Less than or equal to this are not coming §3.6.2.3 ¶4
+	uintmax_t getCumulativeAckSequenceNumber() const; // Highest contiguously received, §3.6.3.3 ¶2
+
 	// Answer the sending flow to which this flow is a return/response, or empty if
 	// this is an unassociated flow.
 	std::shared_ptr<SendFlow> getAssociatedSendFlow() const;
@@ -331,6 +334,11 @@ public:
 
 	// Called when the flow concludes or has an error (such as the session closing while the flow is still open).
 	std::function<void(bool error)> onComplete;
+
+	// This function is called when the receive order is RO_NETWORK and the Cumulative Ack Sequence Number (CSN)
+	// advances to close a sequence number gap. This condition can indicate to an external reorder buffer to
+	// advance sequenced delivery through the CSN.
+	Task onCumulativeAckDidMerge;
 
 protected:
 	friend class RTMFP;
@@ -357,6 +365,7 @@ protected:
 	bool         m_accepted;
 	ReceiveOrder m_rxOrder;
 	IndexSet     m_sequence_set;
+	uintmax_t    m_forward_sn;
 	uintmax_t    m_final_sn;
 	bool         m_final_sn_seen;
 	SumList<std::shared_ptr<RecvFrag> > m_recv_buffer;

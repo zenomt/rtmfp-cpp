@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 // TODO:
+//  * option for RO_NETWORK for video/audio rx flows with time-bounded reordering
 //  * don't relay setPeerInfo
 //  * send an empty setPeerInfo on RTMFP after connect
-//  * flow sync around keyframes (and periodically?) when not interleaving to keep receiver A/V aligned
 //  * happy eyeballs for RTMP (handle multiple addresses from getaddrinfo))
 //  * use URIs for dest
 //    - rewrite connect tcUrl
