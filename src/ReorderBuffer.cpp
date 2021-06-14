@@ -51,8 +51,8 @@ void ReorderBuffer::setReorderWindowPeriod(Time val)
 	if(m_reorderPeriod != val)
 	{
 		m_reorderPeriod = val;
-		if(m_deliveryTimer)
-			m_deliveryTimer->setNextFireTime(-INFINITY); // fire now, auto reset
+		clearTimer();
+		scheduleDelivery();
 	}
 }
 
