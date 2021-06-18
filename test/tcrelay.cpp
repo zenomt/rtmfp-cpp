@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 // TODO:
-//  * option for RO_NETWORK for video/audio rx flows with time-bounded reordering
 //  * don't relay setPeerInfo
 //  * send an empty setPeerInfo on RTMFP after connect
 //  * happy eyeballs for RTMP (handle multiple addresses from getaddrinfo))
@@ -30,6 +29,7 @@ extern "C" {
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/TCMessage.hpp"
 #include "rtmfp/FlowSyncManager.hpp"
+#include "rtmfp/ReorderBuffer.hpp"
 
 #include "RTMP.hpp"
 #include "PosixRTMPPlatformAdapter.hpp"
@@ -53,6 +53,8 @@ Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
 Time previousGopLifetime = 0.1;
+Time reorderWindowPeriod = 1.0;
+ReceiveOrder mediaReceiveIntent = RO_SEQUENCE;
 bool expirePreviousGop = true;
 bool interrupted = false;
 bool stopping = false;
@@ -375,7 +377,7 @@ public:
 		controlRecv->accept();
 		m_controlRecv = controlRecv;
 
-		setOnMessage(controlRecv, 0);
+		setOnMessage(controlRecv, 0, nullptr);
 
 		return true;
 	}
@@ -392,19 +394,24 @@ protected:
 		SendFlow * openFlowForType(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType)
 		{
 			Priority pri = PRI_IMMEDIATE;
+			ReceiveOrder rxIntent = RO_SEQUENCE;
 			std::shared_ptr<SendFlow> *flowRef = &m_data;
 			if(TCMSG_VIDEO == messageType)
 			{
 				flowRef = &m_video;
 				if(not interleave)
 					pri = PRI_PRIORITY; // lower than audio/data but still time-critical
+				rxIntent = mediaReceiveIntent;
 			}
 			else if(TCMSG_AUDIO == messageType)
+			{
 				flowRef = &m_audio;
+				rxIntent = mediaReceiveIntent;
+			}
 
 			if(not *flowRef)
 			{
-				*flowRef = control->openReturnFlow(TCMetadata::encode(streamID, RO_SEQUENCE), pri);
+				*flowRef = control->openReturnFlow(TCMetadata::encode(streamID, rxIntent), pri);
 				if(interleave)
 					m_video = m_audio = m_data = *flowRef;
 			}
@@ -444,25 +451,62 @@ protected:
 		m_controlSend->onRecvFlow = [this] (std::shared_ptr<RecvFlow> flow) { acceptOther(flow); };
 	}
 
-	void setOnMessage(const std::shared_ptr<RecvFlow> &flow, uint32_t streamID)
+	void deliverMessage(uint32_t streamID, const uint8_t *bytes, size_t len)
 	{
-		flow->onMessage = [this, streamID, flow] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount) {
+		uint8_t messageType = 0;
+		uint32_t timestamp = 0;
+		size_t rv = TCMessage::parseHeader(bytes, bytes + len, &messageType, &timestamp);
+		if(rv and onmessage)
+			onmessage(streamID, messageType, timestamp, bytes + rv, len - rv);
+	}
+
+	bool shouldAlwaysDeliver(const uint8_t *bytes, size_t len)
+	{
+		uint8_t messageType = 0;
+		size_t rv = TCMessage::parseHeader(bytes, bytes + len, &messageType, nullptr);
+		if(not rv)
+			return false;
+
+		switch(messageType)
+		{
+		case TCMSG_VIDEO: return isVideoSequenceSpecial(bytes + rv, len - rv);
+		case TCMSG_AUDIO: return isAudioSequenceSpecial(bytes + rv, len - rv);
+		default: return true;
+		}
+	}
+
+	void setOnMessage(const std::shared_ptr<RecvFlow> &flow, uint32_t streamID, const std::shared_ptr<ReorderBuffer> &reorderBuffer)
+	{
+		if(reorderBuffer)
+		{
+			reorderBuffer->onMessage = [this, streamID] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount, bool isLate) {
+				if((not isLate) or shouldAlwaysDeliver(bytes, len))
+					deliverMessage(streamID, bytes, len);
+				if(isLate and (verbose > 1))
+					printf("message %lu late, %s\n", (unsigned long)sequenceNumber, shouldAlwaysDeliver(bytes, len) ? "relayed anyway" : "dropped");
+			};
+
+			flow->onCumulativeAckDidMerge = [flow, reorderBuffer] {
+				reorderBuffer->deliverThrough(flow->getCumulativeAckSequenceNumber());
+			};
+		}
+
+		flow->onMessage = [this, streamID, flow, reorderBuffer] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount) {
 			uint32_t syncID = 0;
 			size_t count = 0;
 			if(FlowSyncManager::parse(bytes, len, syncID, count))
 			{
 				m_syncManager.sync(syncID, count, flow);
-				return;
+				len = 0; // allow accounting for sequence numbers in reorderBuffer; deliverMessage will drop empty messages
 			}
 
-			uint8_t messageType = 0;
-			uint32_t timestamp = 0;
-			size_t rv = TCMessage::parseHeader(bytes, bytes + len, &messageType, &timestamp);
-			if(0 == rv)
-				return;
-
-			if(onmessage)
-				onmessage(streamID, messageType, timestamp, bytes + rv, len - rv);
+			if(reorderBuffer)
+			{
+				reorderBuffer->insert(bytes, len, sequenceNumber, fragmentCount);
+				reorderBuffer->deliverThrough(flow->getCumulativeAckSequenceNumber());
+			}
+			else
+				deliverMessage(streamID, bytes, len);
 		};
 	}
 
@@ -484,8 +528,18 @@ protected:
 		flow->setReceiveOrder(rxOrder);
 		flow->setBufferCapacity(1<<24); // 16MB, big enough for largest TCMessage
 
-		flow->onComplete = [this, flow] (bool error) { m_recvFlows.erase(flow); checkFinishedLater(); };
-		setOnMessage(flow, streamID);
+		std::shared_ptr<ReorderBuffer> reorderBuffer;
+		if(RO_NETWORK == rxOrder)
+			reorderBuffer = share_ref(new RunLoopReorderBuffer(&mainRL, reorderWindowPeriod), false);
+
+		flow->onComplete = [this, flow, reorderBuffer] (bool error) {
+			if(reorderBuffer)
+				reorderBuffer->flush();
+			m_recvFlows.erase(flow);
+			checkFinishedLater();
+		};
+
+		setOnMessage(flow, streamID, reorderBuffer);
 
 		flow->accept();
 		m_recvFlows.insert(flow);
@@ -764,6 +818,8 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
+	printf("  -R            -- request ASAP receive on A/V (rtmfp send)\n");
+	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
@@ -786,7 +842,7 @@ int main(int argc, char **argv)
 	std::vector<Address> bindAddrs;
 	int ch;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:EHSp:46B:u:vh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:EHSp:46B:u:vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -809,6 +865,12 @@ int main(int argc, char **argv)
 			break;
 		case 'F':
 			finishByMargin = atof(optarg);
+			break;
+		case 'R':
+			mediaReceiveIntent = RO_NETWORK;
+			break;
+		case 'r':
+			reorderWindowPeriod = atof(optarg);
 			break;
 		case 'E':
 			expirePreviousGop = false;
