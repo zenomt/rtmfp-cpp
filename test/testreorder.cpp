@@ -45,6 +45,10 @@ int main(int argc, char **argv)
 		reorder.insert(msg, sizeof(msg), 14, 1);
 	};
 
+	rl.schedule(0.7)->action = [&] (const std::shared_ptr<Timer> &sender, Time now) {
+		reorder.insert(msg, sizeof(msg), 15, 1); // should be delivered with 12 & 14
+	};
+
 	rl.schedule(1.1)->action = [&] (const std::shared_ptr<Timer> &sender, Time now) {
 		assert(6 == receivedCount);
 		assert(0 == lateCount);
@@ -54,19 +58,19 @@ int main(int argc, char **argv)
 	};
 
 	rl.schedule(1.6)->action = [&] (const std::shared_ptr<Timer> &sender, Time now) {
-		assert(9 == receivedCount);
+		assert(10 == receivedCount);
 		assert(1 == lateCount);
 	};
 
 	rl.schedule(1.8)->action = [&] (const std::shared_ptr<Timer> &sender, Time now) {
-		reorder.insert(msg, sizeof(msg), 16, 1);
+		reorder.insert(msg, sizeof(msg), 18, 1);
 	};
 
 	rl.run(2);
 
-	assert(9 == receivedCount);
-	reorder.flush();
 	assert(10 == receivedCount);
+	reorder.flush();
+	assert(11 == receivedCount);
 	assert(1 == lateCount);
 
 	return 0;

@@ -181,19 +181,4 @@ void ReorderBuffer::findCSN(Time now)
 	}
 }
 
-// --- RunLoopReorderBuffer !! maybe move to a separate translation unit to avoid necessarily linking RunLoop
-
-RunLoopReorderBuffer::RunLoopReorderBuffer(RunLoop *runloop) : m_runloop(runloop)
-{}
-
-Time RunLoopReorderBuffer::getCurrentTime() const
-{
-	return m_runloop->getCurrentTime();
-}
-
-std::shared_ptr<Timer> RunLoopReorderBuffer::scheduleTimer(Time when)
-{
-	return m_runloop->schedule(when);
-}
-
 } } } // namespace com::zenomt::rtmfp

@@ -57,10 +57,10 @@ protected:
 
 class RunLoopReorderBuffer : public ReorderBuffer {
 public:
-	RunLoopReorderBuffer(RunLoop *runloop);
+	RunLoopReorderBuffer(RunLoop *runloop) : m_runloop(runloop) {}
 
-	Time getCurrentTime() const override;
-	std::shared_ptr<Timer> scheduleTimer(Time when) override;
+	Time getCurrentTime() const override { return m_runloop->getCurrentTime(); }
+	std::shared_ptr<Timer> scheduleTimer(Time when) override { return m_runloop->schedule(when); }
 
 protected:
 	RunLoop *m_runloop;
