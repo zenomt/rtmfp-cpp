@@ -25,6 +25,7 @@ static const int UNSENT_LOWAT = 16384;
 PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop) :
 	m_rtmp(nullptr),
 	m_rtmpOpen(false),
+	m_shutdown(false),
 	m_runloop(runloop),
 	m_fd(-1)
 {
@@ -150,6 +151,9 @@ void PosixRTMPPlatformAdapter::onInterfaceReadable()
 		goto error;
 	}
 
+	if(m_shutdown)
+		return; // discard any read data if we're shutting down
+
 	if((not m_rtmpOpen) or not m_rtmp->onReceiveBytes(m_inputBuffer, (size_t)rv))
 		goto error;
 
@@ -202,8 +206,11 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 
 void PosixRTMPPlatformAdapter::closeIfDone()
 {
-	if(m_outputBuffer.empty() and not m_rtmpOpen)
-		close();
+	if(m_outputBuffer.empty() and (not m_rtmpOpen) and (not m_shutdown) and (m_fd >= 0))
+	{
+		m_shutdown = true;
+		shutdown(m_fd, SHUT_WR);
+	}
 }
 
 } } } // namespace com::zenomt::rtmp

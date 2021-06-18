@@ -35,6 +35,7 @@ protected:
 
 	RTMP *m_rtmp;
 	bool m_rtmpOpen;
+	bool m_shutdown;
 	RunLoop *m_runloop;
 	int m_fd;
 	uint8_t *m_inputBuffer;
