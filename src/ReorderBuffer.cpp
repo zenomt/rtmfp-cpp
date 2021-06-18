@@ -19,11 +19,12 @@ ReorderBuffer::Message::Message(const uint8_t *payload, size_t len, uintmax_t se
 	m_rxTime(now)
 {}
 
-ReorderBuffer::ReorderBuffer() :
-	m_reorderPeriod(INFINITY),
+ReorderBuffer::ReorderBuffer(Time windowPeriod) :
 	m_csn(0),
 	m_deliveredThrough(0)
-{}
+{
+	m_reorderPeriod = std::max(windowPeriod, Time(0));
+}
 
 ReorderBuffer::~ReorderBuffer()
 {

@@ -10,7 +10,7 @@ namespace com { namespace zenomt { namespace rtmfp {
 
 class ReorderBuffer : public Object {
 public:
-	ReorderBuffer();
+	ReorderBuffer(Time windowPeriod = INFINITY);
 	~ReorderBuffer();
 
 	void close();
@@ -57,7 +57,10 @@ protected:
 
 class RunLoopReorderBuffer : public ReorderBuffer {
 public:
-	RunLoopReorderBuffer(RunLoop *runloop) : m_runloop(runloop) {}
+	RunLoopReorderBuffer(RunLoop *runloop, Time windowPeriod = INFINITY) :
+		ReorderBuffer(windowPeriod),
+		m_runloop(runloop)
+	{}
 
 	Time getCurrentTime() const override { return m_runloop->getCurrentTime(); }
 	std::shared_ptr<Timer> scheduleTimer(Time when) override { return m_runloop->schedule(when); }

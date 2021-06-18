@@ -13,8 +13,7 @@ int main(int argc, char **argv)
 	size_t lateCount = 0;
 	size_t receivedCount = 0;
 
-	RunLoopReorderBuffer reorder(&rl);
-	reorder.setReorderWindowPeriod(1);
+	RunLoopReorderBuffer reorder(&rl, 1);
 	reorder.onMessage = [&] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount, bool isLate) {
 		uintmax_t highest = sequenceNumber + fragmentCount - 1;
 		printf("onMessage %lu to %lu%s at %f\n", (unsigned long)sequenceNumber, (unsigned long)highest, isLate ? " late" : "", (double)rl.getCurrentTime());
