@@ -15,11 +15,11 @@ struct PacketAssembler;
 class ISession : public Object {
 public:
 	virtual bool onInterfaceWritable(int interfaceID, int priority) = 0;
-	virtual bool onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, uint8_t *decryptBuf);
-	virtual bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho) = 0;
+	virtual bool onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, int tos, uint8_t *decryptBuf);
+	virtual bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos) = 0;
 	virtual void onChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr) = 0;
 	virtual void onPacketAfterChunks(uint8_t flags, long timestamp, long timestampEcho, int interfaceID, const struct sockaddr *addr);
-	void encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID, int interfaceID, const Address &addr, SessionCryptoKey *cryptoKeyOverride);
+	void encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID, int interfaceID, const Address &addr, int tos, SessionCryptoKey *cryptoKeyOverride);
 
 	RTMFP *m_rtmfp;
 	std::shared_ptr<SessionCryptoKey> m_cryptoKey;
@@ -48,7 +48,7 @@ public:
 	bool empty() const;
 
 	bool onInterfaceWritable(int interfaceID, int priority) override;
-	bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho) override;
+	bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos) override;
 	void onChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr) override;
 
 	void onIHelloChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
@@ -105,6 +105,7 @@ public:
 	long getTimestampEcho();
 	void scheduleAck(std::shared_ptr<RecvFlow> flow);
 	void ackNow();
+	bool assembleEcnReport(PacketAssembler *packet);
 	bool sendAcks(PacketAssembler *packet, bool obligatory);
 	void sendPacket(const Bytes &chunks);
 	void scheduleFlowForTransmission(const std::shared_ptr<SendFlow> &flow, Priority pri);
@@ -122,8 +123,8 @@ public:
 	void onMobilityCheckReply(const uint8_t *chunk, const uint8_t *limit, uintmax_t ts, int interfaceID, const struct sockaddr *addr);
 
 	bool onInterfaceWritable(int interfaceID, int priority) override;
-	bool onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, uint8_t *decryptBuf) override;
-	bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho) override;
+	bool onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, int tos, uint8_t *decryptBuf) override;
+	bool onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos) override;
 	void onChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr) override;
 	void onPacketAfterChunks(uint8_t flags, long timestamp, long timestampEcho, int interfaceID, const struct sockaddr *addr) override;
 
@@ -136,8 +137,19 @@ public:
 	void onPingChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
 	void onPingReplyChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
 	void onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
+	void onEcnReportChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
 	void onCloseChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
 	void onCloseAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr);
+
+	struct EarlyPacket {
+		EarlyPacket(const uint8_t *bytes, size_t len, int tos) :
+			m_bytes(bytes, bytes + len),
+			m_tos(tos)
+		{}
+
+		Bytes m_bytes;
+		int   m_tos;
+	};
 
 	State    m_state;
 	unsigned m_role; // one of HEADER_MODE_INITIATOR or HEADER_MODE_RESPONDER
@@ -158,7 +170,7 @@ public:
 	long     m_interestCount;
 	FIHelloResponseMode m_fihelloMode;
 	std::shared_ptr<Timer> m_iikeyingTimer;
-	std::queue<Bytes> m_earlyPackets;
+	std::queue<EarlyPacket> m_earlyPackets;
 	List<std::shared_ptr<SendFlow> >                m_sendFlows;
 	std::map<uintmax_t, std::shared_ptr<RecvFlow> > m_recvFlows;
 	List<std::shared_ptr<RecvFlow> >                m_ackFlows;
@@ -211,6 +223,14 @@ public:
 	// mobility
 	uintmax_t m_mob_tx_ts;
 	uintmax_t m_mob_rx_ts;
+
+	// explicit congestion notification
+	bool      m_send_ect;
+	bool      m_seen_ecn_report;
+	bool      m_seen_new_ecn;
+	bool      m_congestionNotifiedThisPacket;
+	uintmax_t m_ecn_ce_count;
+	uint8_t   m_rx_ece_count;
 
 protected:
 	friend class RTMFP;

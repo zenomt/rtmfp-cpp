@@ -37,7 +37,10 @@ enum {
 	CHUNK_EXCEPTION     = 0x5e,
 
 	CHUNK_CLOSE         = 0x0c,
-	CHUNK_CLOSE_ACK     = 0x4c
+	CHUNK_CLOSE_ACK     = 0x4c,
+
+	// EXPERIMENTAL
+	CHUNK_ECN_REPORT    = 0xec
 };
 
 const size_t CHUNK_HEADER_LENGTH = 3;

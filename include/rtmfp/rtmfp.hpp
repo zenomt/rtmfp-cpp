@@ -356,7 +356,7 @@ protected:
 	void deliverMessage(long name);
 	void tryDelivery(long hint);
 	void scheduleAck(bool now);
-	bool assembleAck(PacketAssembler *packet, bool truncateAllowed);
+	bool assembleAck(PacketAssembler *packet, bool truncateAllowed, bool sendEcnReport);
 
 	enum State { RF_OPEN, RF_REJECTED, RF_COMPLETE_LINGER, RF_CLOSED };
 

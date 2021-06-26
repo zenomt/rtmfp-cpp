@@ -70,10 +70,12 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 		return rv;
 
 	{
+		// try to turn on receive of TOS/TCLASS for both families. depending
+		// on OS, this might work for combo sockets (and be necessary to get
+		// TOS from mapped senders). it shouldn't hurt.
 		int on = 1;
-		bool ipv6 = AF_INET6 == uif.m_family;
-		if(setsockopt(uif.m_fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP, ipv6 ? IPV6_RECVTCLASS : IP_RECVTOS, &on, sizeof(on)))
-			::perror("IP_RECVTOS");
+		setsockopt(uif.m_fd, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on));
+		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on));
 	}
 
 	union Address::in_sockaddr boundAddr;

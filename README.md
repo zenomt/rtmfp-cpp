@@ -136,6 +136,53 @@ suitable for testing and evaluation. As it provides no actual cryptography
 (and its `cryptoHash256()` and `pseudoRandomBytes()` methods are especially
 weak), it is not suitable for production use in the open Internet. Don’t.
 
+### Experimental Support for Explicit Congestion Notification
+This implementation of RTMFP adds experimental support for Explicit Congestion
+Notification (ECN). It adds a new chunk "ECN Report" (type `0xec`) for the
+receiver to send counts of received ECN codepoints back to the ECN sender.
+An RTMFP **MUST NOT** send an ECN Report to its peer unless it has received
+at least one valid packet in its `S_OPEN` session with that peer that is
+marked with an ECN Capable Transport code point (`ECT(0)`, `ECT(1)`, or
+`ECN-CE`).
+
+An RTMFP receiver that is ECN-capable sends ECN Reports to its ECN-capable
+peer.  ECN Reports **SHOULD** be assembled before the first Acknowledgement
+chunk in any packet containing an Acknowledgement (to avoid truncation of the
+report). In order that the ECN sender can detect whether the near and far
+interfaces, path, and receiver support ECN, an ECN-capable receiver **SHOULD**
+send an ECN Report in any packet that contains an Acknowledgement, if any
+packet marked with an ECN Capable Transport code point has been received
+either since the last time an ECN Report was sent or if a report has not yet
+been sent.
+
+An RTMFP sender **MUST** stop marking packets with ECN Capable Transport code
+points if it determines that the receiver is not ECN-capable (for example,
+if the sender has not received at least one ECN Report along with an
+Acknowledgement for User Data that was sent in a marked packet during the
+open session with the peer).
+
+An ECN-capable RTMFP receiver keeps at least a count of the number of packets
+received marked with `ECN-CE`. The endpoint sends the low 8 bits of the current
+counter to its peer in ECN Report chunks.
+
+This implementation sends `ECT(0)`.  The congestion controller responds to
+increases of the `ECN-CE-count` as though it was loss. `ECT(0)` is only sent
+on packets containing User Data.
+
+#### Explicit Congestion Notification Report Chunk (ECN Report)
+
+	 0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|      0xec     |               1               | ECN-CE-count  |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	
+	struct ecnReportChunkPayload_t
+	{
+	    uint8_t congestionExperiencedCountMod256; // ECN-CE-count
+	} :8;
+
+- `congestionExperiencedCountMod256`: The low 8 bits of the count of packets
+  received from the peer marked with `ECN-CE` (ECN Congestion Experienced).
 
 To Do
 -----

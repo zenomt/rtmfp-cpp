@@ -63,5 +63,6 @@ const Time   NEARCLOSE_RTX_PERIOD      = 5.0;
 const Time   NEARCLOSE_PERIOD          = 90.0;
 const Time   FARCLOSE_LINGER_PERIOD    = 19.0;
 const uintmax_t MAX_MOBILITY_LIFETIME  = 120;
+const uint8_t ECN_CE_DELTA_REORDER     = 0xe0; // allow reordering of up to 32 packets (super unlikely)
 
 } } } // namespace com::zenomt::rtmfp

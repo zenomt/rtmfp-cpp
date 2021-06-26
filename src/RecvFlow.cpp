@@ -424,9 +424,9 @@ void RecvFlow::scheduleAck(bool now)
 	}
 }
 
-bool RecvFlow::assembleAck(PacketAssembler *packet, bool truncateAllowed)
+bool RecvFlow::assembleAck(PacketAssembler *packet, bool truncateAllowed, bool sendEcnReport)
 {
-	uint8_t *checkpoint = packet->m_cursor; // we might roll back over a committed exception chunk
+	uint8_t *checkpoint = packet->m_cursor; // we might roll back over a committed exception chunk or ECN report
 	bool didTruncate = false;
 	uintmax_t ackCursor = getCumulativeAckSequenceNumber();
 	size_t advertise_bytes;
@@ -440,6 +440,9 @@ bool RecvFlow::assembleAck(PacketAssembler *packet, bool truncateAllowed)
 
 	if((0 == advertise_blocks) and (m_buffer_capacity > 0) and (m_window_limit > 0) and (RO_HOLD != m_rxOrder))
 		advertise_blocks = 1;
+
+	if(sendEcnReport and not m_session->assembleEcnReport(packet))
+		goto fail;
 
 	if(RF_REJECTED == m_state)
 	{

@@ -13,6 +13,9 @@
 #include "../include/rtmfp/PacketAssembler.hpp"
 #include "SendFrag.hpp"
 
+#include <sys/types.h>
+#include <netinet/ip.h>
+
 namespace com { namespace zenomt { namespace rtmfp {
 
 // --- ISession
@@ -23,7 +26,7 @@ ISession::ISession(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 {
 }
 
-bool ISession::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, uint8_t *decryptBuf)
+bool ISession::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, int tos, uint8_t *decryptBuf)
 {
 	size_t decryptedLen = DECRYPT_BUF_LENGTH;
 	size_t frontMargin = 0;
@@ -53,7 +56,7 @@ bool ISession::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID
 		cursor += 2;
 	}
 
-	if(not onPacketHeader(flags, ts, tse))
+	if(not onPacketHeader(flags, ts, tse, tos))
 		return false;
 
 	uint8_t mode = flags & HEADER_FLAG_MOD_MASK;
@@ -80,7 +83,7 @@ void ISession::onPacketAfterChunks(uint8_t flags, long timestamp, long timestamp
 {
 }
 
-void ISession::encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID, int interfaceID, const Address &addr, SessionCryptoKey *cryptoKey)
+void ISession::encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID, int interfaceID, const Address &addr, int tos, SessionCryptoKey *cryptoKey)
 {
 	uint8_t *sendBuf = m_rtmfp->m_ciphertextBuf + ENCRYPT_BUF_SSID_OFFSET;
 	uint8_t *dst = sendBuf + sizeof(uint32_t); // so we can try to keep cipher blocks 16-byte aligned
@@ -94,7 +97,7 @@ void ISession::encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID,
 	sid_encode[0] = sessionID ^ sid_encode[1] ^ sid_encode[2];
 	memmove(sendBuf, sid_encode, sizeof(uint32_t));
 
-	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), addr.getSockaddrLen(), 0);
+	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), addr.getSockaddrLen(), tos);
 }
 
 // --- StartupSession
@@ -170,12 +173,12 @@ bool StartupSession::onInterfaceWritable(int interfaceID, int priority)
 	PacketAssembler packet;
 	packet.init(m_rtmfp->m_plaintextBuf, cryptoKey->getEncryptSrcFrontMargin(), MAX_STARTUP_PACKET_LENGTH, mode, m_rtmfp->getCurrentTimestamp(), timestampEcho);
 	if(packet.push(item->m_bytes))
-		encryptAndSendPacket(&packet, item->m_sessionID, interfaceID, item->m_dest, cryptoKey);
+		encryptAndSendPacket(&packet, item->m_sessionID, interfaceID, item->m_dest, 0, cryptoKey);
 
 	return true;
 }
 
-bool StartupSession::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho)
+bool StartupSession::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos)
 {
 	return HEADER_MODE_STARTUP == (flags & HEADER_FLAG_MOD_MASK);
 }
@@ -352,7 +355,13 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_last_idle_time(-INFINITY),
 	m_keepalive_outstanding(false),
 	m_mob_tx_ts(0),
-	m_mob_rx_ts(0)
+	m_mob_rx_ts(0),
+	m_send_ect(true),
+	m_seen_ecn_report(false),
+	m_seen_new_ecn(false),
+	m_congestionNotifiedThisPacket(false),
+	m_ecn_ce_count(0),
+	m_rx_ece_count(0)
 {
 }
 
@@ -748,7 +757,7 @@ void Session::replayEarlyPackets()
 	while(not m_earlyPackets.empty())
 	{
 		auto &packet = m_earlyPackets.front();
-		ISession::onReceivePacket(packet.data(), packet.size(), m_destInterfaceID, m_destAddr.getSockaddr(), m_rtmfp->m_plaintextBuf);
+		ISession::onReceivePacket(packet.m_bytes.data(), packet.m_bytes.size(), m_destInterfaceID, m_destAddr.getSockaddr(), packet.m_tos, m_rtmfp->m_plaintextBuf);
 		m_earlyPackets.pop();
 	}
 }
@@ -880,6 +889,17 @@ void Session::ackNow()
 	}
 }
 
+bool Session::assembleEcnReport(PacketAssembler *packet)
+{
+	if(packet->startChunk(CHUNK_ECN_REPORT) and packet->push(m_ecn_ce_count & 0xff))
+	{
+		packet->commitChunk();
+		return true;
+	}
+
+	return false;
+}
+
 bool Session::sendAcks(PacketAssembler *packet, bool obligatory)
 {
 	bool didAck = false;
@@ -890,9 +910,10 @@ bool Session::sendAcks(PacketAssembler *packet, bool obligatory)
 
 	while(not m_ackFlows.empty())
 	{
-		if(m_ackFlows.firstValue()->assembleAck(packet, truncateAllowed))
+		if(m_ackFlows.firstValue()->assembleAck(packet, truncateAllowed, m_seen_new_ecn))
 		{
 			didAck = true;
+			m_seen_new_ecn = false;
 			truncateAllowed = false;
 			m_ackFlows.removeFirst();
 		}
@@ -1347,6 +1368,7 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 	packet.init(m_rtmfp->m_plaintextBuf, m_cryptoKey->getEncryptSrcFrontMargin(), MAX_SESSION_PACKET_LENGTH, flags, timestamp, timestampEcho);
 	size_t startingSize = packet.remaining();
 
+	bool sendingData = false;
 	bool sentObligatoryAcks = sendAcks(&packet, true);
 	if((not sentObligatoryAcks) and (m_cwnd > m_outstandingFrags.sum()))
 	{
@@ -1359,6 +1381,7 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 				{
 					flows.moveNameToTail(flows.first());
 					m_data_packet_count++;
+					sendingData = true;
 					break;
 				}
 				else
@@ -1389,18 +1412,20 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 
 	m_last_keepalive_tx_time = now;
 
-	encryptAndSendPacket(&packet, m_txSessionID, interfaceID, m_destAddr, m_cryptoKey.get());
+	int tos = (sendingData and m_send_ect) ? IPTOS_ECN_ECT0 : 0;
+
+	encryptAndSendPacket(&packet, m_txSessionID, interfaceID, m_destAddr, tos, m_cryptoKey.get());
 
 	return true;
 }
 
-bool Session::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, uint8_t *decryptBuf)
+bool Session::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID, const struct sockaddr *addr, int tos, uint8_t *decryptBuf)
 {
-	bool rv = ISession::onReceivePacket(bytes, len, interfaceID, addr, decryptBuf);
+	bool rv = ISession::onReceivePacket(bytes, len, interfaceID, addr, tos, decryptBuf);
 
 	if((not rv) and (S_KEYING_SENT == m_state))
 	{
-		m_earlyPackets.push(Bytes(bytes, bytes + len));
+		m_earlyPackets.push(EarlyPacket(bytes, len, tos));
 		while(m_earlyPackets.size() > MAX_EARLY_PACKETS)
 			m_earlyPackets.pop();
 	}
@@ -1408,7 +1433,7 @@ bool Session::onReceivePacket(const uint8_t *bytes, size_t len, int interfaceID,
 	return rv;
 }
 
-bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho)
+bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos)
 {
 	uint8_t mode = flags & HEADER_FLAG_MOD_MASK;
 	if((0 == mode) or (m_role == mode))
@@ -1417,6 +1442,7 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho)
 	m_seenUserDataThisPacket = false;
 	m_any_acks = false;
 	m_pre_ack_outstanding = m_outstandingFrags.sum();
+	m_congestionNotifiedThisPacket = false;
 
 	if((S_OPEN == m_state) or (S_KEYING_SENT == m_state))
 	{
@@ -1461,6 +1487,14 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho)
 
 		if(flags & HEADER_FLAG_TCR)
 			m_tcr_recv_time = m_rtmfp->getCurrentTime();
+
+		int ecn = tos & IPTOS_ECN_MASK;
+		if(ecn)
+		{
+			m_seen_new_ecn = true;
+			if(IPTOS_ECN_CE == ecn)
+				m_ecn_ce_count++;
+		}
 	}
 
 	return true;
@@ -1519,6 +1553,10 @@ void Session::onChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, con
 				onExceptionChunk(mode, chunkType, chunk, limit, interfaceID, addr);
 				break;
 
+			case CHUNK_ECN_REPORT:
+				onEcnReportChunk(mode, chunkType, chunk, limit, interfaceID, addr);
+				break;
+
 			default:
 				break;
 			}
@@ -1560,7 +1598,7 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 		m_burst_alarm.reset();
 
 		// Negative Acknowledgement
-		bool any_loss = false;
+		bool any_loss = m_congestionNotifiedThisPacket;
 		bool any_naks = false;
 		long name = m_outstandingFrags.first();
 		while(name > 0)
@@ -1595,6 +1633,9 @@ void Session::onPacketAfterChunks(uint8_t flags, long timestamp, long timestampE
 
 		rescheduleTransmission();
 		rescheduleTimeoutAlarm();
+
+		if(m_send_ect and not m_seen_ecn_report)
+			m_send_ect = false;
 	}
 
 	// check for mobility
@@ -1876,6 +1917,22 @@ void Session::onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, 
 		m_any_acks = true;
 		m_keepalive_outstanding = false;
 		m_retransmit_deadline_epoch = INFINITY;
+	}
+}
+
+void Session::onEcnReportChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr)
+{
+	if(limit <= chunk)
+		return;
+
+	m_seen_ecn_report = true;
+
+	uint8_t ece_count = *chunk;
+	uint8_t delta = uint8_t(ece_count - m_rx_ece_count);
+	if(delta and (delta < ECN_CE_DELTA_REORDER))
+	{
+		m_rx_ece_count = ece_count;
+		m_congestionNotifiedThisPacket = true;
 	}
 }
 

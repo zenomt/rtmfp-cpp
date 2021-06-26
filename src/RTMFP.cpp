@@ -208,7 +208,7 @@ bool RTMFP::onReceivePacket(const void *bytes_, size_t len, int interfaceID, con
 	else if(m_sessions.has(sessionID))
 		session = m_sessions.at(sessionID).get();
 
-	return session ? session->onReceivePacket(bytes + sizeof(uint32_t), len - sizeof(uint32_t), interfaceID, addr, m_plaintextBuf) : false;
+	return session ? session->onReceivePacket(bytes + sizeof(uint32_t), len - sizeof(uint32_t), interfaceID, addr, tos, m_plaintextBuf) : false;
 }
 
 bool RTMFP::scheduleWrite(int interfaceID, std::shared_ptr<ISession> session, int pri)
