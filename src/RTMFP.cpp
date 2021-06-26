@@ -191,7 +191,7 @@ void RTMFP::addInterface(int interfaceID)
 	m_interfaces[interfaceID] = share_ref(new Interface(interfaceID, this), false);
 }
 
-bool RTMFP::onReceivePacket(const void *bytes_, size_t len, int interfaceID, const struct sockaddr *addr)
+bool RTMFP::onReceivePacket(const void *bytes_, size_t len, int interfaceID, const struct sockaddr *addr, int tos)
 {
 	const uint8_t *bytes = (uint8_t *)bytes_;
 	uint32_t sid_decode[3] = { 0, 0, 0 };

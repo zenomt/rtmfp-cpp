@@ -21,12 +21,12 @@ public:
 		m_thresh(0)
 	{}
 
-	bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen) override
+	bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen, int tos) override
 	{
 		if((rand() % 10000) < m_thresh)
 			len = 0;
 
-		return PosixPlatformAdapter::writePacket(bytes, len, interfaceID, addr, addrLen);
+		return PosixPlatformAdapter::writePacket(bytes, len, interfaceID, addr, addrLen, tos);
 	}
 
 	void setThresh(double thresh)

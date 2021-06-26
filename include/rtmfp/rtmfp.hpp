@@ -91,7 +91,7 @@ public:
 
 	// The platform calls this method when a new packet for this RTMFP is received.
 	// Answers true if this packet was for this instance, false if not recognized (for further processing)
-	bool onReceivePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr);
+	bool onReceivePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, int tos);
 
 protected:
 	friend class Interface;
@@ -393,7 +393,7 @@ public:
 	virtual bool notifyWhenInterfaceWritable(int interfaceID, const std::function<bool(void)> &onwritable) = 0;
 
 	// Write a datagram via interfaceID.
-	virtual bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen) = 0;
+	virtual bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen, int tos) = 0;
 
 	// Invoke task as soon as possible after this method completes (for example, by putting it
 	// on a queue to run at the end of the current trip through the run loop). This is the ONLY

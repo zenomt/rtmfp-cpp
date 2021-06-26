@@ -94,7 +94,7 @@ void ISession::encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID,
 	sid_encode[0] = sessionID ^ sid_encode[1] ^ sid_encode[2];
 	memmove(sendBuf, sid_encode, sizeof(uint32_t));
 
-	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), addr.getSockaddrLen());
+	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), addr.getSockaddrLen(), 0);
 }
 
 // --- StartupSession

@@ -1,8 +1,12 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include <unistd.h>
+#include <cstring>
+
 #include "../include/rtmfp/PosixPlatformAdapter.hpp"
+
+#include <unistd.h>
+#include <netinet/ip.h>
 
 namespace com { namespace zenomt { namespace rtmfp {
 
@@ -64,6 +68,13 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 
 	if((uif.m_fd = socket(uif.m_family, SOCK_DGRAM, 0)) < 0)
 		return rv;
+
+	{
+		int on = 1;
+		bool ipv6 = AF_INET6 == uif.m_family;
+		if(setsockopt(uif.m_fd, ipv6 ? IPPROTO_IPV6 : IPPROTO_IP, ipv6 ? IPV6_RECVTCLASS : IP_RECVTOS, &on, sizeof(on)))
+			::perror("IP_RECVTOS");
+	}
 
 	union Address::in_sockaddr boundAddr;
 	socklen_t addrLen = sizeof(boundAddr);
@@ -128,7 +139,7 @@ bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, const st
 	return false;
 }
 
-bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen)
+bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen, int tos)
 {
 	if(m_interfaces.has(interfaceID))
 	{
@@ -140,7 +151,28 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 		else
 			return false;
 
-		return sendto(uif.m_fd, bytes, len, 0, dstAddr.getSockaddr(), dstAddr.getSockaddrLen()) >= 0;
+		bool ipv6 = dstAddr.getFamily() == AF_INET6;
+
+		struct cmsghdr cmsg[2]; // big enough and aligned
+		cmsg[0].cmsg_len = CMSG_LEN(sizeof(int));
+		cmsg[0].cmsg_level = ipv6 ? IPPROTO_IPV6 : IPPROTO_IP;
+		cmsg[0].cmsg_type = ipv6 ? IPV6_TCLASS : IP_TOS;
+		memcpy(CMSG_DATA(cmsg), &tos, sizeof(tos));
+
+		struct iovec vec;
+		vec.iov_base = (void *)bytes;
+		vec.iov_len = len;
+
+		struct msghdr msg;
+		msg.msg_name = (void *)dstAddr.getSockaddr();
+		msg.msg_namelen = dstAddr.getSockaddrLen();
+		msg.msg_iov = &vec;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg;
+		msg.msg_controllen = CMSG_LEN(sizeof(int));
+		msg.msg_flags = 0;
+
+		return ::sendmsg(uif.m_fd, &msg, 0);
 	}
 
 	return false;
@@ -162,18 +194,42 @@ void PosixPlatformAdapter::onShutdownComplete()
 void PosixPlatformAdapter::onInterfaceReadable(int fd, int interfaceID)
 {
 	union Address::in_sockaddr addr_u;
-	struct sockaddr *recvAddr = &addr_u.s;
-	socklen_t addrLen = sizeof(addr_u);
 	uint8_t buf[8192];
+	struct cmsghdr cmsg_buf[8]; // big enough to receive at least a few command messages, we should only need one
 
-	int rv = recvfrom(fd, (char *)buf, sizeof(buf), 0, recvAddr, &addrLen);
+	struct iovec vec;
+	vec.iov_base = buf;
+	vec.iov_len = sizeof(buf);
+
+	struct msghdr msg;
+	msg.msg_name = &addr_u;
+	msg.msg_namelen = sizeof(addr_u);
+	msg.msg_iov = &vec;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = sizeof(cmsg_buf);
+	msg.msg_flags = 0;
+
+	ssize_t rv = recvmsg(fd, &msg, 0);
 	if(rv >= 0)
 	{
-		Address tmp(recvAddr);
+		Address tmp(&addr_u.s);
 		if(tmp.canMapToFamily(AF_INET))
 			tmp.setFamily(AF_INET);
 
-		m_rtmfp->onReceivePacket(buf, rv, interfaceID, tmp.getSockaddr());
+		int tos = 0;
+		for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg))
+		{
+			if( ((IPPROTO_IP == cmsg->cmsg_level) and (IP_TOS == cmsg->cmsg_type))
+			 or ((IPPROTO_IPV6 == cmsg->cmsg_level) and (IPV6_TCLASS == cmsg->cmsg_type))
+			)
+			{
+				memcpy(&tos, CMSG_DATA(cmsg), sizeof(tos));
+				break;
+			}
+		}
+
+		m_rtmfp->onReceivePacket(buf, rv, interfaceID, tmp.getSockaddr(), tos);
 	}
 }
 

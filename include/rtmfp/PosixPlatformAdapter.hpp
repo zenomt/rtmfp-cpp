@@ -29,7 +29,7 @@ public:
 	Time getCurrentTime() override;
 	void onHowLongToSleepDidChange() override;
 	bool notifyWhenInterfaceWritable(int interfaceID, const std::function<bool(void)> &onwritable) override;
-	bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen) override;
+	bool writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen, int tos) override;
 	bool perform(unsigned long thread, const Task &task) override;
 	void onShutdownComplete() override;
 
