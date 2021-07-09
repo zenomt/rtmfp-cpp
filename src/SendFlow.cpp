@@ -446,7 +446,6 @@ overrun:
 		if(m_priority > PRI_ROUTINE)
 			packet->setTimeCriticalFlag();
 
-		m_session->m_next_tsn++;
 		m_session->rescheduleTimeoutAlarm();
 
 		return true;

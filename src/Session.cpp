@@ -1381,6 +1381,7 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 				{
 					flows.moveNameToTail(flows.first());
 					m_data_packet_count++;
+					m_next_tsn++;
 					sendingData = true;
 					break;
 				}

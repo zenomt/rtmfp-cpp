@@ -109,6 +109,7 @@ void Client::onMessage(uint32_t streamID, uint8_t messageType, uint32_t timestam
 		if(0 == len)
 			printf("silence");
 		printf("\n");
+		fflush(stdout);
 	}
 	switch(messageType)
 	{

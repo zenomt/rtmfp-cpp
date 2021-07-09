@@ -189,7 +189,6 @@ To Do
 * SendFlow unsent low water mark
 * More documentation
 * More unit tests
-* More examples
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
 
