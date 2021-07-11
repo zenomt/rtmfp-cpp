@@ -1,6 +1,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include <cerrno>
 #include <cstring>
 
 #include "../include/rtmfp/PosixPlatformAdapter.hpp"
@@ -170,11 +171,23 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 		msg.msg_namelen = dstAddr.getSockaddrLen();
 		msg.msg_iov = &vec;
 		msg.msg_iovlen = 1;
-		msg.msg_control = cmsg;
-		msg.msg_controllen = CMSG_LEN(sizeof(int));
+		msg.msg_control = tos ? cmsg : nullptr;
+		msg.msg_controllen = tos ? CMSG_LEN(sizeof(int)) : 0;
 		msg.msg_flags = 0;
 
-		return ::sendmsg(uif.m_fd, &msg, 0) >= 0;
+		ssize_t rv = ::sendmsg(uif.m_fd, &msg, 0);
+		if((rv < 0) and tos and (EINVAL == errno))
+		{
+			// FreeBSD has a long-standing bug for setting IPPROTO_IP/IP_TOS. and
+			// maybe other operating systems behave poorly with ancillary data.
+			// retry sendmsg without msg_control. if this was the problem, then
+			// we should eventually stop trying to send ancillary data on this session.
+			msg.msg_control = nullptr;
+			msg.msg_controllen = 0;
+			rv = ::sendmsg(uif.m_fd, &msg, 0);
+		}
+
+		return rv >= 0;
 	}
 
 	return false;
