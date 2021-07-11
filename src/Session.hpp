@@ -205,7 +205,7 @@ public:
 	bool      m_any_acks;
 	Time      m_tc_sent_time;
 	Time      m_tcr_recv_time;
-	size_t    m_data_packet_count;
+	long      m_data_burst_limit;
 	uintmax_t m_next_tsn;
 	uintmax_t m_max_tsn_ack;
 

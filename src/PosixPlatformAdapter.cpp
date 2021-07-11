@@ -174,7 +174,7 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 		msg.msg_controllen = CMSG_LEN(sizeof(int));
 		msg.msg_flags = 0;
 
-		return ::sendmsg(uif.m_fd, &msg, 0);
+		return ::sendmsg(uif.m_fd, &msg, 0) >= 0;
 	}
 
 	return false;
