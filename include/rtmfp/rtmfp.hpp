@@ -295,6 +295,7 @@ protected:
 	uintmax_t m_next_sn;
 	uintmax_t m_final_sn;
 	bool      m_exception;
+	long      m_last_send_queue_name;
 	State     m_state;
 	std::shared_ptr<Session> m_openingSession;
 	SumList<std::shared_ptr<SendFrag> > m_send_queue;

@@ -52,6 +52,7 @@ SendFlow::SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const 
 	m_next_sn(1),
 	m_final_sn(0),
 	m_exception(false),
+	m_last_send_queue_name(0),
 	m_state(F_OPEN),
 	m_send_queue(SendFrag::size_queue)
 {
@@ -362,12 +363,17 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 	Time now = m_rtmfp->getCurrentTime();
 	trimSendQueue(now);
 	uintmax_t fsn = findForwardSequenceNumber(now);
-
-	// fill up a packet
-	long firstName = m_send_queue.first();
 	bool firstChunk = true;
 	uintmax_t previousSN = 0;
-	for(long name = firstName; name > 0; name = m_send_queue.next(name))
+
+	// maybe we can pick up where we left off instead of scanning the send queue from
+	// the beginning for each packet. can make a difference in high bandwidth × delay.
+	long startName = m_last_send_queue_name;
+	if(not (m_send_queue.hasValueAt(startName) and m_send_queue.at(startName)->m_in_flight))
+		startName = m_send_queue.first();
+
+	// fill up a packet
+	for(long name = startName; name > 0; name = m_send_queue.next(name))
 	{
 		if(m_outstanding_bytes >= m_rx_buffer_size)
 			break;
@@ -433,6 +439,7 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 		frag->m_session_outstanding_name = m_session->m_outstandingFrags.append(frag);
 
 		m_outstanding_bytes += frag->m_transmit_size;
+		m_last_send_queue_name = name;
 
 		continue;
 
@@ -607,6 +614,7 @@ void SendFlow::onPersistTimer(const std::shared_ptr<Timer> &sender, Time now)
 void SendFlow::onLoss(size_t amount)
 {
 	m_outstanding_bytes -= amount;
+	m_last_send_queue_name = m_send_queue.SENTINEL;
 	scheduleForTransmission();
 }
 

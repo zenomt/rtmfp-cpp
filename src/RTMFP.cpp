@@ -205,7 +205,7 @@ bool RTMFP::onReceivePacket(const void *bytes_, size_t len, int interfaceID, con
 	ISession *session = nullptr;
 	if(0 == sessionID)
 		session = m_startupSession.get();
-	else if(m_sessions.has(sessionID))
+	else if(m_sessions.hasValueAt(sessionID))
 		session = m_sessions.at(sessionID).get();
 
 	return session ? session->onReceivePacket(bytes + sizeof(uint32_t), len - sizeof(uint32_t), interfaceID, addr, tos, m_plaintextBuf) : false;
@@ -435,7 +435,7 @@ void RTMFP::onSessionDidClose(std::shared_ptr<Session> session, bool releaseSess
 	if(findOpenSessionByEPD(session->m_epd) == session)
 		m_openSessionsByCanonicalEPD.erase(session->m_epd);
 
-	if(releaseSessionID and m_sessions.has(session->m_rxSessionID) and (m_sessions.at(session->m_rxSessionID) == session))
+	if(releaseSessionID and m_sessions.hasValueAt(session->m_rxSessionID) and (m_sessions.at(session->m_rxSessionID) == session))
 		m_sessions.remove(session->m_rxSessionID);
 
 	m_openingFlows.safeValuesDo([&] (std::shared_ptr<SendFlow> each) { each->onSessionDidClose(session); return true; });

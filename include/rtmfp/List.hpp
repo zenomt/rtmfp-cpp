@@ -33,6 +33,7 @@ public:
 	long    first()         const;
 	long    last()          const;
 	long    find(const T& val) const;
+	bool    hasValueAt(long name) const;
 
 	T&      at(long name);
 	T&      firstValue();
@@ -139,7 +140,7 @@ template <class T> long List<T>::prev(long name) const
 
 template <class T> bool List<T>::has(long name) const
 {
-	return (name >= SENTINEL) && ((unsigned long)name < m_nodes.size()) && (m_nodes[name].m_inUse);
+	return (name >= SENTINEL) and ((unsigned long)name < m_nodes.size()) and (m_nodes[name].m_inUse);
 }
 
 template <class T> long List<T>::first() const
@@ -161,9 +162,14 @@ template <class T> long List<T>::find(const T& val) const
 	return SENTINEL;
 }
 
+template <class T> bool List<T>::hasValueAt(long name) const
+{
+	return (name > SENTINEL) and has(name);
+}
+
 template <class T> T& List<T>::at(long name)
 {
-	if((not has(name)) or (SENTINEL == name))
+	if(not hasValueAt(name))
 #if __cpp_exceptions
 		throw std::out_of_range("List::at range check");
 #else
@@ -175,7 +181,7 @@ template <class T> T& List<T>::at(long name)
 
 template <class T> const T& List<T>::at(long name) const
 {
-	if((not has(name)) or (SENTINEL == name))
+	if(not hasValueAt(name))
 #if __cpp_exceptions
 		throw std::out_of_range("List::at range check");
 #else
@@ -279,7 +285,7 @@ template <class T> bool List<T>::moveNameToTail(long name)
 
 template <class T> bool List<T>::remove(long name)
 {
-	if((SENTINEL == name) or not has(name))
+	if(not hasValueAt(name))
 		return false;
 
 	unlinkNode(name);
@@ -436,7 +442,7 @@ template <class T> SumList<T>::SumList(const Size_f size_f, const T& blank) :
 
 template <class T> bool SumList<T>::remove(long name)
 {
-	if((SumList<T>::SENTINEL == name) or not this->has(name))
+	if(not this->hasValueAt(name))
 		return false;
 
 	m_sum -= m_size_f(this->at(name));
