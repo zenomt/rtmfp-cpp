@@ -128,7 +128,7 @@ void PosixPlatformAdapter::onHowLongToSleepDidChange()
 
 bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, const std::function<bool(void)> &onwritable)
 {
-	if(m_interfaces.hasValueAt(interfaceID))
+	if(m_interfaces.has(interfaceID))
 	{
 		m_runloop->registerDescriptor(m_interfaces.at(interfaceID).m_fd, RunLoop::WRITABLE,
 			[onwritable] (RunLoop *sender, int fd, RunLoop::Condition cond) {
@@ -144,7 +144,7 @@ bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, const st
 
 bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interfaceID, const struct sockaddr *addr, socklen_t addrLen, int tos)
 {
-	if(m_interfaces.hasValueAt(interfaceID))
+	if(m_interfaces.has(interfaceID))
 	{
 		Address dstAddr(addr);
 		const UdpInterface &uif = m_interfaces.at(interfaceID);

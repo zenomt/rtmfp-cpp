@@ -500,7 +500,7 @@ void Session::abortFlowsAndTimers()
 	{
 		long firstName = m_sendFlows.first();
 		m_sendFlows.at(firstName)->onSessionDidClose(myself); // should unbind, removing itself from m_sendFlows
-		assert(not m_sendFlows.hasValueAt(firstName));
+		assert(not m_sendFlows.has(firstName));
 	}
 
 	while(not m_recvFlows.empty())
@@ -770,7 +770,7 @@ void Session::bindFlow(std::shared_ptr<SendFlow> flow)
 
 void Session::unbindFlow(long flowID, SendFlow *flow)
 {
-	if(m_sendFlows.hasValueAt(flowID) and (flow == m_sendFlows.at(flowID).get()))
+	if(m_sendFlows.has(flowID) and (flow == m_sendFlows.at(flowID).get()))
 		m_sendFlows.remove(flowID);
 	m_last_idle_time = m_rtmfp->getCurrentTime();
 }
@@ -1285,7 +1285,7 @@ void Session::onUserData(uint8_t flags, uintmax_t flowID, uintmax_t sequenceNumb
 		std::shared_ptr<SendFlow> associatedFlow;
 		if(associatedFlowID)
 		{
-			if((*associatedFlowID < LONG_MAX) and m_sendFlows.hasValueAt(*associatedFlowID))
+			if((*associatedFlowID < LONG_MAX) and m_sendFlows.has(*associatedFlowID))
 			{
 				associatedFlow = m_sendFlows.at(*associatedFlowID);
 				onRecvFlow_f = associatedFlow->onRecvFlow;
@@ -1864,7 +1864,7 @@ void Session::onExceptionChunk(uint8_t mode, uint8_t chunkType, const uint8_t *c
 	if(0 == VLU::parse(cursor, limit, &exceptionCode))
 		return;
 
-	if(m_sendFlows.hasValueAt(flowID))
+	if(m_sendFlows.has(flowID))
 		m_sendFlows.at(flowID)->onExceptionReport(exceptionCode);
 }
 
@@ -1923,7 +1923,7 @@ void Session::onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, 
 		return;
 	cursor += rv;
 
-	if(m_sendFlows.hasValueAt(flowID))
+	if(m_sendFlows.has(flowID))
 	{
 		size_t bufferBytesAvailable;
 		if(bufferBlocksAvailable > SIZE_MAX / 1024)

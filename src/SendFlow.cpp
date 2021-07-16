@@ -369,7 +369,7 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 	// maybe we can pick up where we left off instead of scanning the send queue from
 	// the beginning for each packet. can make a difference in high bandwidth × delay.
 	long startName = m_last_send_queue_name;
-	if(not (m_send_queue.hasValueAt(startName) and m_send_queue.at(startName)->m_in_flight))
+	if(not (m_send_queue.has(startName) and m_send_queue.at(startName)->m_in_flight))
 		startName = m_send_queue.first();
 
 	// fill up a packet

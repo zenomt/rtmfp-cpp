@@ -29,11 +29,11 @@ public:
 	long    next(long name) const;
 	long    prev(long name) const;
 
-	bool    has(long name)  const;
+	bool    has(long name)  const; // not including sentinel
 	long    first()         const;
 	long    last()          const;
 	long    find(const T& val) const;
-	bool    hasValueAt(long name) const;
+	bool    isUsing(long name) const; // including sentinel
 
 	T&      at(long name);
 	T&      firstValue();
@@ -130,17 +130,17 @@ template <class T> size_t List<T>::size() const
 
 template <class T> long List<T>::next(long name) const
 {
-	return has(name) ? m_nodes[name].m_next : -1;
+	return isUsing(name) ? m_nodes[name].m_next : -1;
 }
 
 template <class T> long List<T>::prev(long name) const
 {
-	return has(name) ? m_nodes[name].m_prev : -1;
+	return isUsing(name) ? m_nodes[name].m_prev : -1;
 }
 
 template <class T> bool List<T>::has(long name) const
 {
-	return (name >= SENTINEL) and ((unsigned long)name < m_nodes.size()) and (m_nodes[name].m_inUse);
+	return (name > SENTINEL) and ((unsigned long)name < m_nodes.size()) and (m_nodes[name].m_inUse);
 }
 
 template <class T> long List<T>::first() const
@@ -162,14 +162,14 @@ template <class T> long List<T>::find(const T& val) const
 	return SENTINEL;
 }
 
-template <class T> bool List<T>::hasValueAt(long name) const
+template <class T> bool List<T>::isUsing(long name) const
 {
-	return (name > SENTINEL) and has(name);
+	return (SENTINEL == name) or has(name);
 }
 
 template <class T> T& List<T>::at(long name)
 {
-	if(not hasValueAt(name))
+	if(not has(name))
 #if __cpp_exceptions
 		throw std::out_of_range("List::at range check");
 #else
@@ -181,7 +181,7 @@ template <class T> T& List<T>::at(long name)
 
 template <class T> const T& List<T>::at(long name) const
 {
-	if(not hasValueAt(name))
+	if(not has(name))
 #if __cpp_exceptions
 		throw std::out_of_range("List::at range check");
 #else
@@ -233,10 +233,10 @@ template <class T> long List<T>::prepend(const T& val)
 
 template <class T> bool List<T>::rotateNameToHead(long name)
 {
-	if(not has(name))
-		return false;
 	if(SENTINEL == name)
 		return true;
+	if(not has(name))
+		return false;
 
 	unlinkNode(SENTINEL);
 	linkBefore(SENTINEL, name);
@@ -246,10 +246,10 @@ template <class T> bool List<T>::rotateNameToHead(long name)
 
 template <class T> bool List<T>::rotateNameToTail(long name)
 {
-	if(not has(name))
-		return false;
 	if(SENTINEL == name)
 		return true;
+	if(not has(name))
+		return false;
 
 	unlinkNode(SENTINEL);
 	linkAfter(SENTINEL, name);
@@ -259,10 +259,10 @@ template <class T> bool List<T>::rotateNameToTail(long name)
 
 template <class T> bool List<T>::moveNameToHead(long name)
 {
-	if(not has(name))
-		return false;
 	if(SENTINEL == name)
 		return true;
+	if(not has(name))
+		return false;
 
 	unlinkNode(name);
 	linkAfter(name, SENTINEL);
@@ -272,10 +272,10 @@ template <class T> bool List<T>::moveNameToHead(long name)
 
 template <class T> bool List<T>::moveNameToTail(long name)
 {
-	if(not has(name))
-		return false;
 	if(SENTINEL == name)
 		return true;
+	if(not has(name))
+		return false;
 
 	unlinkNode(name);
 	linkBefore(name, SENTINEL);
@@ -285,7 +285,7 @@ template <class T> bool List<T>::moveNameToTail(long name)
 
 template <class T> bool List<T>::remove(long name)
 {
-	if(not hasValueAt(name))
+	if(not has(name))
 		return false;
 
 	unlinkNode(name);
@@ -404,7 +404,7 @@ template <class T> void List<T>::linkAfter(long name, long afterName)
 
 template <class T> long List<T>::basicAddBeforeOrAfter(long name, bool after)
 {
-	if(not has(name))
+	if(not isUsing(name))
 		return -1;
 
 	if(freeListEmpty())
@@ -442,7 +442,7 @@ template <class T> SumList<T>::SumList(const Size_f size_f, const T& blank) :
 
 template <class T> bool SumList<T>::remove(long name)
 {
-	if(not this->hasValueAt(name))
+	if(not this->has(name))
 		return false;
 
 	m_sum -= m_size_f(this->at(name));
