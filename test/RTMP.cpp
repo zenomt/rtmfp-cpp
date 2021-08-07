@@ -10,6 +10,7 @@
 namespace com { namespace zenomt { namespace rtmp {
 
 static const size_t INITIAL_SEND_CHUNK_SIZE = 2048;
+static const size_t MAX_TCMSG_LENGTH = (1<<24) - 1;
 
 static uint32_t _readu24(const uint8_t *cursor)
 {
@@ -178,8 +179,8 @@ size_t RTMP::getChunkSize() const
 
 std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin)
 {
-	if(m_state >= RT_CLOSING)
-		return std::shared_ptr<WriteReceipt>();
+	if((m_state >= RT_CLOSING) or (len > MAX_TCMSG_LENGTH))
+		return nullptr;
 
 	switch(messageType)
 	{
@@ -189,7 +190,7 @@ std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8
 	case TCMSG_WINDOW_ACK_SIZE:
 	case TCMSG_SET_PEER_BW:
 		// not allowed to write protocol control messages directly
-		return std::shared_ptr<WriteReceipt>();
+		return nullptr;
 	}
 
 	auto receipt = share_ref(new IssuerWriteReceipt(getCurrentTime(), startWithin, finishWithin), false);
