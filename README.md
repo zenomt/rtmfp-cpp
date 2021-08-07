@@ -1,9 +1,7 @@
 Secure Real-Time Media Flow Protocol Library
 ============================================
 This is a C++11 implementation of the Secure Real-Time Media Flow Protocol
-(RTMFP) as described in [RFC 7016][]. This library is currently a
-**WORK IN PROGRESS**. There are probably bugs still, and there is lots of
-room for optimization.
+(RTMFP) as described in [RFC 7016][].
 
 The library includes sample Platform Adapters and other utilities, such as a
 simple `select()` based run loop, but these are not required to be used. The
@@ -46,7 +44,7 @@ by per-message deadlines, or by arbitrary application logic using the
 The application can be notified by callback when a message is delivered or
 abandoned.
 
-`SendFlow`s set to priority `PRI_4` or higher (`PRI_PRIORITY`, `PRI_IMMEDIATE`,
+`SendFlow`s set to priority `PRI_PRIORITY` (`PRI_4`) or higher (`PRI_IMMEDIATE`,
 `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
 [time critical](https://tools.ietf.org/html/rfc7016#section-3.1). Sending
 messages on time critical flows affects congestion control.

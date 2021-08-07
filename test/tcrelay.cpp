@@ -134,7 +134,11 @@ public:
 				if(expirePreviousGop)
 				{
 					Time deadline = mainRL.getCurrentTime() + previousGopLifetime;
-					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) { each->startBy = std::min(each->startBy, deadline); return true; });
+					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
+						each->startBy = std::min(each->startBy, deadline);
+						each->finishBy = std::min(each->finishBy, deadline + finishByMargin);
+						return true;
+					});
 				}
 				q.clear();
 			}
@@ -526,7 +530,7 @@ protected:
 			return;
 
 		flow->setReceiveOrder(rxOrder);
-		flow->setBufferCapacity(1<<24); // 16MB, big enough for largest TCMessage
+		flow->setBufferCapacity((1<<24) - 1); // 16MB, big enough for largest TCMessage
 
 		std::shared_ptr<ReorderBuffer> reorderBuffer;
 		if(RO_NETWORK == rxOrder)
