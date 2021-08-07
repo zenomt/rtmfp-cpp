@@ -530,7 +530,7 @@ protected:
 			return;
 
 		flow->setReceiveOrder(rxOrder);
-		flow->setBufferCapacity((1<<24) - 1); // 16MB, big enough for largest TCMessage
+		flow->setBufferCapacity((1<<24) - 1024); // 16MB, big enough for largest TCMessage
 
 		std::shared_ptr<ReorderBuffer> reorderBuffer;
 		if(RO_NETWORK == rxOrder)
