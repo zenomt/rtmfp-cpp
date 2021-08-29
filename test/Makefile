@@ -11,7 +11,7 @@ ifndef WITHOUT_OPENSSL
 FC_OPENSSL_EXAMPLES = fcclient echoserver rtclient static-redirector tcrelay
 endif
 
-TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder
+TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia
 EXAMPLES = server testclient t2 rtmpserver $(FC_OPENSSL_EXAMPLES)
 
 default: all
@@ -64,6 +64,10 @@ testflowsync: testflowsync.o $(LIBRARY)
 	$(CXX) -o $@ $+
 
 testreorder: testreorder.o $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+
+
+testmedia: testmedia.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+
 
@@ -120,6 +124,7 @@ ci: all
 	./testtcmsg
 	./testflowsync
 	./testreorder
+	./testmedia
 
 clean:
 	rm -f *.o $(TESTS) $(EXAMPLES)

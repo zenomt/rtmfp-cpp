@@ -65,7 +65,7 @@ enum {
 	TC_VIDEO_CODEC_VP6_ALPHA = 5,
 	TC_VIDEO_CODEC_SCREEN_V2 = 6,
 	TC_VIDEO_CODEC_AVC       = 7,
-	TC_VIDEO_CODEC_MASK      = 0x0f,
+	TC_VIDEO_CODEC_MASK      = 0x0f
 };
 
 enum {

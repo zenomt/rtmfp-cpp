@@ -16,6 +16,7 @@ add_library(rtmfp STATIC
 	src/Hex.cpp
 	src/IndexSet.cpp
 	src/Interface.cpp
+	src/Media.cpp
 	src/Object.cpp
 	src/PacketAssembler.cpp
 	src/Performer.cpp
