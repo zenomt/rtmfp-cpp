@@ -22,8 +22,8 @@ static void check_message(const Media &media, const Bytes &message, bool isRAI, 
 	assert(actualRAI == isRAI);
 	assert(actualMessageType == messageType);
 	printf("actualDTS: %.8Lf expected: %.8Lf  actualPTS: %.8Lf expected: %.8Lf\n", actualDTS, dts, actualPTS, pts);
-	assert(fabs(actualDTS - dts) <= slop);
-	assert(fabs(actualPTS - pts) <= slop);
+	assert(std::fabs(actualDTS - dts) <= slop);
+	assert(std::fabs(actualPTS - pts) <= slop);
 
 	size_t actualOptionListLen = rv - optionListOffset;
 	assert(actualOptionListLen == optionListLen);

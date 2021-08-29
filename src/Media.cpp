@@ -46,7 +46,7 @@ Time _fromNTP4(const uint8_t *val)
 void _toNTP4(uint8_t *dst, Time val)
 {
 	Time intpart;
-	Time fraction = modf(val, &intpart);
+	Time fraction = std::modf(val, &intpart);
 	_writeU64(dst, intpart);
 	_writeU64(dst + 8, fraction * _scale64);
 }
@@ -198,7 +198,7 @@ Bytes Media::toMetadata() const
 	if(RO_NETWORK == m_receiveIntent)
 		Option::append(OPTION_RECEIVE_INTENT_NETWORK, rv);
 
-	if((reorderSuggestion >= 0) and isfinite(reorderSuggestion))
+	if((reorderSuggestion >= 0) and std::isfinite(reorderSuggestion))
 		Option::append(OPTION_REORDER_SUGGESTION, (uintmax_t)((reorderSuggestion + getTickDuration() / Time(2.0)) / getTickDuration()), rv);
 
 	if(trackName.size())
@@ -234,7 +234,7 @@ bool Media::hasTrackID() const
 
 bool Media::setOrigin(Time origin)
 {
-	if((origin < 0) or not isfinite(origin))
+	if((origin < 0) or not std::isfinite(origin))
 		return false;
 	m_origin = origin;
 	return true;
@@ -439,7 +439,7 @@ Time Media::ticksToTime(uintmax_t ticks) const
 
 uintmax_t Media::timeToTicks(Time t) const
 {
-	if((t < m_origin) or not isfinite(t))
+	if((t < m_origin) or not std::isfinite(t))
 		t = m_origin;
 
 	Time rounding = getTickDuration() / Time(2.0);
