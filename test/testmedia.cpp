@@ -100,11 +100,11 @@ int main(int argc, char **argv)
 
 	auto message1 = m6.makeMessage(true, Media::MSG_MEDIA, 0, 0, payload);
 	Hex::print("message1", message1);
-	check_message(m6, message1, true, Media::MSG_MEDIA, 0, 0, 0, 0, payload.size());
+	check_message(m6, message1, true, Media::MSG_MEDIA, 0, 0, 0.000001, 0, payload.size());
 
 	auto message2 = m6.makeMessage(false, 3, 1, 1, optionList, payload);
 	Hex::print("message2", message2);
-	check_message(m6, message2, false, 3, 1, 1, 0, optionList.size(), payload.size());
+	check_message(m6, message2, false, 3, 1, 1, 0.000001, optionList.size(), payload.size());
 
 	auto message3 = m6.makeMessage(false, 4, 2, 2.0333, payload);
 	Hex::print("message3", message3);
