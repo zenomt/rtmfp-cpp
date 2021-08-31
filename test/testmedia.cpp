@@ -145,5 +145,11 @@ int main(int argc, char **argv)
 	Hex::print("bad message9", message9);
 	assert(0 == m6.parseHeader(message9.data(), message9.size(), nullptr, nullptr, nullptr, nullptr, nullptr));
 
+	uint8_t emptyOptions[] = { 0 };
+	auto message10 = m6.makeMessage(false, 1, 1, 1, emptyOptions, sizeof(emptyOptions), nullptr, 0);
+	message10.pop_back();
+	Hex::print("bad message10 OPT but no options", message10);
+	assert(0 == m6.parseHeader(message10.data(), message10.size(), nullptr, nullptr, nullptr, nullptr, nullptr));
+
 	return 0;
 }

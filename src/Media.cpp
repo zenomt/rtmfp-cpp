@@ -400,7 +400,7 @@ size_t Media::basicParseHeader(const uint8_t *message, size_t len, bool *outRAI,
 	if(*message & FLAG_OPT)
 	{
 		const uint8_t *value = nullptr;
-		while(cursor < limit)
+		while(true)
 		{
 			if(0 == (rv = Option::parse(cursor, limit, nullptr, &value, nullptr)))
 				return 0;
