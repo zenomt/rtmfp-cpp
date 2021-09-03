@@ -20,7 +20,8 @@ metadata format: 'http://zenomt.com/ns/rtmfp#media' <00> [options...]
     0b suggested reorder buffer duration <vlu ticks> (default no recommendation)
     21 track name: <utf-8 ...> (default none/auto, should be short <= 64 bytes, in track's primary language)
     2d track id: <vlu> (default none (inferred by codec type), required if more than one concurrent track per A or V type)
-         note: changes to a track: keep track id in new flow, use flow sync to order end/begin
+         note: without separate program info, primary/default track is lowest id per A or V type.
+         note: changes to a track: keep track id in new flow, use flow sync to order end/begin.
 
   example: 'http://zenomt.com/ns/rtmfp#media' 00   02 1d 01   05 4c 61 76 63 31   05 01 85 bf 10 01
     (stream ID 1, codec 'avc1', timescale 90000/1, other params default)

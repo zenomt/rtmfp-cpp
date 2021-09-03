@@ -41,7 +41,7 @@ public:
 	void getTimescale(uintmax_t *ticks, uintmax_t *perSeconds) const;
 	Time getTickDuration() const;
 
-	bool         setReceiveIntent(ReceiveOrder intent); // hint must be RO_SEQUENCE or RO_NETWORK
+	bool         setReceiveIntent(ReceiveOrder intent); // intent must be RO_SEQUENCE or RO_NETWORK
 	ReceiveOrder getReceiveIntent() const;
 
 	static Bytes basicMakeMessage(bool rai, int messageType, uintmax_t dtsTicks, uintmax_t ptsTicks, const void *optionList, size_t optionListLen, const void *payload, size_t len);
