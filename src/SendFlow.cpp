@@ -320,14 +320,13 @@ void SendFlow::trimSendQueue(Time now)
 		first->m_receipt->abandonIfNeeded(now);
 		if(not first->m_receipt->isAbandoned())
 			break;
+		first->m_receipt->useCountDown();
 		m_send_queue.removeFirst();
 		anyTrimmed = true;
 	}
 
 	if(anyTrimmed)
 		queueWritableNotify();
-
-	m_trimPending = false;
 }
 
 void SendFlow::scheduleTrimSendQueue()
@@ -335,15 +334,20 @@ void SendFlow::scheduleTrimSendQueue()
 	if(not m_trimPending)
 	{
 		auto myself = share_ref(this);
-		m_rtmfp->m_platform->perform(0, [myself] { myself->trimSendQueue(myself->m_rtmfp->getCurrentTime()); });
 		m_trimPending = true;
+		m_rtmfp->m_platform->perform(0, [myself] {
+			myself->trimSendQueue(myself->m_rtmfp->getCurrentTime());
+			myself->m_trimPending = false;
+		});
 	}
 }
 
 uintmax_t SendFlow::findForwardSequenceNumber(Time now)
 {
 	auto &first = m_send_queue.firstValue();
-	first->m_receipt->abandonIfNeeded(now);
+
+	if(not first->m_in_flight)
+		first->m_receipt->abandonIfNeeded(now);
 
 	if(not first->m_receipt->isAbandoned())
 		return first->m_sequence_number - 1;
@@ -400,13 +404,13 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 
 		size_t remainingBeforeChunk = packet->remaining();
 
-		if(!packet->startChunk(chunkType))
+		if(not packet->startChunk(chunkType))
 			break;
 
 		uint8_t flag_opt = (firstChunk and m_startup_options.size()) ? USERDATA_FLAG_OPT : 0;
 		uint8_t flags = flag_opt | frag->m_fra | flag_abn | flag_fin;
 
-		if(!packet->push(flags))
+		if(not packet->push(flags))
 			goto overrun;
 
 		if(CHUNK_USERDATA == chunkType)

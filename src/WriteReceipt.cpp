@@ -72,7 +72,7 @@ bool WriteReceipt::isDelivered() const
 
 bool WriteReceipt::isFinished() const
 {
-	return 0 == m_useCount;
+	return (0 == m_useCount) or isAbandoned();
 }
 
 // --- methods for the issuer
