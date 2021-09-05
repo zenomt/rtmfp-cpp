@@ -44,14 +44,21 @@ class Connection; class Client;
 
 enum Protocol { PROTO_UNSPEC, PROTO_RTMP, PROTO_RTMP_SIMPLE, PROTO_RTMFP };
 
+enum {
+	TC_VIDEO_COMMAND_CHECKPOINT = 3
+};
+
 int verbose = 0;
 int port = 1935;
 bool requireHMAC = true;
 bool requireSSEQ = true;
 bool interleave = false;
+bool sendVideoCheckpoint = false;
+bool replayCheckpointFrame = true;
 Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
+Time checkpointLifetime = 4.5;
 Time previousGopLifetime = 0.1;
 Time reorderWindowPeriod = 1.0;
 ReceiveOrder mediaReceiveIntent = RO_SEQUENCE;
@@ -87,6 +94,16 @@ void lookup(const std::function<void(struct addrinfo *results)> &onresult)
 	});
 }
 
+bool timestamp_lt(uint32_t l, uint32_t r)
+{
+	return (l - r) >= UINT32_C(0x80000000);
+}
+
+bool timestamp_gt(uint32_t l, uint32_t r)
+{
+	return timestamp_lt(r, l);
+}
+
 class Connection : public Object {
 public:
 	~Connection()
@@ -103,12 +120,31 @@ public:
 	{
 		const uint8_t *data = (const uint8_t *)payload;
 		Time startWithin = INFINITY;
+		bool isVideoCodingLayer = false;
+		auto &streamState = m_streamStates[streamID];
 
 		switch(messageType)
 		{
 		case TCMSG_VIDEO:
-			if(not isVideoSequenceSpecial(data, len))
+			if(isVideoCheckpointCommand(data, len))
+			{
+				if(replayCheckpointFrame)
+				{
+					if(timestamp_gt(timestamp, streamState.m_lastKeyframeTimestamp) and streamState.m_lastKeyframe.size())
+					{
+						write(streamID, TCMSG_VIDEO, timestamp, streamState.m_lastKeyframe.data(), streamState.m_lastKeyframe.size());
+						if(verbose) printf("Connection %p stream %lu replay keyframe at %lu\n", (void *)this, (unsigned long)streamID, (unsigned long)timestamp);
+					}
+					return nullptr;
+				}
+				else
+					startWithin = checkpointLifetime; // forward (or delete if checkpointLifetime < 0)
+			}
+			else if(not isVideoSequenceSpecial(data, len))
+			{
 				startWithin = videoLifetime;
+				isVideoCodingLayer = true;
+			}
 			break;
 
 		case TCMSG_AUDIO:
@@ -121,14 +157,14 @@ public:
 
 		auto rv = basicWrite(streamID, messageType, timestamp, data, len, startWithin, finishWithin);
 
-		if(rv and (TCMSG_VIDEO == messageType))
+		if(rv and isVideoCodingLayer)
 		{
-			auto &q = m_receiptsByStream[streamID];
+			auto &q = streamState.m_receipts;
 			std::shared_ptr<WriteReceipt> previous;
 			if(not q.empty())
 				previous = q.lastValue();
 
-			if(len and (0x10 == (data[0] & 0xf0))) // keyframe/IDR
+			if(len and (TC_VIDEO_FRAMETYPE_IDR == (data[0] & TC_VIDEO_FRAMETYPE_MASK)))
 			{
 				previous.reset();
 				if(expirePreviousGop)
@@ -141,6 +177,18 @@ public:
 					});
 				}
 				q.clear();
+
+				if(replayCheckpointFrame)
+				{
+					streamState.m_lastKeyframe = Bytes(data, data + len);
+					streamState.m_lastKeyframeTimestamp = timestamp;
+				}
+
+				if(sendVideoCheckpoint)
+				{
+					uint8_t command[] = { TC_VIDEO_FRAMETYPE_COMMAND | TC_VIDEO_CODEC_NONE, TC_VIDEO_COMMAND_CHECKPOINT };
+					basicWrite(streamID, TCMSG_VIDEO, timestamp, command, sizeof(command), checkpointLifetime, checkpointLifetime);
+				}
 			}
 
 			if(startWithin < INFINITY)
@@ -188,8 +236,25 @@ protected:
 			return true;
 		if(len < 2)
 			return false;
-		return (0x07 == (payload[0] & 0x0f)) and (0x01 != payload[1]);
-			return true;
+		if(isVideoCheckpointCommand(payload, len))
+			return false;
+		return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
+	}
+
+	bool isVideoCheckpointCommand(const uint8_t *payload, size_t len) const
+	{
+		if(len < 2)
+			return false;
+		if(TC_VIDEO_FRAMETYPE_COMMAND != (payload[0] & TC_VIDEO_FRAMETYPE_MASK))
+			return false;
+		if(TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK))
+		{
+			if(len < 6)
+				return false;
+			return TC_VIDEO_COMMAND_CHECKPOINT == payload[5];
+		}
+		else
+			return TC_VIDEO_COMMAND_CHECKPOINT == payload[1];
 	}
 
 	bool isAudioSequenceSpecial(const uint8_t *payload, size_t len) const
@@ -198,10 +263,16 @@ protected:
 			return true;
 		if(len < 2)
 			return false;
-		return (0xa0 == (payload[0] & 0xf0)) and (0 == payload[1]);
+		return (TC_AUDIO_CODEC_AAC == (payload[0] & TC_AUDIO_CODEC_MASK)) and (TC_AUDIO_AACPACKET_AUDIO_SPECIFIC_CONFIG == payload[1]);
 	}
 
-	std::map<uint32_t, List<std::shared_ptr<WriteReceipt>>> m_receiptsByStream;
+	struct StreamState {
+		List<std::shared_ptr<WriteReceipt>> m_receipts;
+		Bytes    m_lastKeyframe;
+		uint32_t m_lastKeyframeTimestamp { 0 };
+	};
+
+	std::map<uint32_t, StreamState> m_streamStates;
 	bool m_open = { true };
 	bool m_finished = { false };
 };
@@ -825,6 +896,9 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -R            -- request ASAP receive on A/V (rtmfp send)\n");
 	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
 	printf("  -E            -- don't expire previous GOP\n");
+	printf("  -c            -- send checkpoint after keyframe\n");
+	printf("  -C            -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
+	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
 	printf("  -p port       -- port for -4/-6 (default %d)\n", port);
@@ -846,7 +920,7 @@ int main(int argc, char **argv)
 	std::vector<Address> bindAddrs;
 	int ch;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:EHSp:46B:u:vh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:EcC:MHSp:46B:u:vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -878,6 +952,15 @@ int main(int argc, char **argv)
 			break;
 		case 'E':
 			expirePreviousGop = false;
+			break;
+		case 'c':
+			sendVideoCheckpoint = true;
+			break;
+		case 'C':
+			checkpointLifetime = atof(optarg);
+			break;
+		case 'M':
+			replayCheckpointFrame = false;
 			break;
 		case 'H':
 			requireHMAC = false;
