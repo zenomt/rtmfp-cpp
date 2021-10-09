@@ -18,60 +18,6 @@ const uint8_t default_session_key[16] = {
 	0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x53, 0x79,
 	0x73, 0x74, 0x65, 0x6D, 0x73, 0x20, 0x30, 0x32 };
 
-struct EPD {
-	const uint8_t *requiredHostname;
-	size_t requiredHostnameLen;
-	const uint8_t *ancillaryData;
-	size_t ancillaryDataLen;
-	const uint8_t *fingerprint;
-	size_t fingerprintLen;
-
-	bool parse(const uint8_t *epd, size_t len);
-};
-
-bool EPD::parse(const uint8_t *epd, size_t len)
-{
-	fingerprint = ancillaryData = requiredHostname = NULL;
-	fingerprintLen = ancillaryDataLen = requiredHostnameLen = 0;
-
-	size_t rv;
-	const uint8_t *cursor = epd;
-	const uint8_t *limit = epd + len;
-
-	while(cursor < limit)
-	{
-		uintmax_t optionType;
-		const uint8_t *value;
-		size_t valueLen;
-
-		rv = Option::parse(cursor, limit, &optionType, &value, &valueLen);
-		if(0 == rv)
-			return false;
-		cursor += rv;
-
-		if(NULL == value)
-			continue;
-
-		switch(optionType)
-		{
-		case EPD_OPTION_REQUIRED_HOSTNAME:
-			requiredHostname = value;
-			requiredHostnameLen = valueLen;
-			break;
-		case EPD_OPTION_ANCILLARY_DATA:
-			ancillaryData = value;
-			ancillaryDataLen = valueLen;
-			break;
-		case EPD_OPTION_FINGERPRINT:
-			fingerprint = value;
-			fingerprintLen = valueLen;
-			break;
-		}
-	}
-
-	return fingerprint or ancillaryData or requiredHostname;
-}
-
 // search for option with type_ before first marker
 size_t optionSearch(const uint8_t *src, const uint8_t *limit, uintmax_t type_, const uint8_t **value, size_t *valueLen)
 {
@@ -358,6 +304,14 @@ bool FlashCryptoAdapter::getSSeqRecvRequired() const
 	return m_sseqRecvRequired;
 }
 
+std::shared_ptr<FlashCryptoCert> FlashCryptoAdapter::decodeFlashCertificate(const uint8_t *cert, size_t len)
+{
+	auto rv = share_ref(new FlashCryptoCert(), false);
+	if(not rv->init(cert, len, this))
+		rv.reset();
+	return rv;
+}
+
 std::shared_ptr<SessionCryptoKey> FlashCryptoAdapter::getKeyForNewSession()
 {
 	auto rv = share_ref(new FlashCryptoKey(), false);
@@ -373,7 +327,7 @@ Bytes FlashCryptoAdapter::getNearEncodedCertForEPD(const uint8_t *epd, size_t ep
 
 bool FlashCryptoAdapter::isSelectedByEPD(const uint8_t *epdBytes, size_t len)
 {
-	EPD epd;
+	EPDParseState epd;
 	if(not epd.parse(epdBytes, len))
 		return false;
 
@@ -411,10 +365,7 @@ bool FlashCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> far)
 
 std::shared_ptr<CryptoCert> FlashCryptoAdapter::decodeCertificate(const uint8_t *cert, size_t len)
 {
-	auto rv = share_ref(new FlashCryptoCert(), false);
-	if(not rv->init(cert, len, this))
-		rv.reset();
-	return rv;
+	return decodeFlashCertificate(cert, len);
 }
 
 void FlashCryptoAdapter::cryptoHash256(uint8_t *dst, const uint8_t *msg, size_t len)
@@ -506,6 +457,49 @@ bool FlashCryptoAdapter::defaultEncrypt_cbc(const void *dst, const void *src, si
 bool FlashCryptoAdapter::defaultDecrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv)
 {
 	return m_defaultDecryptContext->crypt_cbc(dst, src, len, iv);
+}
+
+bool FlashCryptoAdapter::EPDParseState::parse(const uint8_t *epd, size_t len)
+{
+	fingerprint = ancillaryData = requiredHostname = NULL;
+	fingerprintLen = ancillaryDataLen = requiredHostnameLen = 0;
+
+	size_t rv;
+	const uint8_t *cursor = epd;
+	const uint8_t *limit = epd + len;
+
+	while(cursor < limit)
+	{
+		uintmax_t optionType;
+		const uint8_t *value;
+		size_t valueLen;
+
+		rv = Option::parse(cursor, limit, &optionType, &value, &valueLen);
+		if(0 == rv)
+			return false;
+		cursor += rv;
+
+		if(NULL == value)
+			continue;
+
+		switch(optionType)
+		{
+		case EPD_OPTION_REQUIRED_HOSTNAME:
+			requiredHostname = value;
+			requiredHostnameLen = valueLen;
+			break;
+		case EPD_OPTION_ANCILLARY_DATA:
+			ancillaryData = value;
+			ancillaryDataLen = valueLen;
+			break;
+		case EPD_OPTION_FINGERPRINT:
+			fingerprint = value;
+			fingerprintLen = valueLen;
+			break;
+		}
+	}
+
+	return fingerprint or ancillaryData or requiredHostname;
 }
 
 // --- FlashCryptoKey
@@ -971,6 +965,11 @@ bool FlashCryptoCert::isStatic() const
 	return m_isStatic;
 }
 
+bool FlashCryptoCert::doesAcceptAncillaryData() const
+{
+	return m_acceptsAncillaryData;
+}
+
 bool FlashCryptoCert::supportsDHGroup(int groupID) const
 {
 	return groupOptionSearch(m_raw, isStatic() ? CERT_OPTION_DH_PUBLIC_KEY : CERT_OPTION_SUPPORTED_DH_GROUP, groupID, nullptr, nullptr);
@@ -981,6 +980,11 @@ bool FlashCryptoCert::getPublicKey(int groupID, const uint8_t **publicKey, size_
 	return isStatic() and groupOptionSearch(m_raw, CERT_OPTION_DH_PUBLIC_KEY, groupID, publicKey, len);
 }
 
+Bytes FlashCryptoCert::getFingerprint() const
+{
+	return Bytes(m_fingerprint, m_fingerprint + sizeof(m_fingerprint));
+}
+
 void FlashCryptoCert::isAuthentic(const Task &onauthentic)
 {
 	onauthentic();
@@ -988,7 +992,7 @@ void FlashCryptoCert::isAuthentic(const Task &onauthentic)
 
 bool FlashCryptoCert::isSelectedByEPD(const uint8_t *epdBytes, size_t epdLen)
 {
-	EPD epd;
+	FlashCryptoAdapter::EPDParseState epd;
 	if(not epd.parse(epdBytes, epdLen))
 		return false;
 

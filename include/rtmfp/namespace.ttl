@@ -82,9 +82,10 @@ struct mediaMessage_t
 
   message-type:
     0 reserved/forbidden
-    1 coded media in payload
+    1 complete coded media presentation unit in payload
+    2 partial (segmented) coded media presentation unit portion in payload
     5 media random access checkpoint (ex. "i just sent an IDR") (no payload, timestamp(s) required, dts/pts same as random access media unit)
-    6 media alignment checkpoint (ex. "i just sent a non-IDR", possibly useful for long GOPs, timestamp(s) required)
+    6 media alignment checkpoint (ex. "i just sent a non-IDR", possibly useful for long GOPs or segmented frames, timestamp(s) required)
     7 silence/temporary EOS (no payload, timestamp required)
   (8-f non-discardable/must-not-abandon)
     8 reserved/forbidden
@@ -93,4 +94,46 @@ struct mediaMessage_t
 
   options:
     TBD (example: like RTP extension headers, see RFC 8285, https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-10 )
+
+  segmenting coded presentation units: Some codecs (ex. AVC) can naturally segment a coded
+    presentation unit (ex. by slices or category-based slice data partitioning). Segmented
+    presentation units MAY be spread across multiple Partial Coded Media messages (type 2,
+    all having the same DTS & PTS), to enable differentiated delivery control per segment.
+    A segment MUST NOT span messages, but a message MAY contain more than one segment. A
+    random-access presentation unit has the RAI flag set only on its first message. Presentation
+    units using type 2 messages SHOULD be followed by an appropriate checkpoint message (type
+    5 or 6) for rapid detection of completion of the presentation unit; otherwise receipt
+    of a different timestamp or any other message type indicates completion of the previous
+    unit.
 """ .
+
+<http://zenomt.com/ns/rtmfp#redirector> a rtmfp:Metadata;
+    rdfs:comment """User Metadata type and signature for Redirector command flows.
+
+Client opens an unassociated flow to the Redirector and sends commands. On successful
+connection (including authorization if required), Redirector opens an associated return flow
+to the Client and sends commands.
+
+metadata format: 'http://zenomt.com/ns/rtmfp#redirector' [<00> options...]
+  options: none
+
+message format: <uint8_t command> [payload...]
+
+commands (to redirector):
+  1d simple auth: <uint8_t[32] HMAC-SHA256(password, redirector's near nonce)> <keyid...>
+     (similar to Section 4.3.5.1.1 of RFC 7425, can be sent multiple times before other commands for different keyids)
+     (unrecognized keyid: no-op; recognized keyid but wrong password, or no auth given but required: reject flow reason 0x0a)
+  05 settings/register: [options...]
+    options:
+      0d include derived/reflexive address (default don't)
+      0a additional address: <addr> (zero or more times enumerates all additional addresses)
+    (no derived and no additional means no redirect, new settings command overrides previous)
+  00 draining/unregister (re-register by sending a new settings)
+  0f load factor: <vlu> (higher is more loaded, lower might get more connections. ex: number of connections)
+  10 user data: [opaque...] (application-specific opaque user data)
+
+commands (from redirector):
+  0d derived/reflexive address report: <addr> (resent on detected change)
+  10 user data: [opaque...] (application-specific opaque user data)
+
+""".

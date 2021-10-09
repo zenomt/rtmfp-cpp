@@ -85,6 +85,8 @@ public:
 	void setSSeqRecvRequired(bool required);
 	bool getSSeqRecvRequired() const;
 
+	virtual std::shared_ptr<FlashCryptoCert> decodeFlashCertificate(const uint8_t *cert, size_t len);
+
 	// if isServer is true and this function is set, called when the EPD contains
 	// ancillary data to allow selection on, for example, aspects of an 'rtmfp:' URI.
 	std::function<bool(const uint8_t *ancillary, size_t len)> isSelectedByAncillaryData;
@@ -138,6 +140,18 @@ public:
 
 	virtual bool defaultEncrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv);
 	virtual bool defaultDecrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv);
+
+	struct EPDParseState {
+		const uint8_t *requiredHostname { nullptr };
+		size_t         requiredHostnameLen { 0 };
+		const uint8_t *ancillaryData { nullptr };
+		size_t         ancillaryDataLen { 0 };
+		const uint8_t *fingerprint { nullptr };
+		size_t         fingerprintLen { 0 };
+
+		bool parse(const uint8_t *epd, size_t len);
+		// caution: members will point directly into the supplied buffer.
+	};
 
 protected:
 
@@ -246,8 +260,10 @@ public:
 	bool  init(const uint8_t *cert, size_t len, FlashCryptoAdapter *owner);
 
 	bool  isStatic() const;
+	bool  doesAcceptAncillaryData() const;
 	bool  supportsDHGroup(int groupID) const;
 	bool  getPublicKey(int groupID, const uint8_t **publicKey, size_t *len);
+	Bytes getFingerprint() const;
 
 	void  isAuthentic(const Task &onauthentic) override;
 	bool  isSelectedByEPD(const uint8_t *epd, size_t epdLen) override;
@@ -259,7 +275,7 @@ public:
 protected:
 	Bytes          m_raw;
 	uint8_t        m_fingerprint[FlashCryptoAdapter::FINGERPRINT_LENGTH];
-	bool           m_hasHostname;
+	bool           m_hasHostname :1;
 	bool           m_acceptsAncillaryData :1;
 	bool           m_isStatic :1;
 };

@@ -8,7 +8,7 @@ LIBRARY = ../librtmfp.a
 RTMP = RTMP.o PosixRTMPPlatformAdapter.o
 
 ifndef WITHOUT_OPENSSL
-FC_OPENSSL_EXAMPLES = fcclient echoserver rtclient static-redirector tcrelay
+FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay
 endif
 
 TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia
@@ -108,6 +108,10 @@ rtmpserver: rtmpserver.o $(RTMP) $(LIBRARY)
 	$(CXX) -o $@ $+
 
 tcrelay: tcrelay.o $(RTMP) $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
+redirector: redirector.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 

@@ -7,6 +7,7 @@
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/Hex.hpp"
+#include "rtmfp/RedirectorClient.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
@@ -170,6 +171,10 @@ int usage(const char *prog, const char *msg, int rv)
 	printf("  -N            -- require hostname to connect\n");
 	printf("  -H            -- don't require HMAC\n");
 	printf("  -S            -- don't require session sequence numbers\n");
+	printf("  -l user:passw -- add redirector (load balancer) username:password\n");
+	printf("  -L redir-spec -- add redirector spec <hostname>@<ip:port>[,ip:port...]\n");
+	printf("  -A addr:port  -- advertise addr:port at redirector\n");
+	printf("  -R            -- suppress redirector advertising reflexive (derived) address\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	return rv;
@@ -181,12 +186,17 @@ int main(int argc, char **argv)
 {
 	bool ipv4 = false;
 	bool ipv6 = false;
+	bool advertiseReflexive = true;
 	std::vector<Address> bindAddrs;
 	int ch;
+	std::map<std::string, std::string> redirectAuth;
+	std::vector<std::pair<std::string, std::vector<Address>>> redirectorSpecs;
+	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
+	std::vector<Address> advertiseAddresses;
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vh46B:NHSn:p:")) != -1)
+	while((ch = getopt(argc, argv, "vh46B:NHSn:p:l:L:A:R")) != -1)
 	{
 		switch(ch)
 		{
@@ -224,6 +234,47 @@ int main(int argc, char **argv)
 			break;
 		case 'p':
 			port = atoi(optarg);
+			break;
+
+		// redirector stuff
+		case 'l':
+			{
+				std::string str = optarg;
+				auto pos = str.find(':');
+				if(std::string::npos == pos)
+				{
+					printf("can't parse redirector username:password\n");
+					return 1;
+				}
+				redirectAuth[str.substr(0, pos)] = str.substr(pos + 1);
+				printf("username: %s password: %s\n", str.substr(0, pos).c_str(), str.substr(pos + 1).c_str());
+			}
+			break;
+		case 'L':
+			{
+				std::string hostname;
+				std::vector<Address> addrs;
+				if(not RedirectorClient::parseRedirectorSpec(optarg, hostname, addrs))
+				{
+					printf("bad redirector spec '%s'\nredirector spec is <hostname>@<addr:port>[,addr:port...]\n", optarg);
+					return 1;
+				}
+				redirectorSpecs.push_back( { hostname, addrs } );
+			}
+			break;
+		case 'A':
+			{
+				Address addr;
+				if(not addr.setFromPresentation(optarg))
+				{
+					printf("can't parse address %s\n", optarg);
+					return 1;
+				}
+				advertiseAddresses.push_back(addr);
+			}
+			break;
+		case 'R':
+			advertiseReflexive = false;
 			break;
 
 		case 'h':
@@ -280,6 +331,30 @@ int main(int argc, char **argv)
 
 	if(ipv6 and not addInterface(&platform, port, AF_INET6))
 		return 1;
+
+	for(auto it = redirectorSpecs.begin(); it != redirectorSpecs.end(); it++)
+	{
+		auto hostname = it->first;
+		Bytes epd = crypto.makeEPD(nullptr, nullptr, hostname.c_str());
+		auto redirectorClient = share_ref(new FlashCryptoRunLoopRedirectorClient(&rtmfp, epd, &rl, &crypto), false);
+		for(auto addrIt = it->second.begin(); addrIt != it->second.end(); addrIt++)
+			redirectorClient->addRedirectorAddress(*addrIt);
+		for(auto authIt = redirectAuth.begin(); authIt != redirectAuth.end(); authIt++)
+			redirectorClient->addSimpleAuth(authIt->first.c_str(), authIt->second.c_str());
+		for(auto advIt = advertiseAddresses.begin(); advIt != advertiseAddresses.end(); advIt++)
+			redirectorClient->addAdditionalAddress(*advIt);
+		redirectorClient->setAdvertiseReflexiveAddress(advertiseReflexive);
+
+		redirectorClient->onReflexiveAddress = [hostname] (const Address &addr) { if(verbose) printf("redirector %s reports reflexive address %s\n", hostname.c_str(), addr.toPresentation().c_str()); };
+		redirectorClient->onStatus = [hostname, redirectorClient] (RedirectorClient::Status status) {
+			if(verbose) printf("redirector %s status %d\n", hostname.c_str(), status);
+			if(verbose and (RedirectorClient::STATUS_CONNECTED == redirectorClient->getStatus()))
+				printf("Connected to redirector %s\n", redirectorClient->getRedirectorAddress().toPresentation().c_str());
+		};
+
+		redirectorClient->connect();
+		redirectors.push_back(redirectorClient);
+	}
 
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);

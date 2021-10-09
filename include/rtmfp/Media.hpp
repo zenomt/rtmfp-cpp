@@ -65,6 +65,7 @@ public:
 
 	enum {
 		MSG_MEDIA                    = 1,
+		MSG_MEDIA_SEGMENT            = 2,
 		MSG_RANDOM_ACCESS_CHECKPOINT = 5,
 		MSG_TIMING_CHECKPOINT        = 6,
 		MSG_SILENCE                  = 7,

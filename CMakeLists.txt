@@ -24,6 +24,7 @@ add_library(rtmfp STATIC
 	src/PlainCryptoAdapter.cpp
 	src/PosixPlatformAdapter.cpp
 	src/RecvFlow.cpp
+	src/RedirectorClient.cpp
 	src/ReorderBuffer.cpp
 	src/RTMFP.cpp
 	src/RunLoop.cpp
