@@ -90,6 +90,7 @@ fcclient: fcclient.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto
 
+echoserver.o: redirectorspec.hpp
 echoserver: echoserver.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread

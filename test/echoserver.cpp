@@ -9,6 +9,8 @@
 #include "rtmfp/Hex.hpp"
 #include "rtmfp/RedirectorClient.hpp"
 
+#include "redirectorspec.hpp"
+
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
 
@@ -190,7 +192,7 @@ int main(int argc, char **argv)
 	std::vector<Address> bindAddrs;
 	int ch;
 	std::map<std::string, std::string> redirectAuth;
-	std::vector<std::pair<std::string, std::vector<Address>>> redirectorSpecs;
+	std::map<std::string, std::vector<Address>> redirectorSpecs;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 	std::vector<Address> advertiseAddresses;
 
@@ -252,14 +254,11 @@ int main(int argc, char **argv)
 			break;
 		case 'L':
 			{
-				std::string hostname;
-				std::vector<Address> addrs;
-				if(not RedirectorClient::parseRedirectorSpec(optarg, hostname, addrs))
+				if(not parse_redirector_spec(optarg, redirectorSpecs))
 				{
 					printf("bad redirector spec '%s'\nredirector spec is <hostname>@<addr:port>[,addr:port...]\n", optarg);
 					return 1;
 				}
-				redirectorSpecs.push_back( { hostname, addrs } );
 			}
 			break;
 		case 'A':
@@ -337,13 +336,7 @@ int main(int argc, char **argv)
 		auto hostname = it->first;
 		Bytes epd = crypto.makeEPD(nullptr, nullptr, hostname.c_str());
 		auto redirectorClient = share_ref(new FlashCryptoRunLoopRedirectorClient(&rtmfp, epd, &rl, &crypto), false);
-		for(auto addrIt = it->second.begin(); addrIt != it->second.end(); addrIt++)
-			redirectorClient->addRedirectorAddress(*addrIt);
-		for(auto authIt = redirectAuth.begin(); authIt != redirectAuth.end(); authIt++)
-			redirectorClient->addSimpleAuth(authIt->first.c_str(), authIt->second.c_str());
-		for(auto advIt = advertiseAddresses.begin(); advIt != advertiseAddresses.end(); advIt++)
-			redirectorClient->addAdditionalAddress(*advIt);
-		redirectorClient->setAdvertiseReflexiveAddress(advertiseReflexive);
+		config_redirector_client(redirectorClient.get(), redirectAuth, it->second, advertiseAddresses, advertiseReflexive);
 
 		redirectorClient->onReflexiveAddress = [hostname] (const Address &addr) { if(verbose) printf("redirector %s reports reflexive address %s\n", hostname.c_str(), addr.toPresentation().c_str()); };
 		redirectorClient->onStatus = [hostname, redirectorClient] (RedirectorClient::Status status) {

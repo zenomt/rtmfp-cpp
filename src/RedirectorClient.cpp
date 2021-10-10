@@ -49,6 +49,25 @@ void RedirectorClient::close()
 	onUserData = nullptr;
 }
 
+void RedirectorClient::setRetransmitLimit(Time t)
+{
+	m_retransmitLimit = t;
+	if(isConnected())
+		m_send->setSessionRetransmitLimit(m_retransmitLimit);
+}
+
+Time RedirectorClient::getRetransmitLimit() const
+{
+	return m_retransmitLimit;
+}
+
+void RedirectorClient::setKeepalivePeriod(Time t)
+{
+	m_keepalivePeriod = t;
+	if(isConnected())
+		m_send->setSessionKeepalivePeriod(m_keepalivePeriod);
+}
+
 void RedirectorClient::setActive(bool active)
 {
 	bool update = active != m_active;
@@ -198,35 +217,6 @@ bool RedirectorClient::checkFlowMetadata(const Bytes &metadata)
 	return 0 == memcmp(signature, metadata.data(), sizeof(signature) - 1);
 }
 
-bool RedirectorClient::parseRedirectorSpec(const std::string &spec, std::string &outName, std::vector<Address> &outAddresses)
-{
-	outName = "";
-	size_t pos = spec.find('@');
-	if(std::string::npos == pos)
-		return false;
-	outName = spec.substr(0, pos);
-	pos++; // move past '@'
-
-	outAddresses.clear();
-
-	auto remainder = spec.substr(pos);
-	while(true)
-	{
-		pos = remainder.find(',');
-
-		Address tmp;
-		if(not tmp.setFromPresentation(remainder.substr(0, pos).c_str()))
-			return false;
-		outAddresses.push_back(tmp);
-
-		if(std::string::npos == pos)
-			break;
-		remainder = remainder.substr(pos + 1);
-	}
-
-	return not outAddresses.empty();
-}
-
 // ---
 
 void RedirectorClient::closeFlows()
@@ -328,8 +318,8 @@ void RedirectorClient::onConnected()
 	setStatus(STATUS_CONNECTED);
 	if(isConnected()) // still, could have changed during callback
 	{
-		m_send->setSessionKeepalivePeriod(keepalivePeriod);
-		m_send->setSessionRetransmitLimit(retransmitLimit);
+		m_send->setSessionKeepalivePeriod(m_keepalivePeriod);
+		m_send->setSessionRetransmitLimit(m_retransmitLimit);
 		m_send->setSessionFIHelloMode(m_responseMode);
 		sendAuth();
 		sendSettingsIfActive();

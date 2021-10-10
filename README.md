@@ -1,6 +1,6 @@
 Secure Real-Time Media Flow Protocol Library
 ============================================
-This is a C++11 implementation of the Secure Real-Time Media Flow Protocol
+This is a C++ (11) implementation of the Secure Real-Time Media Flow Protocol
 (RTMFP) as described in [RFC 7016][].
 
 The library includes sample Platform Adapters and other utilities, such as a

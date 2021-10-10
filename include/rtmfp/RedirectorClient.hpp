@@ -21,8 +21,11 @@ public:
 	void close();
 
 	Time minimumReconnectInterval { 30.0 };
-	Time retransmitLimit { 10.0 };
-	Time keepalivePeriod { 10.0 };
+
+	void setRetransmitLimit(Time t);
+	Time getRetransmitLimit() const;
+	void setKeepalivePeriod(Time t);
+	Time getKeepalivePeriod() const;
 
 	void setActive(bool active); // default true, set to false to unregister
 	bool isActive() const;
@@ -75,7 +78,6 @@ public:
 	// utility and convenience functions
 	static Bytes makeFlowMetadata(); // make a basic rtmfp:redirector metadata blob
 	static bool checkFlowMetadata(const Bytes &metadata); // answer true if metadata is for a rtmfp:redirector flow
-	static bool parseRedirectorSpec(const std::string &spec, std::string &outName, std::vector<Address> &outAddresses);
 
 	enum {
 		// to server
@@ -126,6 +128,8 @@ protected:
 	std::set<Address>         m_additionalAddresses;
 	Address                   m_reflexiveAddress;
 	bool                      m_reflexiveAddressValid { false };
+	Time                      m_retransmitLimit { 10.0 };
+	Time                      m_keepalivePeriod { 10.0 };
 	std::map<Bytes, Bytes>    m_simpleAuth;
 
 	std::shared_ptr<SendFlow> m_send;
