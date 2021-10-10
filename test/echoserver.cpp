@@ -249,7 +249,6 @@ int main(int argc, char **argv)
 					return 1;
 				}
 				redirectAuth[str.substr(0, pos)] = str.substr(pos + 1);
-				printf("username: %s password: %s\n", str.substr(0, pos).c_str(), str.substr(pos + 1).c_str());
 			}
 			break;
 		case 'L':
