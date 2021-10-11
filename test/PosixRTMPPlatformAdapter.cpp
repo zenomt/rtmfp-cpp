@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "PosixRTMPPlatformAdapter.hpp"
 
@@ -73,6 +74,10 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 		int val = 1;
 		::setsockopt(m_fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
 	}
+#endif
+
+#ifdef F_SETNOSIGPIPE
+	fcntl(m_fd, F_SETNOSIGPIPE, 1);
 #endif
 
 	tryRegisterDescriptors();
@@ -177,8 +182,13 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 	{
 		uint8_t *buf = m_outputBuffer.data();
 		size_t len = m_outputBuffer.size();
+		int flags = 0;
 
-		ssize_t rv = ::sendto(m_fd, buf, len, 0, nullptr, 0);
+#ifdef MSG_NOSIGNAL
+		flags |= MSG_NOSIGNAL;
+#endif
+
+		ssize_t rv = ::sendto(m_fd, buf, len, flags, nullptr, 0);
 		if(rv < 0)
 		{
 			if((EAGAIN == errno) or (EINTR == errno))

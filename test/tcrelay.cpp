@@ -30,9 +30,11 @@ extern "C" {
 #include "rtmfp/TCMessage.hpp"
 #include "rtmfp/FlowSyncManager.hpp"
 #include "rtmfp/ReorderBuffer.hpp"
+#include "rtmfp/RedirectorClient.hpp"
 
 #include "RTMP.hpp"
 #include "PosixRTMPPlatformAdapter.hpp"
+#include "redirectorspec.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
@@ -55,6 +57,7 @@ bool requireSSEQ = true;
 bool interleave = false;
 bool sendVideoCheckpoint = false;
 bool replayCheckpointFrame = true;
+bool collapseAudioGaps = false;
 Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
@@ -123,9 +126,28 @@ public:
 		bool isVideoCodingLayer = false;
 		auto &streamState = m_streamStates[streamID];
 
+		if(collapseAudioGaps)
+		{
+			uint32_t adjustedTimestamp = timestamp ? timestamp - streamState.m_timestampShift : 0;
+			if(TCMSG_AUDIO == messageType)
+			{
+				uint32_t lastTS = streamState.m_lastAudioTimestamp;
+				if(adjustedTimestamp and lastTS and timestamp_gt(adjustedTimestamp, lastTS + 1536/48)) // XXX 48kHz AAC only
+				{
+					streamState.m_timestampShift = (timestamp - lastTS) - 1024/48; // XXX need real audio frame duration
+					adjustedTimestamp = timestamp - streamState.m_timestampShift;
+					if(verbose) printf("Connection %p stream %lu new timestamp shift %lu at %lu\n", (void *)this, (unsigned long)streamID, (unsigned long)(streamState.m_timestampShift), (unsigned long)adjustedTimestamp);
+				}
+			}
+			timestamp = adjustedTimestamp;
+		}
+
 		switch(messageType)
 		{
 		case TCMSG_VIDEO:
+			if(collapseAudioGaps and timestamp_lt(timestamp, streamState.m_lastVideoTimestamp))
+				timestamp = streamState.m_lastVideoTimestamp + 5;
+			streamState.m_lastVideoTimestamp = timestamp;
 			if(isVideoCheckpointCommand(data, len))
 			{
 				if(replayCheckpointFrame)
@@ -148,6 +170,7 @@ public:
 			break;
 
 		case TCMSG_AUDIO:
+			streamState.m_lastAudioTimestamp = timestamp;
 			if(not isAudioSequenceSpecial(data, len))
 				startWithin = audioLifetime;
 			break;
@@ -270,6 +293,10 @@ protected:
 		List<std::shared_ptr<WriteReceipt>> m_receipts;
 		Bytes    m_lastKeyframe;
 		uint32_t m_lastKeyframeTimestamp { 0 };
+
+		uint32_t m_lastVideoTimestamp { 0 };
+		uint32_t m_lastAudioTimestamp { 0 };
+		uint32_t m_timestampShift { 0 };
 	};
 
 	std::map<uint32_t, StreamState> m_streamStates;
@@ -877,6 +904,15 @@ bool listenRTMP(int port, int family)
 	return listenRTMP(addr);
 }
 
+bool appendAddress(const char *presentationForm, std::vector<Address> &dst)
+{
+	Address addr;
+	if(not addr.setFromPresentation(presentationForm))
+		return false;
+	dst.push_back(addr);
+	return true;
+}
+
 int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg = nullptr)
 {
 	if(msg)
@@ -895,6 +931,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
 	printf("  -R            -- request ASAP receive on A/V (rtmfp send)\n");
 	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
+	printf("  -G            -- (experimental) collapse audio gaps in the timeline (only use with 48kHz AAC)\n");
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C            -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
@@ -906,6 +943,10 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
 	printf("  -u uri        -- set URI for IHello (rtmfp, default \"%s\")\n", rtmfpUri);
+	printf("  -L redir-spec -- add redirector/LB spec <name>@<ip:port>[,ip:port...]\n");
+	printf("  -l user:passw -- add redirector username:password\n");
+	printf("  -d addr:port  -- advertise addr:port at redirector\n");
+	printf("  -D            -- suppress redirector advertising reflexive (derived) address\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	return rv;
@@ -919,8 +960,13 @@ int main(int argc, char **argv)
 	bool ipv6 = false;
 	std::vector<Address> bindAddrs;
 	int ch;
+	bool advertiseReflexive = true;
+	std::map<std::string, std::string> redirectAuth;
+	std::map<std::string, std::vector<Address>> redirectorSpecs;
+	std::vector<Address> advertiseAddresses;
+	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:EcC:MHSp:46B:u:vh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MHSp:46B:u:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -950,6 +996,9 @@ int main(int argc, char **argv)
 		case 'r':
 			reorderWindowPeriod = atof(optarg);
 			break;
+		case 'G':
+			collapseAudioGaps = true;
+			break;
 		case 'E':
 			expirePreviousGop = false;
 			break;
@@ -975,21 +1024,34 @@ int main(int argc, char **argv)
 			ipv6 = true;
 			break;
 		case 'B':
-			{
-				Address addr;
-				if(not addr.setFromPresentation(optarg))
-				{
-					printf("can't parse address %s\n", optarg);
-					return 1;
-				}
-				bindAddrs.push_back(addr);
-			}
+			if(not appendAddress(optarg, bindAddrs))
+				return usage(argv[0], 1, "can't parse bind address: ", optarg);
 			break;
 		case 'p':
 			port = atoi(optarg);
 			break;
 		case 'u':
 			rtmfpUri = optarg;
+			break;
+		case 'L':
+			if(not parse_redirector_spec(optarg, redirectorSpecs))
+				return usage(argv[0], 1, "unrecognized redirector spec: ", optarg);
+			break;
+		case 'l':
+			{
+				std::string str = optarg;
+				auto pos = str.find(":");
+				if(std::string::npos == pos)
+					return usage(argv[0], 1, "unrecognized redirector username:password");
+				redirectAuth[str.substr(0, pos)] = str.substr(pos + 1);
+			}
+			break;
+		case 'd':
+			if(not appendAddress(optarg, advertiseAddresses))
+				return usage(argv[0], 1, "can't parse address to advertise at redirector: ", optarg);
+			break;
+		case 'D':
+			advertiseReflexive = false;
 			break;
 		case 'v':
 			verbose++;
@@ -1058,9 +1120,34 @@ int main(int argc, char **argv)
 			return 1;
 
 		rtmfp.onRecvFlow = Client::newRTMFPClient;
+
+		for(auto it = redirectorSpecs.begin(); it != redirectorSpecs.end(); it++)
+		{
+			auto hostname = it->first;
+			Bytes epd = crypto.makeEPD(nullptr, nullptr, hostname.c_str());
+			auto redirectorClient = share_ref(new FlashCryptoRunLoopRedirectorClient(&rtmfp, epd, &mainRL, &crypto), false);
+			redirectors.push_back(redirectorClient);
+			auto redirectorClient_ptr = redirectorClient.get();
+			config_redirector_client(redirectorClient_ptr, redirectAuth, it->second, advertiseAddresses, advertiseReflexive);
+
+			if(verbose)
+			{
+				redirectorClient->onReflexiveAddress = [hostname, redirectorClient_ptr] (const Address &addr) {
+					printf("redirector %s@%s reports reflexive address %s\n", hostname.c_str(), redirectorClient_ptr->getRedirectorAddress().toPresentation().c_str(), addr.toPresentation().c_str());
+				};
+				redirectorClient->onStatus = [hostname, redirectorClient_ptr] (RedirectorClient::Status status) {
+					printf("redirector %s@%s status %d\n", hostname.c_str(), redirectorClient_ptr->getRedirectorAddress().toPresentation().c_str(), status);
+				};
+			}
+
+			redirectorClient->connect();
+		}
 	}
 	else
 	{
+		if(not redirectorSpecs.empty())
+			printf("Warning: redirectors are only available with RTMFP input. Ignorning redirector specifications.\n");
+
 		for(auto it = bindAddrs.begin(); it != bindAddrs.end(); it++)
 			if(not listenRTMP(*it))
 				return 1;

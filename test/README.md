@@ -10,14 +10,15 @@ what's going on in each, check the source.
 * [`tcrelay`](tcrelay.cpp): A relay/translator/proxy for RTMFP and RTMP. It can also speak a
   simplified form of RTMP for compatibility with buggy implementations. Video and audio
   messages will expire after configurable deadlines to help stay live during congestion.
+  Can register with `redirector` for load balancing.
+* [`redirector`](redirector.cpp): A simple load balancer implementing the
+  [`http://zenomt.com/ns/rtmfp#redirector`](http://zenomt.com/ns/rtmfp#redirector) protocol.
+  Usable as-is or as an example starting point for more sophisticated applications.
 * [`echoserver`](echoserver.cpp): A sink and echo server using `FlashCryptoAdapter_OpenSSL`
   (but not RTMP-over-RTMFP messages or metadata). Attempts to open a return flow for any
   incoming flow and echo received messages, and otherwise is a message sink. Multithreaded.
   Demonstrates shutting down on interrupt/terminate signals in a `RunLoop`. Can register with
-  `redirector`.
-* [`redirector`](redirector.cpp): A simple load balancer implementing the
-  [`http://zenomt.com/ns/rtmfp#redirector`](http://zenomt.com/ns/rtmfp#redirector) protocol.
-  Usable as-is or as an example starting point for more sophisticated applications.
+  `redirector` as a RedirectorClient example.
 * [`rtclient`](rtclient.cpp): Simulate "real-time" video and audio traffic
   (cadence, packet size, message expiration, prioritization) using FlashCrypto
   (but not RTMP-over-RTMFP messages or data formats). Use with `echoserver`.
