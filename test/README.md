@@ -55,3 +55,5 @@ These programs are run on `make ci`.
 * [`testtcmsg`](testtcmsg.cpp): Test TC (RTMP Flash) metadata and message helper functions.
 * [`testhex`](testhex.cpp): Test hex encode/decode functions.
 * [`testflowsync`](testflowsync.cpp): Test `FlowSyncManager`.
+* [`testmedia`](testmedia.cpp): Test [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
+  `Media` helper functions.

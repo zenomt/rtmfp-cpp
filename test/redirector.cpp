@@ -42,6 +42,8 @@ int numTargets = 2;
 bool interrupted = false;
 std::map<Bytes, Bytes> passwords;
 Time badAuthDisconnectDelay = 2.0;
+std::vector<Address> staticAddresses;
+bool crossFamily = true;
 
 SelectRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -121,33 +123,48 @@ public:
 	{
 		FlashCryptoAdapter::EPDParseState epdParsed;
 		if((not epdParsed.parse((const uint8_t *)epd, epdLen)) or (not epdParsed.ancillaryData) or epdParsed.fingerprint)
-			return; // we only know about servers and we don't guarantee forwarding by fingerprint. TODO?
+			return; // we only know about servers and we don't guarantee forwarding by fingerprint. TODO
 
-		size_t actualNumTargets = std::min((size_t)numTargets, activeClients.size());
+		Address srcAddress(srcAddr);
+		if(verbose > 1)
+			printf("IHello from %s\n", srcAddress.toPresentation().c_str());
 
-		std::set<Address> usedAddresses;
-		std::vector<Address> redirectAddresses; // maintain order of selected clients and each's advertised addresses
+
+		std::set<Address> usedAddresses(staticAddresses.begin(), staticAddresses.end());
+		std::vector<Address> redirectAddresses = staticAddresses; // maintain order of selected clients and each's advertised addresses
+		std::vector<std::shared_ptr<Client>> foundClients;
 		std::vector<std::shared_ptr<Client>> forwardClients;
 
+		// TODO: other ways of selecting clients (like by fingerprint)
+		size_t actualNumTargets = std::min((size_t)numTargets, activeClients.size());
 		while(actualNumTargets-- > 0)
 		{
-			auto each = activeClients.firstValue();
+			foundClients.push_back(activeClients.firstValue());
 			activeClients.rotateNameToTail(activeClients.first());
+		}
 
-			forwardClients.push_back(each);
+		for(auto clientIt = foundClients.begin(); clientIt != foundClients.end(); clientIt++)
+		{
+			auto &each = *clientIt;
+			Address reflexiveAddress = each->m_recv->getFarAddress();
 
-			if(each->m_includeReflexiveAddress)
+			if(crossFamily or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
 			{
-				Address addr = each->m_recv->getFarAddress();
-				if(0 == usedAddresses.count(addr))
+				forwardClients.push_back(each);
+
+				if(each->m_includeReflexiveAddress)
 				{
-					redirectAddresses.push_back(addr);
-					usedAddresses.insert(addr);
+					if(0 == usedAddresses.count(reflexiveAddress))
+					{
+						redirectAddresses.push_back(reflexiveAddress);
+						usedAddresses.insert(reflexiveAddress);
+					}
 				}
 			}
+
 			for(auto it = each->m_additionalAddresses.begin(); it != each->m_additionalAddresses.end(); it++)
 			{
-				if(0 == usedAddresses.count(*it))
+				if((crossFamily or (it->getFamily() == srcAddress.getFamily())) and (0 == usedAddresses.count(*it)))
 				{
 					redirectAddresses.push_back(*it);
 					usedAddresses.insert(*it);
@@ -156,7 +173,8 @@ public:
 		}
 
 		// send redirect before forwards so hopefully outbound holes will be opened by initiator before RHellos arrive
-		rtmfp->sendResponderRedirect(tag, tagLen, redirectAddresses, interfaceID, srcAddr);
+		if(not redirectAddresses.empty())
+			rtmfp->sendResponderRedirect(tag, tagLen, redirectAddresses, interfaceID, srcAddr);
 
 		for(auto it = forwardClients.begin(); it != forwardClients.end(); it++)
 			(*it)->m_recv->forwardIHello(epd, epdLen, Address(srcAddr), tag, tagLen);
@@ -364,19 +382,35 @@ bool addInterface(PerformerPosixPlatformAdapter *platform, int port, int family)
 	return !!addr;
 }
 
-int usage(const char *prog, const char *msg, int rv)
+bool appendAddress(const char *presentationForm, std::vector<Address> &dst)
+{
+	Address addr;
+	if(not addr.setFromPresentation(presentationForm))
+		return false;
+	dst.push_back(addr);
+	return true;
+}
+
+int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg = nullptr)
 {
 	if(msg)
-		printf("%s\n", msg);
+		printf("%s", msg);
+	if(arg)
+		printf("%s", arg);
+	if(msg or arg)
+		printf("\n");
+
 	printf("usage: %s (-4 | -6 | -B addr:port) -n name [options]\n", prog);
 	printf("  -p port       -- port for -4/-6 (default %d)\n", port);
 	printf("  -4            -- bind to IPv4 0.0.0.0:%d\n", port);
 	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
-	printf("  -n name       -- hostname\n");
+	printf("  -n name       -- set certificate hostname\n");
 	printf("  -l user:passw -- add username:password\n");
 	printf("  -r #targets   -- redirect to #targets (default %d)\n", numTargets);
 	printf("  -D #seconds   -- delay before disconnect on bad auth (default %.3fs)\n", (double)badAuthDisconnectDelay);
+	printf("  -S addr:port  -- static address:port to add to every redirect\n");
+	printf("  -F            -- filter redirects and forwards by family\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	return rv;
@@ -394,7 +428,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:")) != -1)
+	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:S:F")) != -1)
 	{
 		switch(ch)
 		{
@@ -408,15 +442,8 @@ int main(int argc, char **argv)
 			ipv6 = true;
 			break;
 		case 'B':
-			{
-				Address addr;
-				if(not addr.setFromPresentation(optarg))
-				{
-					printf("can't parse address %s\n", optarg);
-					return 1;
-				}
-				bindAddrs.push_back(addr);
-			}
+			if(not appendAddress(optarg, bindAddrs))
+				return usage(argv[0], 1, "can't parse bind address ", optarg);
 			break;
 		case 'n':
 			name = optarg;
@@ -442,18 +469,25 @@ int main(int argc, char **argv)
 		case 'D':
 			badAuthDisconnectDelay = atof(optarg);
 			break;
+		case 'S':
+			if(not appendAddress(optarg, staticAddresses))
+				return usage(argv[0], 1, "can't parse static address ", optarg);
+			break;
+		case 'F':
+			crossFamily = false;
+			break;
 
 		case 'h':
 		default:
-			return usage(argv[0], NULL, 'h' == ch);
+			return usage(argv[0], 'h' != ch);
 		}
 	}
 
 	if(not name)
-		return usage(argv[0], "specify a name", 1);
+		return usage(argv[0], 1, "specify a name");
 
 	if(not (bindAddrs.size() or ipv4 or ipv6))
-		return usage(argv[0], "specify at least -4, -6, or -B", 1);
+		return usage(argv[0], 1, "specify at least -4, -6, or -B");
 
 	if(not crypto.init(false, name))
 	{
