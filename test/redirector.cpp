@@ -1,15 +1,36 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-// This is a simple sample round-robin load balancer. It accepts registrations
-// from RFC 7425 "servers" (endpoints indicating they accept ancillary data in
-// their certificates) speaking the http://zenomt.com/ns/rtmfp#redirector protocol.
-// This implementation could be used as a starting point for more sophisticated
-// redirectors, including asynchronous querying of an external username/password
-// database, redirecting to different Clients based on aspects of the incoming
-// EPD, and taking the Load Factor into account for better load leveling. With
-// minor modifications it could be used as the basis for a P2P introducer (by
-// fingerprint).
+/*
+
+This is a simple sample round-robin load balancer. It accepts registrations
+from RFC 7425 "servers" (endpoints indicating they accept ancillary data in
+their certificates) speaking the http://zenomt.com/ns/rtmfp#redirector protocol.
+This implementation could be used as a starting point for more sophisticated
+redirectors, including asynchronous querying of an external username/password
+database, redirecting to different Clients based on aspects of the incoming
+EPD, and taking the Load Factor into account for better load leveling. With
+minor modifications it could be used as the basis for a P2P introducer (by
+fingerprint).
+
+Use the `-f` "filter redirects by matching family" option when balancing
+servers behind a firewall (or NAT, or VPN) that persistently bans incoming
+packets if there wasn't an outgoing packet to the initiator first. This might
+happen if this redirector has IPv4 and IPv6 interfaces, and receives an IHello
+on one family but the servers being balanced connect in the other family. In
+general, providing services in such a situation will be fragile anyway, but
+this option can often allow connections to succeed.
+
+Use the `-F` "don't filter forwards by matching family" option only in
+controlled environments where you know initiators won't persistently ban
+incoming packets from sources to which the initiator hasn't already sent an
+outgoing packet (this banning behavior is common enough in the open Internet
+to warrant filtering being the default). Like `-f`, this option is only
+applicable when the redirector has interfaces on both families, and servers
+being balanced are connected in a different address family than incoming
+IHello packets.
+
+*/
 
 // TODO: stats
 // TODO: shuffle the activeClients for better load leveling
@@ -43,7 +64,8 @@ bool interrupted = false;
 std::map<Bytes, Bytes> passwords;
 Time badAuthDisconnectDelay = 2.0;
 std::vector<Address> staticAddresses;
-bool crossFamily = true;
+bool crossFamilyForward = false;
+bool crossFamilyRedirect = true;
 
 SelectRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -51,6 +73,7 @@ SelectRunLoop workerRL;
 Performer workerPerformer(&workerRL);
 FlashCryptoAdapter_OpenSSL crypto;
 List<std::shared_ptr<Client>> activeClients;
+std::map<Bytes, std::shared_ptr<Client>> activePeers;
 std::set<std::shared_ptr<Client>> clients;
 
 void signal_handler(int param)
@@ -81,11 +104,9 @@ public:
 			return;
 
 		auto client = share_ref(new Client(), false);
-		printf("Client %p connect %s fingerprint %s\n", (void *)client.get(), recvFlow->getFarAddress().toPresentation().c_str(), Hex::encode(cert->getFingerprint()).c_str());
-
-		clients.insert(client);
-
+		client->m_fingerprint = cert->getFingerprint();
 		client->m_recv = recvFlow;
+
 		recvFlow->onComplete = [client] (bool error) { client->close(); };
 		recvFlow->onMessage = [client] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount) { client->onMessage(bytes, len); };
 		recvFlow->onFarAddressDidChange = [client] { client->onAddressChanged(); };
@@ -93,6 +114,9 @@ public:
 
 		if(passwords.empty())
 			client->m_isAuthenticated = true;
+
+		printf("Client %p connect %s fingerprint %s\n", (void *)client.get(), recvFlow->getFarAddress().toPresentation().c_str(), Hex::encode(client->m_fingerprint).c_str());
+		clients.insert(client);
 	}
 
 	void close(uintmax_t reason = 0)
@@ -114,6 +138,8 @@ public:
 		activeClients.remove(m_activeClientsName);
 		m_activeClientsName = -1;
 
+		activePeers.erase(m_fingerprint);
+
 		clients.erase(share_ref(this));
 
 		release();
@@ -122,25 +148,35 @@ public:
 	static void doRedirect(RTMFP *rtmfp, const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const struct sockaddr *srcAddr)
 	{
 		FlashCryptoAdapter::EPDParseState epdParsed;
-		if((not epdParsed.parse((const uint8_t *)epd, epdLen)) or (not epdParsed.ancillaryData) or epdParsed.fingerprint)
-			return; // we only know about servers and we don't guarantee forwarding by fingerprint. TODO
+		if(not epdParsed.parse((const uint8_t *)epd, epdLen))
+			return;
+		if(not (epdParsed.ancillaryData or epdParsed.fingerprint))
+			return;
 
 		Address srcAddress(srcAddr);
 		if(verbose > 1)
 			printf("IHello from %s\n", srcAddress.toPresentation().c_str());
-
 
 		std::set<Address> usedAddresses(staticAddresses.begin(), staticAddresses.end());
 		std::vector<Address> redirectAddresses = staticAddresses; // maintain order of selected clients and each's advertised addresses
 		std::vector<std::shared_ptr<Client>> foundClients;
 		std::vector<std::shared_ptr<Client>> forwardClients;
 
-		// TODO: other ways of selecting clients (like by fingerprint)
-		size_t actualNumTargets = std::min((size_t)numTargets, activeClients.size());
-		while(actualNumTargets-- > 0)
+		if(epdParsed.fingerprint)
 		{
-			foundClients.push_back(activeClients.firstValue());
-			activeClients.rotateNameToTail(activeClients.first());
+			// fingerprint always wins per §4.4.3 of RFC 7425
+			auto it = activePeers.find(Bytes(epdParsed.fingerprint, epdParsed.fingerprint + epdParsed.fingerprintLen));
+			if(it != activePeers.end())
+				foundClients.push_back(it->second);
+		}
+		else
+		{
+			size_t actualNumTargets = std::min((size_t)numTargets, activeClients.size());
+			while(actualNumTargets-- > 0)
+			{
+				foundClients.push_back(activeClients.firstValue());
+				activeClients.rotateNameToTail(activeClients.first());
+			}
 		}
 
 		for(auto clientIt = foundClients.begin(); clientIt != foundClients.end(); clientIt++)
@@ -148,10 +184,11 @@ public:
 			auto &each = *clientIt;
 			Address reflexiveAddress = each->m_recv->getFarAddress();
 
-			if(crossFamily or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
-			{
+			if(crossFamilyForward or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
 				forwardClients.push_back(each);
 
+			if(crossFamilyRedirect or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
+			{
 				if(each->m_includeReflexiveAddress)
 				{
 					if(0 == usedAddresses.count(reflexiveAddress))
@@ -164,7 +201,7 @@ public:
 
 			for(auto it = each->m_additionalAddresses.begin(); it != each->m_additionalAddresses.end(); it++)
 			{
-				if((crossFamily or (it->getFamily() == srcAddress.getFamily())) and (0 == usedAddresses.count(*it)))
+				if((crossFamilyRedirect or (it->getFamily() == srcAddress.getFamily())) and (0 == usedAddresses.count(*it)))
 				{
 					redirectAddresses.push_back(*it);
 					usedAddresses.insert(*it);
@@ -301,7 +338,11 @@ protected:
 		}
 
 		if(m_activeClientsName < 0)
-			m_activeClientsName = activeClients.prepend(share_ref(this));
+		{
+			auto myself = share_ref(this);
+			m_activeClientsName = activeClients.prepend(myself);
+			activePeers[m_fingerprint] = myself;
+		}
 
 		ensureReturnFlow();
 	}
@@ -310,6 +351,7 @@ protected:
 	{
 		activeClients.remove(m_activeClientsName);
 		m_activeClientsName = -1;
+		activePeers.erase(m_fingerprint);
 		ensureReturnFlow();
 	}
 
@@ -366,6 +408,7 @@ protected:
 	long m_activeClientsName { -1 };
 	bool m_includeReflexiveAddress { false };
 	bool m_isAuthenticated { false };
+	Bytes m_fingerprint;
 	std::shared_ptr<SendFlow> m_send;
 	std::shared_ptr<RecvFlow> m_recv;
 	std::vector<Address> m_additionalAddresses;
@@ -405,12 +448,13 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -4            -- bind to IPv4 0.0.0.0:%d\n", port);
 	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
-	printf("  -n name       -- set certificate hostname\n");
+	printf("  -n name       -- set my certificate hostname\n");
 	printf("  -l user:passw -- add username:password\n");
 	printf("  -r #targets   -- redirect to #targets (default %d)\n", numTargets);
 	printf("  -D #seconds   -- delay before disconnect on bad auth (default %.3fs)\n", (double)badAuthDisconnectDelay);
 	printf("  -S addr:port  -- static address:port to add to every redirect\n");
-	printf("  -F            -- filter redirects and forwards by family\n");
+	printf("  -f            -- filter redirects by matching family\n");
+	printf("  -F            -- don't filter forwards by matching family (unusual)\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	return rv;
@@ -428,7 +472,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:S:F")) != -1)
+	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:S:fF")) != -1)
 	{
 		switch(ch)
 		{
@@ -473,8 +517,11 @@ int main(int argc, char **argv)
 			if(not appendAddress(optarg, staticAddresses))
 				return usage(argv[0], 1, "can't parse static address ", optarg);
 			break;
+		case 'f':
+			crossFamilyRedirect = false;
+			break;
 		case 'F':
-			crossFamily = false;
+			crossFamilyForward = true;
 			break;
 
 		case 'h':
