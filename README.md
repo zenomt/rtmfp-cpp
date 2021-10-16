@@ -13,7 +13,8 @@ the necessary helpers and callbacks to support P2P introduction and load
 balancing.
 
 The [`test`](test/) directory includes unit tests and examples. Of special
-note is [`tcrelay`](test/tcrelay.cpp), an RTMFP ←→ RTMP relay/proxy.
+note is [`tcrelay`](test/tcrelay.cpp), an RTMFP ↔︎ RTMP relay/proxy, and
+[`redirector`](test/redirector.cpp), a simple load balancer.
 
 How to Use
 ----------
@@ -136,7 +137,7 @@ weak), it is not suitable for production use in the open Internet. Don’t.
 
 ### Experimental Support for Explicit Congestion Notification
 This implementation of RTMFP adds experimental support for Explicit Congestion
-Notification (ECN). It adds a new chunk "ECN Report" (type `0xec`) for the
+Notification (ECN). It adds a new chunk “ECN Report” (type `0xec`) for the
 receiver to send counts of received ECN codepoints back to the ECN sender.
 An RTMFP **MUST NOT** send an ECN Report to its peer unless it has received
 at least one valid packet in its `S_OPEN` session with that peer that is

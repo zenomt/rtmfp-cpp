@@ -30,12 +30,35 @@ applicable when the redirector has interfaces on both families, and servers
 being balanced are connected in a different address family than incoming
 IHello packets.
 
+The intent of the `-S` "static address:port to add to every redirect" option
+is to include addresses for this redirector in alternate families, so that
+(if possible) the reflexive source address of the initiator in the other
+family can be forwarded to potential responder Redirect Clients. This might
+be useful (for example) if it is impractical to list both IPv4 and IPv6
+addresses for this redirector in the DNS, or for initiators that might not
+be able to look up both familes even though they have connectivity in that
+family. This option can also be used for static redirection, though
+`static-redirector` is lighter weight for that use case.
+
+Note that when load balancing, there is no guarantee (unless the `-r` number
+of targets is greater than or equal to the number of connected Redirect
+Clients) that the IHellos from the same initiator in different families (or
+packet-to-packet in general) will redirect and forward to the same Redirect
+Clients. When filtering on matching family, load balanced Redirect Clients
+SHOULD all have addresses in the same families (specifically, they should all
+connect to this redirector in the same family, should all have the same setting
+for Advertise Reflexive Address, and for each of IPv4 and IPv6, they should
+either all add additional addresses in that family, or none should). Otherwise,
+initiators could potentially end up never landing on Redirect Clients that
+have any same-family addresses, and so not be able to connect at all.
+
 */
 
 // TODO: stats
 // TODO: shuffle the activeClients for better load leveling
 // TODO: only one connection per fingerprint (?)
 // TODO: make keyid/password check async for illustration
+// TODO MAYBE: P2P introducer mode (and register with upstream load balancers)
 
 #include <csignal>
 #include <cstdio>
@@ -183,11 +206,11 @@ public:
 		{
 			auto &each = *clientIt;
 			Address reflexiveAddress = each->m_recv->getFarAddress();
+			bool hasSameFamilyRedirect = false;
 
-			if(crossFamilyForward or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
-				forwardClients.push_back(each);
+			bool isSameFamily = reflexiveAddress.getFamily() == srcAddress.getFamily();
 
-			if(crossFamilyRedirect or (reflexiveAddress.getFamily() == srcAddress.getFamily()))
+			if(crossFamilyRedirect or isSameFamily)
 			{
 				if(each->m_includeReflexiveAddress)
 				{
@@ -195,18 +218,26 @@ public:
 					{
 						redirectAddresses.push_back(reflexiveAddress);
 						usedAddresses.insert(reflexiveAddress);
+						if(isSameFamily)
+							hasSameFamilyRedirect = true;
 					}
 				}
 			}
 
 			for(auto it = each->m_additionalAddresses.begin(); it != each->m_additionalAddresses.end(); it++)
 			{
-				if((crossFamilyRedirect or (it->getFamily() == srcAddress.getFamily())) and (0 == usedAddresses.count(*it)))
+				bool additionalIsSameFamily = it->getFamily() == srcAddress.getFamily();
+				if((crossFamilyRedirect or additionalIsSameFamily) and (0 == usedAddresses.count(*it)))
 				{
 					redirectAddresses.push_back(*it);
 					usedAddresses.insert(*it);
+					if(additionalIsSameFamily)
+						hasSameFamilyRedirect = true;
 				}
 			}
+
+			if(crossFamilyForward or hasSameFamilyRedirect)
+				forwardClients.push_back(each); // only forward if there's a chance initiator will open pinhole
 		}
 
 		// send redirect before forwards so hopefully outbound holes will be opened by initiator before RHellos arrive

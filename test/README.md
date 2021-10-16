@@ -19,7 +19,7 @@ what's going on in each, check the source.
   incoming flow and echo received messages, and otherwise is a message sink. Multithreaded.
   Demonstrates shutting down on interrupt/terminate signals in a `RunLoop`. Can register with
   `redirector` as a RedirectorClient example.
-* [`rtclient`](rtclient.cpp): Simulate "real-time" video and audio traffic
+* [`rtclient`](rtclient.cpp): Simulate “real-time” video and audio traffic
   (cadence, packet size, message expiration, prioritization) using FlashCrypto
   (but not RTMP-over-RTMFP messages or data formats). Use with `echoserver`.
 * [`static-redirector`](static-redirector.cpp): A simple statically-configured
@@ -52,8 +52,9 @@ These programs are run on `make ci`.
 * [`testvlu`](testvlu.cpp): Test the Variable Length Unsigned and Option functions.
 * [`testaddress`](testaddress.cpp): Test `Address`.
 * [`testamf`](testamf.cpp): Test AMF0 functions.
-* [`testtcmsg`](testtcmsg.cpp): Test TC (RTMP Flash) metadata and message helper functions.
+* [`testtcmsg`](testtcmsg.cpp): Test TC (RTMP Flash “TinCan”) metadata and message helper functions.
 * [`testhex`](testhex.cpp): Test hex encode/decode functions.
 * [`testflowsync`](testflowsync.cpp): Test `FlowSyncManager`.
+* [`testreorder`](testreorder.cpp): Test `ReorderBuffer`.
 * [`testmedia`](testmedia.cpp): Test [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
   `Media` helper functions.
