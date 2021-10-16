@@ -114,7 +114,16 @@ public:
 		if(verbose > 1) printf("~Connection %p\n", (void *)this);
 	}
 
-	virtual void close() { m_open = false; }
+	virtual void close()
+	{
+		if(m_open)
+		{
+			if(verbose and (m_videoMessages or m_audioMessages))
+				printf("Connection %p video abn %lu/%lu  audio abn %lu/%lu\n", (void *)this, (unsigned long)m_videoMessagesAbandoned, (unsigned long)m_videoMessages, (unsigned long)m_audioMessagesAbandoned, (unsigned long)m_audioMessages);
+		}
+		m_open = false;
+	}
+
 	virtual void shutdown() = 0;
 
 	bool isFinished() const { return m_finished; }
@@ -222,7 +231,29 @@ public:
 		}
 
 		if(rv and verbose)
-			rv->onFinished = [] (bool abandoned) { if(abandoned) { printf("-"); fflush(stdout); } };
+			rv->onFinished = [messageType, this] (bool abandoned) {
+				if(abandoned)
+				{
+					printf("-");
+					fflush(stdout);
+				}
+
+				switch(messageType)
+				{
+				case TCMSG_VIDEO:
+					m_videoMessages++;
+					if(abandoned)
+						m_videoMessagesAbandoned++;
+					break;
+				case TCMSG_AUDIO:
+					m_audioMessages++;
+					if(abandoned)
+						m_audioMessagesAbandoned++;
+					break;
+				default:
+					break;
+				}
+			};
 
 		return rv;
 	}
@@ -302,6 +333,10 @@ protected:
 	std::map<uint32_t, StreamState> m_streamStates;
 	bool m_open = { true };
 	bool m_finished = { false };
+	size_t m_videoMessages { 0 };
+	size_t m_videoMessagesAbandoned { 0 };
+	size_t m_audioMessages { 0 };
+	size_t m_audioMessagesAbandoned { 0 };
 };
 
 class RTMPConnection : public Connection {
