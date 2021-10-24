@@ -18,6 +18,7 @@ Address::Address(const Address &other) : m_addr(other.m_addr), m_origin(other.m_
 
 Address::Address(const struct sockaddr *addr, Origin origin) : m_origin(origin)
 {
+	erase();
 	setSockaddr(addr);
 }
 
@@ -225,6 +226,9 @@ std::vector<uint8_t> Address::encode() const
 
 bool Address::setSockaddr(const struct sockaddr *addr)
 {
+	if(not addr)
+		return false;
+
 	switch(addr->sa_family)
 	{
 	case AF_INET:

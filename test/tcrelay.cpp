@@ -47,7 +47,7 @@ class Connection; class Client;
 enum Protocol { PROTO_UNSPEC, PROTO_RTMP, PROTO_RTMP_SIMPLE, PROTO_RTMFP };
 
 enum {
-	TC_VIDEO_COMMAND_CHECKPOINT = 3
+	TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT = 3
 };
 
 int verbose = 0;
@@ -218,7 +218,7 @@ public:
 
 				if(sendVideoCheckpoint)
 				{
-					uint8_t command[] = { TC_VIDEO_FRAMETYPE_COMMAND | TC_VIDEO_CODEC_NONE, TC_VIDEO_COMMAND_CHECKPOINT };
+					uint8_t command[] = { TC_VIDEO_FRAMETYPE_COMMAND | TC_VIDEO_CODEC_NONE, TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT };
 					basicWrite(streamID, TCMSG_VIDEO, timestamp, command, sizeof(command), checkpointLifetime, checkpointLifetime);
 				}
 			}
@@ -305,10 +305,10 @@ protected:
 		{
 			if(len < 6)
 				return false;
-			return TC_VIDEO_COMMAND_CHECKPOINT == payload[5];
+			return TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT == payload[5];
 		}
 		else
-			return TC_VIDEO_COMMAND_CHECKPOINT == payload[1];
+			return TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT == payload[1];
 	}
 
 	bool isAudioSequenceSpecial(const uint8_t *payload, size_t len) const
