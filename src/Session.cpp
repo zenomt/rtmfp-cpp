@@ -340,6 +340,7 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_ssthresh(SIZE_MAX),
 	m_acked_bytes_accumulator(0),
 	m_recovery_remaining(0),
+	m_recovery_loss_allowance(0),
 	m_pre_ack_outstanding(0),
 	m_any_acks(false),
 	m_tc_sent_time(-INFINITY),
@@ -1031,11 +1032,35 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	Time now = m_rtmfp->getCurrentTime();
 	bool fastgrow_allowed = (m_tcr_recv_time + TIMECRITICAL_TIMEOUT < now) and (m_rtmfp->m_tc_sent_time + TIMECRITICAL_TIMEOUT < now);
 	bool tc_sent = m_tc_sent_time + TIMECRITICAL_TIMEOUT >= now;
+	size_t adjusted_loss_cost = lost_bytes_this_packet ? lost_bytes_this_packet + (lost_bytes_this_packet + 1) / 2 : 0; // ceil(1.5x)
 
 	size_t drained_bytes_this_packet = acked_bytes_this_packet + lost_bytes_this_packet;
 	if(m_recovery_remaining > drained_bytes_this_packet)
 	{
 		m_recovery_remaining -= drained_bytes_this_packet;
+
+		if(adjusted_loss_cost)
+		{
+			if(adjusted_loss_cost <= m_recovery_loss_allowance)
+				m_recovery_loss_allowance -= adjusted_loss_cost;
+			else
+			{
+				// we've lost more during the recovery RTT than the multiplicative decrease, perhaps
+				// from a sudden reduction in path capacity. make sure that when we exit recovery the
+				// congestion window has been decreased by at least 1.5x the amount lost. this case
+				// should be rare.
+				adjusted_loss_cost -= m_recovery_loss_allowance;
+				m_recovery_loss_allowance = 0;
+				adjusted_loss_cost = MIN(m_ssthresh, adjusted_loss_cost);
+				m_ssthresh = MAX(m_ssthresh - adjusted_loss_cost, CWND_INIT);
+				m_cwnd = m_ssthresh;
+
+				// extend recovery to allow our adjustment to drain from outstanding for the
+				// next multiplicative decrease, in case we have back-to-back loss events.
+				m_recovery_remaining += adjusted_loss_cost;
+			}
+		}
+
 		return;
 	}
 	else
@@ -1044,9 +1069,11 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	if(any_loss)
 	{
 		if(tc_sent or ((m_pre_ack_outstanding > 67200) and fastgrow_allowed))
-			m_ssthresh = m_pre_ack_outstanding * 7 / 8;
+			m_recovery_loss_allowance = m_pre_ack_outstanding / 8;
 		else
-			m_ssthresh = m_pre_ack_outstanding / 2;
+			m_recovery_loss_allowance = m_pre_ack_outstanding / 2;
+		m_recovery_loss_allowance = MIN(m_pre_ack_outstanding, MAX(m_recovery_loss_allowance, adjusted_loss_cost));
+		m_ssthresh = m_pre_ack_outstanding - m_recovery_loss_allowance;
 		m_ssthresh = MAX(m_ssthresh, CWND_INIT);
 		m_cwnd = m_ssthresh;
 		m_acked_bytes_accumulator = 0;

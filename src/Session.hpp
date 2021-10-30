@@ -201,6 +201,7 @@ public:
 	size_t    m_ssthresh;
 	size_t    m_acked_bytes_accumulator;
 	size_t    m_recovery_remaining;
+	size_t    m_recovery_loss_allowance;
 	size_t    m_pre_ack_outstanding;
 	bool      m_any_acks;
 	Time      m_tc_sent_time;
