@@ -118,8 +118,8 @@ public:
 	{
 		if(m_open)
 		{
-			if(verbose and (m_videoMessages or m_audioMessages))
-				printf("Connection %p video abn %lu/%lu  audio abn %lu/%lu\n", (void *)this, (unsigned long)m_videoMessagesAbandoned, (unsigned long)m_videoMessages, (unsigned long)m_audioMessagesAbandoned, (unsigned long)m_audioMessages);
+			if(verbose and (m_videoMessages or m_audioMessages or m_videoMessagesLate or m_audioMessagesLate))
+				printf("Connection %p video abn %lu/%lu (%lu late)  audio abn %lu/%lu (%lu late)\n", (void *)this, (unsigned long)m_videoMessagesAbandoned, (unsigned long)m_videoMessages, (unsigned long)m_videoMessagesLate, (unsigned long)m_audioMessagesAbandoned, (unsigned long)m_audioMessages, (unsigned long)m_audioMessagesLate);
 		}
 		m_open = false;
 	}
@@ -335,8 +335,10 @@ protected:
 	bool m_finished = { false };
 	size_t m_videoMessages { 0 };
 	size_t m_videoMessagesAbandoned { 0 };
+	size_t m_videoMessagesLate { 0 };
 	size_t m_audioMessages { 0 };
 	size_t m_audioMessagesAbandoned { 0 };
+	size_t m_audioMessagesLate { 0 };
 };
 
 class RTMPConnection : public Connection {
@@ -612,6 +614,20 @@ protected:
 		}
 	}
 
+	void onLateMessage(const uint8_t *bytes, size_t len)
+	{
+		uint8_t messageType = 0;
+		if(not TCMessage::parseHeader(bytes, bytes + len, &messageType, nullptr))
+			return;
+
+		switch(messageType)
+		{
+		case TCMSG_VIDEO: m_videoMessagesLate++; break;
+		case TCMSG_AUDIO: m_audioMessagesLate++; break;
+		default: break;
+		}
+	}
+
 	void setOnMessage(const std::shared_ptr<RecvFlow> &flow, uint32_t streamID, const std::shared_ptr<ReorderBuffer> &reorderBuffer)
 	{
 		if(reorderBuffer)
@@ -619,6 +635,8 @@ protected:
 			reorderBuffer->onMessage = [this, streamID] (const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount, bool isLate) {
 				if((not isLate) or shouldAlwaysDeliver(bytes, len))
 					deliverMessage(streamID, bytes, len);
+				else
+					onLateMessage(bytes, len);
 				if(isLate and (verbose > 1))
 					printf("message %lu late, %s\n", (unsigned long)sequenceNumber, shouldAlwaysDeliver(bytes, len) ? "relayed anyway" : "dropped");
 			};
