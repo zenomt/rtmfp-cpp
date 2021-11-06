@@ -77,6 +77,10 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 		int on = 1;
 		setsockopt(uif.m_fd, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on));
 		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on));
+
+		// (for IPv6 sockets) set IPV6_V6ONLY for cross-platform consistency.
+		// the safe and portable thing is to always have separate sockets for each family.
+		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
 	}
 
 	union Address::in_sockaddr boundAddr;
@@ -149,9 +153,7 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 		Address dstAddr(addr);
 		const UdpInterface &uif = m_interfaces.at(interfaceID);
 
-		if(dstAddr.canMapToFamily(uif.m_family))
-			dstAddr.setFamily(uif.m_family);
-		else
+		if(dstAddr.getFamily() != uif.m_family)
 			return false;
 
 		bool ipv6 = dstAddr.getFamily() == AF_INET6;
@@ -228,10 +230,6 @@ void PosixPlatformAdapter::onInterfaceReadable(int fd, int interfaceID)
 	ssize_t rv = recvmsg(fd, &msg, 0);
 	if(rv >= 0)
 	{
-		Address tmp(&addr_u.s);
-		if(tmp.canMapToFamily(AF_INET))
-			tmp.setFamily(AF_INET);
-
 		int tos = 0;
 		for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg))
 		{
@@ -244,7 +242,7 @@ void PosixPlatformAdapter::onInterfaceReadable(int fd, int interfaceID)
 			}
 		}
 
-		m_rtmfp->onReceivePacket(buf, rv, interfaceID, tmp.getSockaddr(), tos);
+		m_rtmfp->onReceivePacket(buf, rv, interfaceID, &addr_u.s, tos);
 	}
 }
 
