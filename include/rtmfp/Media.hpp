@@ -64,6 +64,7 @@ public:
 	static constexpr uint8_t FLAG_OPT = 0x40;
 
 	enum {
+		MSG_PADDING                  = 0,
 		MSG_MEDIA                    = 1,
 		MSG_MEDIA_SEGMENT            = 2,
 		MSG_RANDOM_ACCESS_CHECKPOINT = 5,

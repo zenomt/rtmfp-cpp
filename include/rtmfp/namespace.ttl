@@ -81,14 +81,14 @@ struct mediaMessage_t
     3 <vlu dts> <vlu offset> (pts = dts - offset)
 
   message-type:
-    0 reserved/forbidden
+    0 padding (ignore, delimiter, flow checkpoint)
     1 complete coded media presentation unit in payload
-    2 partial (segmented) coded media presentation unit portion in payload
+    2 partial (segmented) coded media presentation unit portion in payload (empty payload terminates unit)
     5 media random access checkpoint (ex. "i just sent an IDR") (no payload, timestamp(s) required, dts/pts same as random access media unit)
     6 media alignment checkpoint (ex. "i just sent a non-IDR", possibly useful for long GOPs or segmented frames, timestamp(s) required)
     7 silence/temporary EOS (no payload, timestamp required)
   (8-f non-discardable/must-not-abandon)
-    8 reserved/forbidden
+    8 reserved
     9 sticky codec-specific sequence header/config in payload (ex. AVCC, AudioSpecificConfig)
     f flow sync (payload <vlu syncid> <vlu count>)
 
@@ -100,11 +100,9 @@ struct mediaMessage_t
     presentation units MAY be spread across multiple Partial Coded Media messages (type 2,
     all having the same DTS & PTS), to enable differentiated delivery control per segment.
     A segment MUST NOT span messages, but a message MAY contain more than one segment. A
-    random-access presentation unit has the RAI flag set only on its first message. Presentation
-    units using type 2 messages SHOULD be followed by an appropriate checkpoint message (type
-    5 or 6) for rapid detection of completion of the presentation unit; otherwise receipt
-    of a different timestamp or any other message type indicates completion of the previous
-    unit.
+    random-access presentation unit has the RAI flag set only on its first message. A type
+    2 message with an empty payload, a message with a different timestamp, or a non-type-2
+    message indicates completion of the segmented presentation unit.
 """ .
 
 <http://zenomt.com/ns/rtmfp#redirector> a rtmfp:Metadata;
