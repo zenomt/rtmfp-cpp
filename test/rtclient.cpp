@@ -23,6 +23,7 @@ bool flushGop = true;
 bool chainGop = true;
 bool audioRetransmit = true;
 Time pfLifetime = 2.000;
+Time delaycc_targetDelay = INFINITY;
 bool interrupted = false;
 double keyframeMult = 5;
 
@@ -33,7 +34,7 @@ void signal_handler(int unused)
 
 class Stream : public Object {
 public:
-	Stream(int fps, double videoRate) : m_fps(fps), m_frame(0), m_videoRate(videoRate), m_audioRate(192000./8), m_videoBytesDelivered(0)
+	Stream(int fps, double videoRate) : m_fps(fps), m_frame(0), m_videoRate(videoRate), m_audioRate(96000./8), m_videoBytesDelivered(0)
 	{
 		m_frameSize = 2.0 * m_videoRate / (2. * m_fps - 1 + keyframeMult);
 	}
@@ -72,9 +73,10 @@ public:
 				m_gop.pop();
 			}
 			if(verbose)
-				printf("\nCWND:%lu RTT:%Lf bw-est:%.0Lf buffered:%lu outstanding:%lu/%lu v-delivered-bw:%lu\n",
+				printf("\nCWND:%lu RTT:%.4Lf (base:%.4Lf) bw-est:%.0Lf buffered:%lu outstanding:%lu/%lu v-delivered-bw:%lu\n",
 					(unsigned long)(m_video->getCongestionWindow()),
 					m_video->getSafeSRTT(),
+					m_video->getBaseRTT(),
 					m_video->getCongestionWindow() * 8. / (m_video->getSafeSRTT() + 0.002),
 					m_video->getBufferedSize(),
 					m_video->getOutstandingBytes(),
@@ -174,6 +176,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -S        -- don't require session sequence numbers\n");
 	printf("  -4        -- only bind to 0.0.0.0\n");
 	printf("  -6        -- only bind to [::]\n");
+	printf("  -X secs   -- (experimental) set CC target delay (default %.3Lf)\n", delaycc_targetDelay);
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
 	return rv;
@@ -192,7 +195,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "h46HSn:f:k:r:l:iAECv")) != -1)
+	while((ch = getopt(argc, argv, "h46HSn:f:k:r:l:iAECX:v")) != -1)
 	{
 		switch(ch)
 		{
@@ -238,6 +241,9 @@ int main(int argc, char **argv)
 			break;
 		case 'C':
 			chainGop = false;
+			break;
+		case 'X':
+			delaycc_targetDelay = atof(optarg);
 			break;
 		case 'v':
 			verbose++;
@@ -295,6 +301,7 @@ int main(int argc, char **argv)
 
 	pilot->onWritable = [&, pilot] {
 		pilot->setSessionRetransmitLimit(20);
+		pilot->setSessionTargetDelay(delaycc_targetDelay);
 		stream.publish(pilot, &rl);
 		return false;
 	};

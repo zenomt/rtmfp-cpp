@@ -65,4 +65,9 @@ const Time   FARCLOSE_LINGER_PERIOD    = 19.0;
 const uintmax_t MAX_MOBILITY_LIFETIME  = 120;
 const uint8_t ECN_CE_DELTA_REORDER     = 0xe0; // allow reordering of up to 32 packets (super unlikely)
 
+const Time   RTT_HISTORY_THRESH        = 30.0;
+const size_t RTT_HISTORY_CAPACITY      = 6;
+const Time   DELAYCC_RTT_THRESH        = 0.032;
+const size_t RTT_PROBE_RTTS            = 16;
+
 } } } // namespace com::zenomt::rtmfp

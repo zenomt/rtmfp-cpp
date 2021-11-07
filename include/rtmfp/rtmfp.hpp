@@ -181,6 +181,8 @@ public:
 	Time    getSRTT()             const; // Smoothed round-trip time per §3.5.2.2.
 	Time    getSafeSRTT()         const; // Returns a default value if no RTT measurement has been made yet.
 	Time    getRTTVariance()      const; // Round-trip time variance §3.5.2.2.
+	Time    getLastRTT()          const; // Most recent RTT measurement.
+	Time    getBaseRTT()          const; // Minimum observed RTT.
 	size_t  getCongestionWindow() const;
 
 	void    setSessionKeepalivePeriod(Time keepalive); // Idle time before a keepalive check is performed.
@@ -197,6 +199,10 @@ public:
 	FIHelloResponseMode getSessionFIHelloMode() const;
 
 	Task onFarAddressDidChange; // Called after DESTADDR change verified §3.5.4.2.
+
+	// EXPERIMENTAL delay-based congestion detection
+	void setSessionTargetDelay(Time target); // EXPERIMENTAL Treat rtt > baseRTT + target as congestion. Default INFINITY.
+	Time getSessionTargetDelay() const;
 
 protected:
 	Flow(RTMFP *rtmfp);

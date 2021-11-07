@@ -82,6 +82,16 @@ Time Flow::getRTTVariance() const
 	return m_session ? m_session->m_rttvar : INFINITY;
 }
 
+Time Flow::getLastRTT() const
+{
+	return m_session ? m_session->m_last_rtt : INFINITY;
+}
+
+Time Flow::getBaseRTT() const
+{
+	return m_session ? m_session->m_base_rtt : INFINITY;
+}
+
 size_t Flow::getCongestionWindow() const
 {
 	return m_session ? m_session->m_cwnd : 0;
@@ -152,6 +162,17 @@ void Flow::setSessionFIHelloMode(FIHelloResponseMode mode)
 FIHelloResponseMode Flow::getSessionFIHelloMode() const
 {
 	return m_session ? m_session->m_fihelloMode : FI_IGNORE;
+}
+
+void Flow::setSessionTargetDelay(Time target)
+{
+	if(m_session)
+		m_session->m_delaycc_target_delay = target;
+}
+
+Time Flow::getSessionTargetDelay() const
+{
+	return m_session ? m_session->m_delaycc_target_delay : INFINITY;
 }
 
 // ---

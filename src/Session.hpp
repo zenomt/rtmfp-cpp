@@ -5,6 +5,7 @@
 
 #include "../include/rtmfp/rtmfp.hpp"
 
+#include <deque>
 #include <queue>
 #include <set>
 
@@ -196,6 +197,8 @@ public:
 	long      m_ts_echo_rx;
 	Time      m_srtt;
 	Time      m_rttvar;
+	Time      m_last_rtt;
+	Time      m_last_rtt_time;
 
 	size_t    m_cwnd;
 	size_t    m_ssthresh;
@@ -232,6 +235,20 @@ public:
 	bool      m_congestionNotifiedThisPacket;
 	uintmax_t m_ecn_ce_count;
 	uint8_t   m_rx_ece_count;
+
+	// EXPERIMENTAL
+	// keep track of minimum RTT over a sliding window RTT_HISTORY_CAPACITY buckets each RTT_HISTORY_THRESH long.
+	struct RTTMeasurement {
+		Time min_rtt;
+		Time origin;
+	};
+	std::deque<RTTMeasurement> m_rttMeasurements;
+	Time      m_base_rtt { INFINITY };
+	Time      m_last_minrtt_probe { INFINITY };
+	Time      m_last_delaycc_action { -INFINITY };
+	Time      m_delaycc_target_delay { INFINITY };
+	void checkBaseRTT(Time rtt, Time now);
+	void resetBaseRTT();
 
 protected:
 	friend class RTMFP;

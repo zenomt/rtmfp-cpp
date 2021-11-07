@@ -64,6 +64,7 @@ Time finishByMargin = 0.1;
 Time checkpointLifetime = 4.5;
 Time previousGopLifetime = 0.1;
 Time reorderWindowPeriod = 1.0;
+Time delaycc_targetDelay = INFINITY;
 ReceiveOrder mediaReceiveIntent = RO_SEQUENCE;
 bool expirePreviousGop = true;
 bool interrupted = false;
@@ -517,6 +518,8 @@ public:
 		m_controlRecv = controlRecv;
 
 		setOnMessage(controlRecv, 0, nullptr);
+
+		controlRecv->setSessionTargetDelay(delaycc_targetDelay);
 
 		return true;
 	}
@@ -989,6 +992,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C            -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
+	printf("  -X sec        -- (experimental rtmfp) set CC target delay (default %.3Lf)\n", delaycc_targetDelay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
 	printf("  -p port       -- port for -4/-6 (default %d)\n", port);
@@ -1019,7 +1023,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MHSp:46B:u:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MX:HSp:46B:u:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1063,6 +1067,9 @@ int main(int argc, char **argv)
 			break;
 		case 'M':
 			replayCheckpointFrame = false;
+			break;
+		case 'X':
+			delaycc_targetDelay = atof(optarg);
 			break;
 		case 'H':
 			requireHMAC = false;

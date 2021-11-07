@@ -336,6 +336,8 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_ts_echo_rx(-1),
 	m_srtt(-1),
 	m_rttvar(0),
+	m_last_rtt(-1),
+	m_last_rtt_time(-INFINITY),
 	m_cwnd(CWND_INIT),
 	m_ssthresh(SIZE_MAX),
 	m_acked_bytes_accumulator(0),
@@ -975,6 +977,8 @@ void Session::onTimeoutAlarm()
 	if(S_OPEN != m_state)
 		return;
 
+	resetBaseRTT();
+
 	if(m_outstandingFrags.empty() and not m_keepalive_outstanding)
 	{
 		m_cwnd = CWND_INIT;
@@ -1066,6 +1070,35 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	else
 		m_recovery_remaining = 0;
 
+	// EXPERIMENTAL delay-based congestion detection
+	if((m_srtt >= DELAYCC_RTT_THRESH) and (m_last_delaycc_action < m_last_rtt_time))
+	{
+		if(m_srtt > m_base_rtt + m_delaycc_target_delay)
+		{
+			m_last_delaycc_action = now;
+			any_loss = true; // pretend like there was loss and act accordingly
+		}
+		else if((not any_loss)
+		    and (not any_naks)
+		    and (m_delaycc_target_delay < MAX_SEGMENT_LIFETIME)
+		    and (m_base_rtt > DELAYCC_RTT_THRESH)
+		    and (m_cwnd > 4 * SENDER_MSS) // is it big enough to cut?
+		    and (m_cwnd > m_ssthresh) // don't probe during slow-start
+		    and (m_pre_ack_outstanding > m_cwnd / 2) // are we using enough of the window?
+		    and (now - m_last_minrtt_probe >= m_srtt * RTT_PROBE_RTTS))
+		{
+			// it's been a while and we're using a good portion of the congestion
+			// window. temporarily decrease the window to let inflight drain, in case
+			// we're responsible for extra delay.
+			m_last_delaycc_action = now;
+			m_last_minrtt_probe = now;
+			m_ssthresh = MAX(m_ssthresh, m_cwnd);
+			m_cwnd = MAX(m_pre_ack_outstanding * 21 / 32, CWND_INIT); // take about 2 RTT to slow-start back
+
+			return;
+		}
+	}
+
 	if(any_loss)
 	{
 		if(tc_sent or ((m_pre_ack_outstanding > 67200) and fastgrow_allowed))
@@ -1126,6 +1159,9 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	}
 	else if((not any_naks) and m_cwnd > m_pre_ack_outstanding + CWND_DECAY_MARGIN)
 		m_cwnd -= CWND_DECAY_SIZE;
+
+	if(m_cwnd <= CWND_INIT)
+		resetBaseRTT();
 }
 
 void Session::scheduleBurstAlarm()
@@ -1358,6 +1394,8 @@ void Session::onMobilityCheckReply(const uint8_t *chunk, const uint8_t *limit, u
 	if(Bytes(chunk, limit) != makeMobilityCheck(ts, interfaceID, addr))
 		return;
 
+	resetBaseRTT();
+
 	m_mob_rx_ts = ts;
 
 	Address oldAddr(m_destAddr);
@@ -1522,6 +1560,12 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, 
 
 				m_mrto = m_srtt + 4.0 * m_rttvar + DELACK_ALARM_PERIOD;
 				m_erto = std::max(m_mrto, MINIMUM_ERTO);
+
+				Time now = m_rtmfp->getCurrentTime();
+				m_last_rtt = rtt;
+				m_last_rtt_time = now;
+
+				checkBaseRTT(rtt, now);
 			}
 		}
 
@@ -1906,6 +1950,9 @@ void Session::onPingChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk,
 	pingReply.commitChunk();
 	sendPacket(pingReply.toVector());
 	m_last_keepalive_tx_time = m_rtmfp->getCurrentTime();
+
+	if(limit > chunk)
+		resetBaseRTT(); // non-empty, might've been a mobility check
 }
 
 void Session::onPingReplyChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr)
@@ -2013,6 +2060,41 @@ void Session::onCloseAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *ch
 	default:
 		break;
 	}
+}
+
+void Session::checkBaseRTT(Time rtt, Time now)
+{
+	auto prev_base_rtt = m_base_rtt;
+
+	if(m_rttMeasurements.empty() or (now - m_rttMeasurements.front().origin > RTT_HISTORY_THRESH))
+	{
+		m_rttMeasurements.push_front( { rtt, now } );
+
+		while(not m_rttMeasurements.empty())
+		{
+			auto each = m_rttMeasurements.back();
+			if(now - each.origin > RTT_HISTORY_THRESH * RTT_HISTORY_CAPACITY)
+				m_rttMeasurements.pop_back();
+			else
+				break;
+		}
+
+		m_base_rtt = INFINITY;
+		for(auto it = m_rttMeasurements.begin(); it != m_rttMeasurements.end(); it++)
+			m_base_rtt = std::min(m_base_rtt, it->min_rtt);
+	}
+	else
+		m_rttMeasurements.front().min_rtt = std::min(m_rttMeasurements.front().min_rtt, rtt);
+
+	m_base_rtt = std::min(m_base_rtt, rtt);
+
+	if(m_base_rtt < prev_base_rtt)
+		m_last_minrtt_probe = now;
+}
+
+void Session::resetBaseRTT()
+{
+	m_rttMeasurements.clear();
 }
 
 } } } // namespace com::zenomt::rtmfp
