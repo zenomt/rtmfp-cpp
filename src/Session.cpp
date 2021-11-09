@@ -1073,14 +1073,14 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	// EXPERIMENTAL delay-based congestion detection
 	if((m_srtt >= DELAYCC_RTT_THRESH) and (m_last_delaycc_action < m_last_rtt_time))
 	{
-		if(m_srtt > m_base_rtt + m_delaycc_target_delay)
+		if(m_srtt > m_base_rtt + m_delaycc_congestion_delay)
 		{
 			m_last_delaycc_action = now;
 			any_loss = true; // pretend like there was loss and act accordingly
 		}
 		else if((not any_loss)
 		    and (not any_naks)
-		    and (m_delaycc_target_delay < MAX_SEGMENT_LIFETIME)
+		    and (m_delaycc_congestion_delay < MAX_SEGMENT_LIFETIME)
 		    and (m_base_rtt > DELAYCC_RTT_THRESH)
 		    and (m_cwnd > 4 * SENDER_MSS) // is it big enough to cut?
 		    and (m_cwnd > m_ssthresh) // don't probe during slow-start

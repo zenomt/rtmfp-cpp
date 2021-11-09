@@ -23,7 +23,7 @@ bool flushGop = true;
 bool chainGop = true;
 bool audioRetransmit = true;
 Time pfLifetime = 2.000;
-Time delaycc_targetDelay = INFINITY;
+Time delaycc_delay = INFINITY;
 bool interrupted = false;
 double keyframeMult = 5;
 
@@ -176,7 +176,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -S        -- don't require session sequence numbers\n");
 	printf("  -4        -- only bind to 0.0.0.0\n");
 	printf("  -6        -- only bind to [::]\n");
-	printf("  -X secs   -- (experimental) set CC target delay (default %.3Lf)\n", delaycc_targetDelay);
+	printf("  -X secs   -- (experimental) set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
 	return rv;
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 			chainGop = false;
 			break;
 		case 'X':
-			delaycc_targetDelay = atof(optarg);
+			delaycc_delay = atof(optarg);
 			break;
 		case 'v':
 			verbose++;
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 
 	pilot->onWritable = [&, pilot] {
 		pilot->setSessionRetransmitLimit(20);
-		pilot->setSessionTargetDelay(delaycc_targetDelay);
+		pilot->setSessionCongestionDelay(delaycc_delay);
 		stream.publish(pilot, &rl);
 		return false;
 	};

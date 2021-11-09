@@ -164,15 +164,15 @@ FIHelloResponseMode Flow::getSessionFIHelloMode() const
 	return m_session ? m_session->m_fihelloMode : FI_IGNORE;
 }
 
-void Flow::setSessionTargetDelay(Time target)
+void Flow::setSessionCongestionDelay(Time delay)
 {
 	if(m_session)
-		m_session->m_delaycc_target_delay = target;
+		m_session->m_delaycc_congestion_delay = delay;
 }
 
-Time Flow::getSessionTargetDelay() const
+Time Flow::getSessionCongestionDelay() const
 {
-	return m_session ? m_session->m_delaycc_target_delay : INFINITY;
+	return m_session ? m_session->m_delaycc_congestion_delay : INFINITY;
 }
 
 // ---

@@ -201,8 +201,8 @@ public:
 	Task onFarAddressDidChange; // Called after DESTADDR change verified §3.5.4.2.
 
 	// EXPERIMENTAL delay-based congestion detection
-	void setSessionTargetDelay(Time target); // EXPERIMENTAL Treat rtt > baseRTT + target as congestion. Default INFINITY.
-	Time getSessionTargetDelay() const;
+	void setSessionCongestionDelay(Time delay); // EXPERIMENTAL Treat rtt > baseRTT + delay as congestion. Default INFINITY.
+	Time getSessionCongestionDelay() const;
 
 protected:
 	Flow(RTMFP *rtmfp);

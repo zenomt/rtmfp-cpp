@@ -246,7 +246,7 @@ public:
 	Time      m_base_rtt { INFINITY };
 	Time      m_last_minrtt_probe { INFINITY };
 	Time      m_last_delaycc_action { -INFINITY };
-	Time      m_delaycc_target_delay { INFINITY };
+	Time      m_delaycc_congestion_delay { INFINITY };
 	void checkBaseRTT(Time rtt, Time now);
 	void resetBaseRTT();
 
