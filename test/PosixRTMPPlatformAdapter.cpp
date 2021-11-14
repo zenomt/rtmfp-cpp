@@ -17,18 +17,15 @@
 namespace com { namespace zenomt { namespace rtmp {
 
 static const size_t INPUT_BUFFER_SIZE = 65536;
-static const size_t WRITE_SIZE_PER_SELECT = 8192;
 
-#ifdef TCP_NOTSENT_LOWAT
-static const int UNSENT_LOWAT = 16384;
-#endif
-
-PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop) :
+PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_lowat, size_t writeSizePerSelect) :
 	m_rtmp(nullptr),
 	m_rtmpOpen(false),
 	m_shutdown(false),
 	m_runloop(runloop),
-	m_fd(-1)
+	m_fd(-1),
+	m_unsent_lowat(unsent_lowat),
+	m_writeSizePerSelect(writeSizePerSelect)
 {
 	m_inputBuffer = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
 }
@@ -63,10 +60,7 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 	m_fd = fd;
 
 #ifdef TCP_NOTSENT_LOWAT
-	{
-		int val = UNSENT_LOWAT;
-		::setsockopt(m_fd, IPPROTO_TCP, TCP_NOTSENT_LOWAT, &val, sizeof(val));
-	}
+	::setsockopt(m_fd, IPPROTO_TCP, TCP_NOTSENT_LOWAT, &m_unsent_lowat, sizeof(m_unsent_lowat));
 #endif
 
 #ifdef TCP_NODELAY
@@ -172,7 +166,7 @@ error:
 
 void PosixRTMPPlatformAdapter::onInterfaceWritable()
 {
-	while(m_onwritable and (m_outputBuffer.size() < WRITE_SIZE_PER_SELECT))
+	while(m_onwritable and (m_outputBuffer.size() < m_writeSizePerSelect))
 	{
 		if(not m_onwritable())
 			m_onwritable = nullptr;

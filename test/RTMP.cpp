@@ -9,7 +9,7 @@
 
 namespace com { namespace zenomt { namespace rtmp {
 
-static const size_t INITIAL_SEND_CHUNK_SIZE = 2048;
+static const size_t INITIAL_SEND_CHUNK_SIZE = 1024;
 static const size_t MAX_TCMSG_LENGTH = (1<<24) - 1;
 
 static uint32_t _readu24(const uint8_t *cursor)
@@ -82,21 +82,6 @@ static void _pushChunkBasicHeader(RTMP::Bytes &dst, uint8_t chunkType, int chunk
 	else
 		dst.push_back(chunkType | (chunkStreamID & 0x3f));
 }
-
-RTMP::ChunkStreamState::ChunkStreamState() :
-	m_streamID(0),
-	m_timestamp(0),
-	m_timestampDelta(0),
-	m_length(0),
-	m_type(0),
-	m_initted(false),
-	m_timestampDeltaValid(false)
-{}
-
-RTMP::SendChunkStreamState::SendChunkStreamState() :
-	m_lastUsed(-INFINITY),
-	m_busy(false)
-{}
 
 struct RTMP::Message : public Object {
 	Message(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, const std::shared_ptr<IssuerWriteReceipt> &receipt) :

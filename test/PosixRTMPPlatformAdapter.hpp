@@ -10,7 +10,7 @@ namespace com { namespace zenomt { namespace rtmp {
 
 class PosixRTMPPlatformAdapter : public IPlatformAdapter {
 public:
-	PosixRTMPPlatformAdapter(RunLoop *runloop);
+	PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
 	~PosixRTMPPlatformAdapter();
 
 	void close();
@@ -39,6 +39,8 @@ protected:
 	RunLoop *m_runloop;
 	int m_fd;
 	uint8_t *m_inputBuffer;
+	int m_unsent_lowat;
+	size_t m_writeSizePerSelect;
 	std::vector<uint8_t> m_outputBuffer;
 	onwritable_f m_onwritable;
 };

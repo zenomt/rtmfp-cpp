@@ -84,8 +84,8 @@ struct mediaMessage_t
     0 padding (ignore, delimiter, flow checkpoint)
     1 complete coded media presentation unit in payload
     2 partial (segmented) coded media presentation unit portion in payload (empty payload terminates unit)
-    5 media random access checkpoint (ex. "i just sent an IDR") (no payload, timestamp(s) required, dts/pts same as random access media unit)
-    6 media alignment checkpoint (ex. "i just sent a non-IDR", possibly useful for long GOPs or segmented frames, timestamp(s) required)
+    5 media random access checkpoint (ex. "I just sent an IDR") (no payload, timestamp(s) required, dts/pts same as random access media unit)
+    6 media alignment checkpoint (ex. "I just sent a non-IDR", possibly useful for long GOPs or segmented frames, timestamp(s) required)
     7 silence/temporary EOS (no payload, timestamp required)
   (8-f non-discardable/must-not-abandon)
     8 reserved

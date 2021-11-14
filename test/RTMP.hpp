@@ -69,15 +69,13 @@ protected:
 	static const int NUM_CHUNKSTREAMS = 24; // must be at least NUM_PRIORITIES + 3
 
 	struct ChunkStreamState {
-		ChunkStreamState();
-
-		uint32_t m_streamID;
-		uint32_t m_timestamp;
-		uint32_t m_timestampDelta;
-		size_t   m_length;
-		uint8_t  m_type;
-		bool     m_initted;
-		bool     m_timestampDeltaValid;
+		uint32_t m_streamID { 0 };
+		uint32_t m_timestamp { 0 };
+		uint32_t m_timestampDelta { 0 };
+		size_t   m_length { 0 };
+		uint8_t  m_type { 0 };
+		bool     m_initted { false };
+		bool     m_timestampDeltaValid { false };
 	};
 
 	struct RecvChunkStreamState : public ChunkStreamState {
@@ -85,10 +83,8 @@ protected:
 	};
 
 	struct SendChunkStreamState : public ChunkStreamState {
-		SendChunkStreamState();
-
-		Time   m_lastUsed;
-		bool   m_busy;
+		Time   m_lastUsed { -INFINITY };
+		bool   m_busy { false };
 	};
 
 	bool writeRawOutputBuffer();

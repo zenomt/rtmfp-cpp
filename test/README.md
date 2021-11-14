@@ -52,7 +52,8 @@ These programs are run on `make ci`.
 * [`testvlu`](testvlu.cpp): Test the Variable Length Unsigned and Option functions.
 * [`testaddress`](testaddress.cpp): Test `Address`.
 * [`testamf`](testamf.cpp): Test AMF0 functions.
-* [`testtcmsg`](testtcmsg.cpp): Test TC (RTMP Flash “TinCan”) metadata and message helper functions.
+* [`testtcmsg`](testtcmsg.cpp): Test [`TC` (RTMP Flash “TinCan”)](https://datatracker.ietf.org/doc/html/rfc7425#section-5.1.1)
+  metadata and message helper functions.
 * [`testhex`](testhex.cpp): Test hex encode/decode functions.
 * [`testflowsync`](testflowsync.cpp): Test `FlowSyncManager`.
 * [`testreorder`](testreorder.cpp): Test `ReorderBuffer`.
