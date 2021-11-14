@@ -133,7 +133,6 @@ int main(int argc, char *argv[])
 	rl.schedule(action, rl.getCurrentTime() + 1, 1.0L + 1.0L / 576460752303423488.0L);
 	rl.registerDescriptor(0, RunLoop::READABLE, rlAction);
 	rl.registerDescriptor(1, RunLoop::WRITABLE, rlAction);
-	rl.registerDescriptor(99, RunLoop::READABLE, rlAction);
 
 	rl.schedule(9)->action = action;
 	rl.schedule(2)->action = Foo::timerAction;
