@@ -990,7 +990,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -G            -- (experimental) collapse audio gaps in the timeline (only use with 48kHz AAC)\n");
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -c            -- send checkpoint after keyframe\n");
-	printf("  -C            -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
+	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
 	printf("  -X sec        -- (experimental rtmfp) set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
