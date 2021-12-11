@@ -195,14 +195,19 @@ std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8
 	return write(pri, streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 }
 
-Time RTMP::getUnsentAge(Priority pri) const
+Time RTMP::getUnsentAge(Priority pri_) const
 {
-	return -1; // XXX
-}
+	Time now = getCurrentTime();
+	Time rv = 0.0;
 
-Time RTMP::getUnstartedAge(Priority pri) const
-{
-	return -1; // XXX
+	for(int pri = pri_; pri < NUM_PRIORITIES; pri++)
+	{
+		auto &q = m_sendQueues[pri];
+		if(not q.empty())
+			rv = std::max(rv, now - q.firstValue()->m_receipt->createdAt());
+	}
+
+	return rv;
 }
 
 Time RTMP::getInstanceAge() const
@@ -867,7 +872,8 @@ long RTMP::onOpenInput(const uint8_t *bytes, const uint8_t *limit, size_t remain
 
 	if(cs.m_payload.size() == cs.m_length)
 	{
-		onMessageCompleted(cs.m_streamID, cs.m_type, cs.m_timestamp, cs.m_payload.data(), cs.m_payload.size());
+		if(not onMessageCompleted(cs.m_streamID, cs.m_type, cs.m_timestamp, cs.m_payload.data(), cs.m_payload.size()))
+			return -1;
 		cs.m_payload.clear();
 	}
 

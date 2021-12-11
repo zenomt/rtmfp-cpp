@@ -42,8 +42,7 @@ public:
 	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
 	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin = INFINITY, Time finishWithin = INFINITY);
 
-	Time getUnsentAge(Priority pri) const;
-	Time getUnstartedAge(Priority pri) const;
+	Time getUnsentAge(Priority pri) const; // answer the age of the oldest unfinished message at pri or higher
 	Time getInstanceAge() const;
 	Time getCurrentTime() const;
 	uint32_t timeAsTimestamp(Time t) const;

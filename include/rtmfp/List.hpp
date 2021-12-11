@@ -40,6 +40,8 @@ public:
 	T&      lastValue();
 
 	const T& at(long name) const;
+	const T& firstValue() const;
+	const T& lastValue() const;
 
 	long    addAfter(long name);
 	long    addAfter(const T& val, long name);
@@ -196,7 +198,17 @@ template <class T> T& List<T>::firstValue()
 	return at(first());
 }
 
+template <class T> const T& List<T>::firstValue() const
+{
+	return at(first());
+}
+
 template <class T> T& List<T>::lastValue()
+{
+	return at(last());
+}
+
+template <class T> const T& List<T>::lastValue() const
 {
 	return at(last());
 }
