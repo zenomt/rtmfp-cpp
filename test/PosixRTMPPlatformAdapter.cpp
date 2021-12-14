@@ -25,7 +25,8 @@ PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_
 	m_runloop(runloop),
 	m_fd(-1),
 	m_unsent_lowat(unsent_lowat),
-	m_writeSizePerSelect(writeSizePerSelect)
+	m_writeSizePerSelect(writeSizePerSelect),
+	m_doLaterAllowed(std::make_shared<bool>(true))
 {
 	m_inputBuffer = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
 }
@@ -40,6 +41,8 @@ PosixRTMPPlatformAdapter::~PosixRTMPPlatformAdapter()
 
 void PosixRTMPPlatformAdapter::close()
 {
+	*m_doLaterAllowed = false;
+
 	if(m_fd >= 0)
 	{
 		m_runloop->unregisterDescriptor(m_fd);
@@ -108,6 +111,15 @@ void PosixRTMPPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable
 		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
 }
 
+void PosixRTMPPlatformAdapter::doLater(const Task &task)
+{
+	std::shared_ptr<bool> allowed = m_doLaterAllowed;
+	m_runloop->doLater([allowed, task] {
+		if(*allowed)
+			task();
+	});
+}
+
 bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
 {
 	if(m_fd < 0)
@@ -121,6 +133,7 @@ bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
 
 void PosixRTMPPlatformAdapter::onClosed()
 {
+	*m_doLaterAllowed = false;
 	m_rtmpOpen = false;
 	m_onwritable = nullptr;
 	closeIfDone();

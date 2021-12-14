@@ -112,6 +112,7 @@ RTMP::RTMP(IPlatformAdapter *platform) :
 	m_simpleMode(false),
 	m_epoch(-INFINITY),
 	m_writeScheduled(false),
+	m_trimPending(false),
 	m_sendChunkSize(INITIAL_SEND_CHUNK_SIZE),
 	m_recvChunkSize(DEFAULT_CHUNK_SIZE),
 	m_sentBytes(0),
@@ -186,6 +187,8 @@ std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8
 
 	if(RT_OPEN == m_state)
 		scheduleWrite();
+
+	scheduleTrimSendQueues();
 
 	return receipt;
 }
@@ -443,6 +446,7 @@ void RTMP::queueWindowAckSize(uint32_t newSize)
 bool RTMP::trimSendQueues(bool abandonAll)
 {
 	Time now = getCurrentTime();
+	bool anyPartial = false;
 
 	for(int pri = PRI_HIGHEST; pri >= PRI_LOWEST; pri--)
 	{
@@ -461,13 +465,27 @@ bool RTMP::trimSendQueues(bool abandonAll)
 			{
 				queueAbortMessage(first->m_chunkStream);
 				m_sendChunkStreams[first->m_chunkStream].m_busy = false;
+				anyPartial = true;
 			}
 			first->m_receipt->useCountDown();
 			q.removeFirst();
 		}
 	}
 
-	return writeRawOutputBuffer();
+	return anyPartial;
+}
+
+void RTMP::scheduleTrimSendQueues()
+{
+	if(not m_trimPending)
+	{
+		m_trimPending = true;
+		m_platform->doLater([this] {
+			m_trimPending = false;
+			if(m_state < RT_PROTOCOL_ERROR)
+				trimSendQueues(false);
+		});
+	}
 }
 
 void RTMP::scheduleWrite()
@@ -486,7 +504,7 @@ bool RTMP::onWritable()
 
 	if(checkFlowControlWritable())
 	{
-		if(trimSendQueues(false))
+		if(trimSendQueues(false) and writeRawOutputBuffer())
 			return true;
 
 		for(int pri = PRI_HIGHEST; pri >= PRI_LOWEST; pri--)

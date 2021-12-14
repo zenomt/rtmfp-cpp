@@ -24,6 +24,7 @@ public:
 
 	Time getCurrentTime() override;
 	void notifyWhenWritable(const onwritable_f &onwritable) override;
+	void doLater(const Task &task) override;
 	bool writeBytes(const void *bytes, size_t len) override;
 	void onClosed() override;
 
@@ -43,6 +44,7 @@ protected:
 	size_t m_writeSizePerSelect;
 	std::vector<uint8_t> m_outputBuffer;
 	onwritable_f m_onwritable;
+	std::shared_ptr<bool> m_doLaterAllowed;
 };
 
 } } } // namespace com::zenomt::rtmp

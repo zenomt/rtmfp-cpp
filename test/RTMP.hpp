@@ -97,6 +97,7 @@ protected:
 	void sendAckIfNeeded();
 	void queueWindowAckSize(uint32_t newSize);
 	bool trimSendQueues(bool abandonAll);
+	void scheduleTrimSendQueues();
 	void scheduleWrite();
 	bool onWritable();
 	int findChunkStream(uint32_t streamID, uint8_t type_, size_t len) const;
@@ -132,6 +133,7 @@ protected:
 	bool     m_simpleMode;
 	Time     m_epoch;
 	bool     m_writeScheduled;
+	bool     m_trimPending;
 	size_t   m_sendChunkSize;
 	size_t   m_recvChunkSize;
 	size_t   m_sentBytes;
@@ -151,6 +153,10 @@ public:
 
 	using onwritable_f = std::function<bool(void)>;
 	virtual void notifyWhenWritable(const onwritable_f &onwritable) = 0;
+
+	// perform a task "later", as long as onClosed() was not called, or
+	// as long as the platform otherwise knows the RTMP is still operating.
+	virtual void doLater(const Task &task) = 0;
 
 	// only called (and at most once) from onwritable(). answer true on success,
 	// false on failure (like no longer open). implementation MUST support receiving
