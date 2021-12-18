@@ -236,7 +236,6 @@ public:
 	uintmax_t m_ecn_ce_count;
 	uint8_t   m_rx_ece_count;
 
-	// EXPERIMENTAL
 	// keep track of minimum RTT over a sliding window RTT_HISTORY_CAPACITY buckets each RTT_HISTORY_THRESH long.
 	struct RTTMeasurement {
 		Time min_rtt;

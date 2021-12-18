@@ -1070,7 +1070,7 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 	else
 		m_recovery_remaining = 0;
 
-	// EXPERIMENTAL delay-based congestion detection
+	// delay-based congestion detection
 	if((m_srtt >= DELAYCC_RTT_THRESH) and (m_last_delaycc_action < m_last_rtt_time))
 	{
 		if(m_srtt > m_base_rtt + m_delaycc_congestion_delay)

@@ -992,7 +992,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
-	printf("  -X sec        -- (experimental rtmfp) set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
+	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
 	printf("  -p port       -- port for -4/-6 (default %d)\n", port);

@@ -182,7 +182,7 @@ public:
 	Time    getSafeSRTT()         const; // Returns a default value if no RTT measurement has been made yet.
 	Time    getRTTVariance()      const; // Round-trip time variance §3.5.2.2.
 	Time    getLastRTT()          const; // Most recent RTT measurement.
-	Time    getBaseRTT()          const; // Minimum observed RTT.
+	Time    getBaseRTT()          const; // Baseline (minimum recently observed) RTT.
 	size_t  getCongestionWindow() const;
 
 	void    setSessionKeepalivePeriod(Time keepalive); // Idle time before a keepalive check is performed.
@@ -200,8 +200,8 @@ public:
 
 	Task onFarAddressDidChange; // Called after DESTADDR change verified §3.5.4.2.
 
-	// EXPERIMENTAL delay-based congestion detection
-	void setSessionCongestionDelay(Time delay); // EXPERIMENTAL Treat rtt > baseRTT + delay as congestion. Default INFINITY.
+	// Delay-based congestion detection
+	void setSessionCongestionDelay(Time delay); // Treat rtt > baseRTT + delay as congestion. Default INFINITY.
 	Time getSessionCongestionDelay() const;
 
 protected:

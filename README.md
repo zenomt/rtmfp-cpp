@@ -135,9 +135,73 @@ suitable for testing and evaluation. As it provides no actual cryptography
 (and its `cryptoHash256()` and `pseudoRandomBytes()` methods are especially
 weak), it is not suitable for production use in the open Internet. Don’t.
 
-### Experimental Support for Explicit Congestion Notification
-This implementation of RTMFP adds experimental support for Explicit Congestion
-Notification (ECN). It adds a new chunk “ECN Report” (type `0xec`) for the
+Delay-Based Congestion Detection
+--------------------------------
+[Bufferbloat](https://www.bufferbloat.net) (excessive buffering and queuing
+in the network) can cause high end-to-end delays resulting in unacceptable
+performance for real-time applications. Unfortunately, the best solution to
+this problem
+([Active Queue Management](https://datatracker.ietf.org/doc/html/rfc7567)
+with
+[Explicit Congestion Notification](https://datatracker.ietf.org/doc/html/rfc3168))
+is not widely deployed in the Internet at this time.
+
+In addition to the normal congestion signals (loss and Explicit Congestion
+Notification), this library can optionally infer likely congestion on a session
+from increases in Round-Trip Time (RTT). To enable this capability, use
+`Flow::setSessionCongestionDelay()` to set an amount of additional delay above
+the baseline RTT to be interpreted as an indication of congestion.  The default
+value is `INFINITY`. A value of `0.1` seconds of additional delay is suggested
+for this feature.
+
+The baseline RTT is the minimum RTT observed over at most the past three
+minutes. The baseline RTT observation window is cleared and reset in the
+following circumstances:
+
+  * If the
+    [Timeout](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.2.2)
+    timer fires (either from loss or no data to send);
+  * If the congestion window falls to the minimum value,
+    which might happen after persistent inferred congestion that isn't actually
+    our fault (such as from a change to the path or from competing traffic);
+  * If the far end’s address changes;
+  * If a non-empty Ping is received (which might be an address change validation
+    probe from the far end, indicating our address might have changed).
+
+From time-to-time, if a significant portion of the congestion window is being
+used, the congestion window will be temporarily reduced in order to probe the
+path for a new baseline RTT (in case our own sending is masking the baseline).
+Note that this can cause jitter.
+
+If the Smoothed RTT is observed to be above the baseline plus the configured
+`CongestionDelay` (and is also at least 30ms), this is assumed to be an
+indication of congestion. The congestion controller responds to this as though
+it was loss.
+
+This congestion detection scheme, like all end-to-end delay-based ones, is
+imperfect, and is subject to false positive signals caused by cases including:
+
+  * Additional delay caused by data from the other end of this session;
+  * Additional delay caused by delay-insensitive queue-filling transmissions
+    competing through the bottleneck in either direction;
+  * Changes to the return direction of the path that delay RTT measurements.
+
+As such, this feature may not be indicated for all use cases. Care should be
+taken to enable this feature only when false positive congestion signals are
+unlikely, such as for substantially unidirectional media transmission through
+a dedicated bottleneck. False positives can cause transmission starvation.
+
+This feature is inspired by
+[Low Extra Delay Background Transport (LEDBAT)](https://datatracker.ietf.org/doc/html/rfc6817),
+[Self-Clocked Rate Adaptation for Multimedia (SCReAM)](https://datatracker.ietf.org/doc/html/rfc8298),
+and
+[Google’s BBR congestion control algorithm](https://github.com/google/bbr).
+
+
+Explicit Congestion Notification
+--------------------------------
+This implementation of RTMFP adds support for Explicit Congestion
+Notification (ECN). It adds a new experimental chunk “ECN Report” (type `0xec`) for the
 receiver to send counts of received ECN codepoints back to the ECN sender.
 An RTMFP **MUST NOT** send an ECN Report to its peer unless it has received
 at least one valid packet in its `S_OPEN` session with that peer that is
@@ -168,7 +232,7 @@ This implementation sends `ECT(0)`.  The congestion controller responds to
 increases of the `ECN-CE-count` as though it was loss. `ECT(0)` is only sent
 on packets containing User Data.
 
-#### Explicit Congestion Notification Report Chunk (ECN Report)
+### Explicit Congestion Notification Report Chunk (ECN Report)
 
 	 0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
 	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

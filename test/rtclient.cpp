@@ -176,7 +176,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -S        -- don't require session sequence numbers\n");
 	printf("  -4        -- only bind to 0.0.0.0\n");
 	printf("  -6        -- only bind to [::]\n");
-	printf("  -X secs   -- (experimental) set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
+	printf("  -X secs   -- set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
 	return rv;
