@@ -45,8 +45,8 @@ by per-message deadlines, or by arbitrary application logic using the
 The application can be notified by callback when a message is delivered or
 abandoned.
 
-`SendFlow`s set to priority `PRI_PRIORITY` (`PRI_4`) or higher (`PRI_IMMEDIATE`,
-`PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
+`SendFlow`s set to [priority](include/rtmfp/Priority.hpp) `PRI_PRIORITY` (`PRI_4`)
+or higher (`PRI_IMMEDIATE`, `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
 [time critical](https://tools.ietf.org/html/rfc7016#section-3.1). Sending
 messages on time critical flows affects congestion control.
 
@@ -144,7 +144,7 @@ this problem
 ([Active Queue Management](https://datatracker.ietf.org/doc/html/rfc7567)
 with
 [Explicit Congestion Notification](https://datatracker.ietf.org/doc/html/rfc3168))
-is not widely deployed in the Internet at this time.
+is not universally deployed in the Internet at this time.
 
 In addition to the normal congestion signals (loss and Explicit Congestion
 Notification), this library can optionally infer likely congestion on a session
@@ -158,15 +158,17 @@ The baseline RTT is the minimum RTT observed over at most the past three
 minutes. The baseline RTT observation window is cleared and reset in the
 following circumstances:
 
-  * If the
-    [Timeout](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.2.2)
-    timer fires (either from loss or no data to send);
+  * On a
+    [timeout](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.2.2)
+    (either from total loss or no data to send);
   * If the congestion window falls to the minimum value,
     which might happen after persistent inferred congestion that isn't actually
     our fault (such as from a change to the path or from competing traffic);
   * If the far end’s address changes;
-  * If a non-empty Ping is received (which might be an address change validation
-    probe from the far end, indicating our address might have changed).
+  * If our address might have changed (inferred from receipt of a non-empty Ping,
+    which might be an
+    [address change validation probe](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.4.2)
+    from the far end).
 
 From time-to-time, if a significant portion of the congestion window is being
 used, the congestion window will be temporarily reduced in order to probe the
