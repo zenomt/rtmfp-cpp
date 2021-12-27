@@ -922,6 +922,10 @@ bool listenRTMP(const Address &addr)
 		int val = 1;
 		if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)))
 			::perror("SO_REUSEADDR");
+
+		// (for IPv6 sockets) set IPV6_V6ONLY for cross-platform consistency.
+		// the safe and portable thing is to always have separate sockets for each family.
+		setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val));
 	}
 	if(bind(fd, addr.getSockaddr(), addr.getSockaddrLen()))
 	{
