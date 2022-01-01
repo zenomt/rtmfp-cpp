@@ -4,6 +4,10 @@
 #include <cstring>
 #include <unistd.h>
 
+#ifndef IPTOS_DSCP_AF41
+#define IPTOS_DSCP_AF41 0x88
+#endif
+
 #include "rtmfp/rtmfp.hpp"
 #include "rtmfp/SelectRunLoop.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
@@ -26,6 +30,7 @@ Time pfLifetime = 2.000;
 Time delaycc_delay = INFINITY;
 bool interrupted = false;
 double keyframeMult = 5;
+int tos = 0;
 
 void signal_handler(int unused)
 {
@@ -176,6 +181,7 @@ static int usage(const char *name, const char *msg, int rv)
 	printf("  -S        -- don't require session sequence numbers\n");
 	printf("  -4        -- only bind to 0.0.0.0\n");
 	printf("  -6        -- only bind to [::]\n");
+	printf("  -x        -- set DSCP AF41 on outgoing packets\n");
 	printf("  -X secs   -- set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
@@ -195,7 +201,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "h46HSn:f:k:r:l:iAECX:v")) != -1)
+	while((ch = getopt(argc, argv, "h46HSn:f:k:r:l:iAECxX:v")) != -1)
 	{
 		switch(ch)
 		{
@@ -241,6 +247,9 @@ int main(int argc, char **argv)
 			break;
 		case 'C':
 			chainGop = false;
+			break;
+		case 'x':
+			tos = IPTOS_DSCP_AF41;
 			break;
 		case 'X':
 			delaycc_delay = atof(optarg);
@@ -302,6 +311,7 @@ int main(int argc, char **argv)
 	pilot->onWritable = [&, pilot] {
 		pilot->setSessionRetransmitLimit(20);
 		pilot->setSessionCongestionDelay(delaycc_delay);
+		pilot->setSessionTrafficClass(tos);
 		stream.publish(pilot, &rl);
 		return false;
 	};

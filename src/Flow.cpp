@@ -130,6 +130,17 @@ Time Flow::getSessionIdleLimit() const
 	return m_session ? m_session->getIdleLimit() : INFINITY;
 }
 
+void Flow::setSessionTrafficClass(int tos)
+{
+	if(m_session)
+		m_session->setTrafficClass(tos);
+}
+
+int Flow::getSessionTrafficClass() const
+{
+	return m_session ? m_session->getTrafficClass() : 0;
+}
+
 bool Flow::forwardIHello(const void *epd, size_t epdLen, const Address &replyAddress, const void *tag, size_t tagLen)
 {
 	if((not m_session) or (m_session->m_state != Session::S_OPEN))

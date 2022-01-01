@@ -161,6 +161,7 @@ bool StartupSession::onInterfaceWritable(int interfaceID, int priority)
 	SessionCryptoKey *cryptoKey = m_cryptoKey.get();
 	long timestampEcho = -1;
 	uint8_t mode = HEADER_MODE_STARTUP;
+	int tos = 0;
 	if(item->m_session)
 	{
 		timestampEcho = item->m_session->getTimestampEcho();
@@ -168,12 +169,13 @@ bool StartupSession::onInterfaceWritable(int interfaceID, int priority)
 		mode = item->m_session->m_role;
 		if(m_rtmfp->shouldSessionReportTCR(item->m_session.get()))
 			mode |= HEADER_FLAG_TCR;
+		tos = item->m_session->getTrafficClass();
 	}
 
 	PacketAssembler packet;
 	packet.init(m_rtmfp->m_plaintextBuf, cryptoKey->getEncryptSrcFrontMargin(), MAX_STARTUP_PACKET_LENGTH, mode, m_rtmfp->getCurrentTimestamp(), timestampEcho);
 	if(packet.push(item->m_bytes))
-		encryptAndSendPacket(&packet, item->m_sessionID, interfaceID, item->m_dest, 0, cryptoKey);
+		encryptAndSendPacket(&packet, item->m_sessionID, interfaceID, item->m_dest, tos, cryptoKey);
 
 	return true;
 }
@@ -364,7 +366,8 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_seen_new_ecn(false),
 	m_congestionNotifiedThisPacket(false),
 	m_ecn_ce_count(0),
-	m_rx_ece_count(0)
+	m_rx_ece_count(0),
+	m_tos(0)
 {
 }
 
@@ -618,6 +621,16 @@ void Session::setIdleLimit(Time limit)
 Time Session::getIdleLimit() const
 {
 	return m_idle_limit;
+}
+
+void Session::setTrafficClass(int tos)
+{
+	m_tos = tos & ~IPTOS_ECN_MASK; // mask off the ECN bits
+}
+
+int Session::getTrafficClass() const
+{
+	return m_tos;
 }
 
 void Session::onKeepaliveAlarm(Time now)
@@ -1493,9 +1506,9 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 
 	m_last_keepalive_tx_time = now;
 
-	int tos = (sendingData and m_send_ect) ? IPTOS_ECN_ECT0 : 0;
+	int ect = (sendingData and m_send_ect) ? IPTOS_ECN_ECT0 : 0;
 
-	encryptAndSendPacket(&packet, m_txSessionID, interfaceID, m_destAddr, tos, m_cryptoKey.get());
+	encryptAndSendPacket(&packet, m_txSessionID, interfaceID, m_destAddr, m_tos | ect, m_cryptoKey.get());
 
 	return true;
 }

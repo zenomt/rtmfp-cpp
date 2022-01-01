@@ -191,6 +191,8 @@ public:
 	Time    getSessionRetransmitLimit() const;
 	void    setSessionIdleLimit(Time limit); // Time after which a quiescent session with no flows will terminate.
 	Time    getSessionIdleLimit() const;
+	void    setSessionTrafficClass(int tos); // Set Traffic Class (aka Type of Service) for IPlatformAdapter::writePacket()
+	int     getSessionTrafficClass() const; // Note: ECN (2 LSB) is masked off
 
 	// Send an FIHello §2.3.3, §3.5.1.5
 	bool forwardIHello(const void *epd, size_t epdLen, const Address &replyAddress, const void *tag, size_t tagLen);

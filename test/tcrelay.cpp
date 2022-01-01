@@ -21,6 +21,10 @@ extern "C" {
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
+
+#ifndef IPTOS_DSCP_AF41
+#define IPTOS_DSCP_AF41 0x88
+#endif
 }
 
 #include "rtmfp/rtmfp.hpp"
@@ -74,6 +78,7 @@ Protocol outputProtocol = PROTO_UNSPEC;
 const char *desthostname = nullptr;
 const char *destservname = "1935";
 const char *rtmfpUri = "rtmfp:";
+int tos = 0;
 
 SelectRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -520,6 +525,7 @@ public:
 		setOnMessage(controlRecv, 0, nullptr);
 
 		controlRecv->setSessionCongestionDelay(delaycc_delay);
+		controlRecv->setSessionTrafficClass(tos);
 
 		return true;
 	}
@@ -996,6 +1002,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
+	printf("  -x            -- set DSCP AF41 on outgoing packets (rtmfp)\n");
 	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
@@ -1027,7 +1034,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MX:HSp:46B:u:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MxX:HSp:46B:u:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1071,6 +1078,9 @@ int main(int argc, char **argv)
 			break;
 		case 'M':
 			replayCheckpointFrame = false;
+			break;
+		case 'x':
+			tos = IPTOS_DSCP_AF41;
 			break;
 		case 'X':
 			delaycc_delay = atof(optarg);

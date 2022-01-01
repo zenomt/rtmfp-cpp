@@ -86,6 +86,8 @@ public:
 	Time getRetransmitLimit() const;
 	void setIdleLimit(Time limit);
 	Time getIdleLimit() const;
+	void setTrafficClass(int tos);
+	int getTrafficClass() const;
 	void onKeepaliveAlarm(Time now);
 	void onIdleAlarm(Time now);
 	Bytes makeMobilityCheck(uintmax_t now, int interfaceID, const struct sockaddr *addr);
@@ -235,6 +237,7 @@ public:
 	bool      m_congestionNotifiedThisPacket;
 	uintmax_t m_ecn_ce_count;
 	uint8_t   m_rx_ece_count;
+	int       m_tos;
 
 	// keep track of minimum RTT over a sliding window RTT_HISTORY_CAPACITY buckets each RTT_HISTORY_THRESH long.
 	struct RTTMeasurement {
