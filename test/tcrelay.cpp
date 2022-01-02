@@ -21,10 +21,7 @@ extern "C" {
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-
-#ifndef IPTOS_DSCP_AF41
-#define IPTOS_DSCP_AF41 0x88
-#endif
+#include <netinet/ip.h>
 }
 
 #include "rtmfp/rtmfp.hpp"
@@ -78,7 +75,7 @@ Protocol outputProtocol = PROTO_UNSPEC;
 const char *desthostname = nullptr;
 const char *destservname = "1935";
 const char *rtmfpUri = "rtmfp:";
-int tos = 0;
+int dscp = 0;
 
 SelectRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -525,7 +522,7 @@ public:
 		setOnMessage(controlRecv, 0, nullptr);
 
 		controlRecv->setSessionCongestionDelay(delaycc_delay);
-		controlRecv->setSessionTrafficClass(tos);
+		controlRecv->setSessionTrafficClass(dscp << 2);
 
 		return true;
 	}
@@ -979,6 +976,23 @@ bool appendAddress(const char *presentationForm, std::vector<Address> &dst)
 	return true;
 }
 
+// https://www.iana.org/assignments/dscp-registry/dscp-registry.xhtml
+std::map<std::string, int> dscp_codepoints({
+	{ "CS0", 0 }, { "CS1", 8 }, { "CS2", 16 }, { "CS3", 24 }, { "CS4", 32 }, { "CS5", 40 }, { "CS6", 48 }, { "CS7", 56 },
+	{ "AF11", 10 }, { "AF12", 12 }, { "AF13", 14 },
+	{ "AF21", 18 }, { "AF22", 20 }, { "AF23", 22 },
+	{ "AF31", 26 }, { "AF32", 28 }, { "AF33", 30 },
+	{ "AF41", 34 }, { "AF42", 36 }, { "AF43", 38 },
+	{ "EF", 46 }, { "VOICE-ADMIT", 44 },
+	{ "LE", 1 }
+});
+int convert_dscp(const std::string &name)
+{
+	if(dscp_codepoints.count(name))
+		return dscp_codepoints[name];
+	return int(strtol(name.c_str(), nullptr, 0));
+}
+
 int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg = nullptr)
 {
 	if(msg)
@@ -1002,7 +1016,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
-	printf("  -x            -- set DSCP AF41 on outgoing packets (rtmfp)\n");
+	printf("  -T DSCP|name  -- set DiffServ field on rtmfp packets (default %d)\n", dscp);
 	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
@@ -1034,7 +1048,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MxX:HSp:46B:u:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MT:X:HSp:46B:u:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1079,8 +1093,16 @@ int main(int argc, char **argv)
 		case 'M':
 			replayCheckpointFrame = false;
 			break;
-		case 'x':
-			tos = IPTOS_DSCP_AF41;
+		case 'T':
+			dscp = convert_dscp(optarg);
+			if((0 == dscp) and errno)
+			{
+				printf("DiffServ names: ");
+				for(auto it = dscp_codepoints.begin(); it != dscp_codepoints.end(); it++)
+					printf("%s ", it->first.c_str());
+				printf("\n");
+				return usage(argv[0], 1, "unrecognized DiffServ name: ", optarg);
+			}
 			break;
 		case 'X':
 			delaycc_delay = atof(optarg);
