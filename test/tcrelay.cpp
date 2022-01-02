@@ -22,7 +22,6 @@ extern "C" {
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <netinet/ip.h>
 }
 
 #include "rtmfp/rtmfp.hpp"
