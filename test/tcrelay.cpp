@@ -376,6 +376,10 @@ public:
 
 	bool setFd(int fd)
 	{
+		int tos = dscp << 2;
+		setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+		setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
+
 		if(not m_adapter.setSocketFd(fd))
 		{
 			::close(fd);
@@ -1022,7 +1026,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -c            -- send checkpoint after keyframe\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
-	printf("  -T DSCP|name  -- set DiffServ field on rtmfp packets (default %d)\n", dscp);
+	printf("  -T DSCP|name  -- set DiffServ field on outgoing packets (default %d)\n", dscp);
 	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
