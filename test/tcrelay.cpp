@@ -10,6 +10,7 @@
 //  * RTMPS (at least output)
 
 #include <cassert>
+#include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -988,9 +989,15 @@ std::map<std::string, int> dscp_codepoints({
 });
 int convert_dscp(const std::string &name)
 {
+	errno = 0;
 	if(dscp_codepoints.count(name))
 		return dscp_codepoints[name];
-	return int(strtol(name.c_str(), nullptr, 0));
+	const char *s = name.c_str();
+	char *endptr = nullptr;
+	int rv = int(strtol(s, &endptr, 0));
+	if((0 == rv) and (endptr == s)) // no conversion, not all strtol() set errno
+		errno = EINVAL;
+	return rv;
 }
 
 int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg = nullptr)
@@ -1095,7 +1102,7 @@ int main(int argc, char **argv)
 			break;
 		case 'T':
 			dscp = convert_dscp(optarg);
-			if((0 == dscp) and errno)
+			if(errno)
 			{
 				printf("DiffServ names: ");
 				for(auto it = dscp_codepoints.begin(); it != dscp_codepoints.end(); it++)
