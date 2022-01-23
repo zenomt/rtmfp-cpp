@@ -38,7 +38,7 @@ size_t SendFlow::SendFrag::size_outstanding(const std::shared_ptr<SendFrag>& val
 
 // ---
 
-SendFlow::SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const RecvFlow *assoc, Priority pri) :
+SendFlow::SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, RecvFlow *assoc, Priority pri) :
 	Flow(rtmfp),
 	m_flow_id(-1),
 	m_epd(epd),
@@ -58,7 +58,10 @@ SendFlow::SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const 
 {
 	Option::append(USERDATA_OPTION_METADATA, metadata.data(), metadata.size(), m_startup_options);
 	if(assoc)
+	{
 		Option::append(USERDATA_OPTION_RETURN_ASSOCIATION, assoc->m_flow_id, m_startup_options);
+		m_tmp_association = share_ref(assoc);
+	}
 	Option::append(m_startup_options);
 }
 
@@ -376,6 +379,20 @@ bool SendFlow::assembleData(PacketAssembler *packet, int pri)
 	if(not (m_send_queue.has(startName) and m_send_queue.at(startName)->m_in_flight))
 		startName = m_send_queue.first();
 
+	// handle a (hopefully rare) case where we are associated in return to a flow that
+	// has completely closed (so the other end has forgotten the flow ID), but we're still
+	// starting up.
+	if(m_startup_options.size() and m_tmp_association and (m_tmp_association->m_state >= RecvFlow::RF_COMPLETE_LINGER))
+	{
+		// clear the startup options. it's possible that the other end has already
+		// seen our startup options, so things are fine. if not and this ends up being the
+		// first one, the other end will reject the flow because now there's no metadata either.
+		// this protects against accidentally associating to a new different flow with
+		// the old flow's ID.
+		m_startup_options.clear();
+		m_tmp_association.reset();
+	}
+
 	// fill up a packet
 	for(long name = startName; name > 0; name = m_send_queue.next(name))
 	{
@@ -504,7 +521,10 @@ void SendFlow::onAck(uint8_t chunkType, size_t bufferBytesAvailable, uintmax_t c
 		return;
 
 	if(not m_startup_options.empty())
+	{
 		m_startup_options.clear();
+		m_tmp_association.reset();
+	}
 
 	m_rx_buffer_size = bufferBytesAvailable;
 
@@ -644,6 +664,7 @@ void SendFlow::gotoStateClosed()
 			m_persistTimer->cancel();
 			m_persistTimer.reset();
 		}
+		m_tmp_association.reset();
 	}
 }
 

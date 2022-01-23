@@ -210,7 +210,7 @@ protected:
 	Flow(RTMFP *rtmfp);
 	Flow() = delete;
 
-	std::shared_ptr<SendFlow> basicOpenFlow(const Bytes &metadata, const RecvFlow *assoc, Priority pri);
+	std::shared_ptr<SendFlow> basicOpenFlow(const Bytes &metadata, RecvFlow *assoc, Priority pri);
 
 	RTMFP *m_rtmfp; // weak ref
 	std::shared_ptr<Session> m_session;
@@ -265,7 +265,7 @@ protected:
 	friend class Flow;
 	struct SendFrag;
 
-	SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, const RecvFlow *assoc, Priority pri);
+	SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, RecvFlow *assoc, Priority pri);
 	~SendFlow();
 
 	std::shared_ptr<WriteReceipt> basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin);
@@ -306,6 +306,7 @@ protected:
 	long      m_last_send_queue_name;
 	State     m_state;
 	std::shared_ptr<Session> m_openingSession;
+	std::shared_ptr<RecvFlow> m_tmp_association; // only needed until flow is established
 	SumList<std::shared_ptr<SendFrag> > m_send_queue;
 	std::shared_ptr<Timer> m_persistTimer;
 };

@@ -9,7 +9,7 @@ protocol implementation is intended to be adaptable to any host program
 environment.
 
 The library is intended for clients, servers, and P2P applications. It includes
-the necessary helpers and callbacks to support P2P introduction and load
+the necessary helpers and callback hooks to support P2P introduction and load
 balancing.
 
 The [`test`](test/) directory includes unit tests and examples. Of special
@@ -33,12 +33,12 @@ The application can open sending flows to new or current endpoints with
 `RTMFP::openFlow()` and `Flow::openFlow`, and can open associated return flows
 with `RecvFlow::openReturnFlow()`.
 
-The application can accept new flows by implementing the `onRecvFlow` callbacks
+The application can accept new flows by setting the `onRecvFlow` callbacks
 on the `RTMFP` (for bare incoming flows) or on `SendFlow`s (for associated
 return flows).
 
 The application can send messages to far peers with `SendFlow::write()`, and
-receive messages from far peers by implementing the `onMessage` callback on
+receive messages from far peers by setting the `onMessage` callback on
 `RecvFlow`s.  Messages can expire and be abandoned if not started or delivered
 by per-message deadlines, or by arbitrary application logic using the
 [`WriteReceipt`](include/rtmfp/WriteReceipt.hpp)s returned by `SendFlow::write()`.

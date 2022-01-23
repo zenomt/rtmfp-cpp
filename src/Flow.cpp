@@ -188,7 +188,7 @@ Time Flow::getSessionCongestionDelay() const
 
 // ---
 
-std::shared_ptr<SendFlow> Flow::basicOpenFlow(const Bytes &metadata, const RecvFlow *assoc, Priority pri)
+std::shared_ptr<SendFlow> Flow::basicOpenFlow(const Bytes &metadata, RecvFlow *assoc, Priority pri)
 {
 	std::shared_ptr<SendFlow> rv;
 
