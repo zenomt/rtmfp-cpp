@@ -56,6 +56,8 @@ public:
 
 	void setSimpleMode(bool isSimple); // only use Type 0 chunks to start messages
 
+	void setPaused(bool isPaused); // suspend processing
+
 	// -- Used by the Platform Adapter
 
 	// Input new bytes to the protocol. Answer true on success, false on error (like protocol error).
@@ -143,6 +145,7 @@ protected:
 	uint32_t m_lastAckReceived;
 	size_t   m_peerBandwidth;
 	uint8_t  m_lastPeerBandwidthType;
+	bool     m_isPaused;
 };
 
 class IPlatformAdapter {

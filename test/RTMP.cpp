@@ -121,7 +121,8 @@ RTMP::RTMP(IPlatformAdapter *platform) :
 	m_lastAckSent(0),
 	m_lastAckReceived(0),
 	m_peerBandwidth((size_t)-1),
-	m_lastPeerBandwidthType(TC_SET_PEER_BW_LIMIT_SOFT)
+	m_lastPeerBandwidthType(TC_SET_PEER_BW_LIMIT_SOFT),
+	m_isPaused(false)
 {
 }
 
@@ -248,6 +249,14 @@ void RTMP::setSimpleMode(bool isSimple)
 	m_simpleMode = isSimple;
 }
 
+void RTMP::setPaused(bool isPaused)
+{
+	if(m_isPaused and not isPaused) // resuming, kick processing
+		m_platform->doLater([this] { onReceiveBytes(nullptr, 0); });
+
+	m_isPaused = isPaused;
+}
+
 bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 {
 	if((RT_UNKNOWN == m_state) or (RT_PROTOCOL_ERROR == m_state))
@@ -265,6 +274,9 @@ bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 
 	while(cursor < limit)
 	{
+		if(m_isPaused)
+			break;
+
 		long consumed = onInput(cursor, limit);
 		if(consumed < 0)
 		{
