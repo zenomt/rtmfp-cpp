@@ -294,7 +294,7 @@ int main(int argc, char **argv)
 	crypto.setHMACRecvRequired(requireHMAC);
 	crypto.setSSeqSendAlways(requireSSEQ);
 	crypto.setSSeqRecvRequired(requireSSEQ);
-	printf("my fingerprint: %s\n", Hex::encode(crypto.getFingerprint()).c_str());
+	printf("my fingerprint: %s static: %s\n", Hex::encode(crypto.getFingerprint()).c_str(), crypto.isStatic() ? "yes" : "no");
 	printf("my name: %s\n", name);
 
 	SelectRunLoop rl;

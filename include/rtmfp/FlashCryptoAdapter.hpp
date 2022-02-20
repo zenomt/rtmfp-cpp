@@ -60,6 +60,9 @@ public:
 	FlashCryptoAdapter();
 
 	// must be initialized before use. hostname can be NULL.
+	virtual bool init(bool isServer, bool isEphemeralDH, const char *hostname);
+
+	// convenience function calls init(isServer, isServer, hostname) as per §7 ¶2-3.
 	virtual bool init(bool isServer, const char *hostname);
 
 	bool isServer() const;

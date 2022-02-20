@@ -165,7 +165,7 @@ FlashCryptoAdapter::FlashCryptoAdapter() :
 {
 }
 
-bool FlashCryptoAdapter::init(bool isServer, const char *hostname)
+bool FlashCryptoAdapter::init(bool isServer, bool isEphemeralDH, const char *hostname)
 {
 	m_encodedCert.clear();
 	m_staticDHContexts.clear();
@@ -182,10 +182,12 @@ bool FlashCryptoAdapter::init(bool isServer, const char *hostname)
 	}
 
 	if(isServer)
-	{
 		Option::append(CERT_OPTION_ACCEPTS_ANCILLARY_DATA, m_encodedCert);
 
-		auto groups = getSupportedDHGroups();
+	auto groups = getSupportedDHGroups();
+
+	if(isEphemeralDH)
+	{
 		for(auto it = groups.begin(); it != groups.end(); it++)
 			Option::append(CERT_OPTION_SUPPORTED_DH_GROUP, *it, m_encodedCert);
 
@@ -195,7 +197,6 @@ bool FlashCryptoAdapter::init(bool isServer, const char *hostname)
 	}
 	else
 	{
-		auto groups = getSupportedDHGroups();
 		for(auto it = groups.begin(); it != groups.end(); it++)
 		{
 			auto dh = makeDH_Context();
@@ -225,6 +226,11 @@ bool FlashCryptoAdapter::init(bool isServer, const char *hostname)
 	return true;
 }
 
+bool FlashCryptoAdapter::init(bool isServer, const char *hostname)
+{
+	return init(isServer, isServer, hostname);
+}
+
 bool FlashCryptoAdapter::isServer() const
 {
 	return m_isServer;
@@ -232,7 +238,7 @@ bool FlashCryptoAdapter::isServer() const
 
 bool FlashCryptoAdapter::isStatic() const
 {
-	return not m_isServer;
+	return m_staticDHContexts.size();
 }
 
 Bytes FlashCryptoAdapter::getCanonicalEPD() const
