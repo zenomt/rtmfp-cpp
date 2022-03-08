@@ -3,8 +3,22 @@
 
 #include <openssl/bn.h>
 #include <openssl/evp.h>
-#include <openssl/hmac.h>
 #include <openssl/rand.h>
+#include <openssl/opensslv.h>
+
+#if OPENSSL_VERSION_MAJOR >= 3
+
+// HMAC_* stuff is deprecated in OpenSSL >= 3.0.0
+#define FLASHCRYPTO_USE_EVP_MAC 1
+#include <openssl/core_names.h>
+
+#else
+
+// The new EVP_MAC stuff doesn't exist in older versions of OpenSSL
+#include <openssl/hmac.h>
+#define FLASHCRYPTO_USE_EVP_MAC 0
+
+#endif
 
 #include "../include/rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 
@@ -106,11 +120,77 @@ const MODP_Group * findGroupParams(int groupID)
 	return nullptr;
 }
 
+#if FLASHCRYPTO_USE_EVP_MAC
+
 class HMACSHA256_Context_OpenSSL : public HMACSHA256_Context {
 public:
-	HMACSHA256_Context_OpenSSL() : m_ctx(nullptr), m_keyLen(0), m_dirty(false)
-	{ }
+	~HMACSHA256_Context_OpenSSL()
+	{
+		if(m_ctx)
+			EVP_MAC_CTX_free(m_ctx);
+		m_ctx = nullptr;
+		if(m_mac)
+			EVP_MAC_free(m_mac);
+		m_mac = nullptr;
+		memset(m_key.data(), 0x00, m_key.size());
+		memset(m_key.data(), 0xff, m_key.size());
+	}
 
+	bool init(const void *key_, size_t len) override
+	{
+		if(m_mac or m_ctx)
+			return false;
+
+		m_mac = EVP_MAC_fetch(NULL, OSSL_MAC_NAME_HMAC, NULL);
+		if(not m_mac)
+			return false;
+
+		OSSL_PARAM params[2];
+		size_t params_n = 0;
+
+		params[params_n++] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, (char *)"SHA256", 0);
+		params[params_n++] = OSSL_PARAM_construct_end();
+
+		// The documentation for the new EVP_MAC functions suggest that the key can
+		// be re-used (after a re-EVP_MAC_init()), but it doesn't actually work. See
+		// https://github.com/openssl/openssl/issues/17811 and (older)
+		// https://github.com/openssl/openssl/issues/11007 .
+		// So instead we have to remember the key and set it on every use,
+		// which is more computationally expensive (requires an extra SHA256 per).
+		const uint8_t *key = (const uint8_t *)key_;
+		m_key = Bytes(key, key + len);
+
+		m_ctx = EVP_MAC_CTX_new(m_mac);
+		if((not m_ctx) or not EVP_MAC_init(m_ctx, NULL, 0, params))
+			return false;
+
+		return true;
+	}
+
+	bool compute(void *md, const void *msg, size_t len) override
+	{
+		if(not EVP_MAC_init(m_ctx, m_key.data(), m_key.size(), NULL))
+			return false;
+
+		size_t outsize = 32;
+		if( (not EVP_MAC_update(m_ctx, (const unsigned char *)msg, len))
+		 or (not EVP_MAC_final(m_ctx, (unsigned char *)md, &outsize, outsize))
+		)
+			return false;
+
+		return true;
+	}
+
+protected:
+	EVP_MAC     *m_mac { nullptr };
+	EVP_MAC_CTX *m_ctx { nullptr };
+	Bytes        m_key;
+};
+
+#else
+
+class HMACSHA256_Context_OpenSSL : public HMACSHA256_Context {
+public:
 	~HMACSHA256_Context_OpenSSL()
 	{
 		if(m_ctx)
@@ -148,10 +228,12 @@ public:
 	}
 
 protected:
-	HMAC_CTX *m_ctx;
-	size_t    m_keyLen;
-	bool      m_dirty;
+	HMAC_CTX *m_ctx { nullptr };
+	size_t    m_keyLen { 0 };
+	bool      m_dirty { false };
 };
+
+#endif
 
 class AES_Context_OpenSSL : public AES_Context {
 public:
