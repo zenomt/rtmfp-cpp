@@ -863,15 +863,49 @@ protected:
 			m_outgoing = share_ref(new RTMPConnection(false), false);
 	}
 
+	void printMessage(const char *direction, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
+	{
+		if(verbose > 1)
+		{
+			printf("%s onmessage streamID:%u, messageType:%u, ts:%u, len:%lu\n", direction, streamID, messageType, timestamp, (unsigned long)len);
+
+			if(0 == len)
+				return;
+
+			const char *messageTypeDesc = nullptr;
+			switch(messageType)
+			{
+			case TCMSG_COMMAND: messageTypeDesc = "TCMSG_COMMAND"; break;
+			case TCMSG_COMMAND_EX: messageTypeDesc = "TCMSG_COMMAND_EX"; break;
+			case TCMSG_DATA: messageTypeDesc = "TCMSG_DATA"; break;
+			case TCMSG_DATA_EX: messageTypeDesc = "TCMSG_DATA_EX"; break;
+
+			default: return;
+			}
+
+			const uint8_t *cursor = payload;
+			const uint8_t *limit = cursor + len;
+
+			if(((TCMSG_COMMAND_EX == messageType) or (TCMSG_DATA_EX == messageType)) and (0 != *cursor++)) // _EX has a format id and only format 0 is defined
+				return;
+
+			std::vector<std::shared_ptr<AMF0>> args;
+			AMF0::decode(cursor, limit, args, true);
+			printf("%s %s\n", direction, messageTypeDesc);
+			for(auto it = args.begin(); it != args.end(); it++)
+				printf("  %s\n", (*it)->repr().c_str());
+		}
+	}
+
 	void wireConnections()
 	{
 		m_incoming->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
-			if(verbose > 1) printf("incoming onmessage streamID:%u, messageType:%u, ts:%u, len:%lu\n", streamID, messageType, timestamp, (unsigned long)len);
+			printMessage("upstream", streamID, messageType, timestamp, payload, len);
 			m_outgoing->write(streamID, messageType, timestamp, payload, len);
 		};
 
 		m_outgoing->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
-			if(verbose > 1) printf("outgoing onmessage streamID:%u, messageType:%u, ts:%u, len:%lu\n", streamID, messageType, timestamp, (unsigned long)len);
+			printMessage("downstream", streamID, messageType, timestamp, payload, len);
 			m_incoming->write(streamID, messageType, timestamp, payload, len);
 		};
 
