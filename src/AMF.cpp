@@ -24,6 +24,7 @@ std::shared_ptr<AMF0Null> AMF0::Null() { return share_ref(new AMF0Null(), false)
 std::shared_ptr<AMF0Undefined> AMF0::Undefined() { return share_ref(new AMF0Undefined(), false); }
 std::shared_ptr<AMF0Object> AMF0::Object() { return share_ref(new AMF0Object(), false); }
 std::shared_ptr<AMF0TypedObject> AMF0::TypedObject(const char *class_name) { return share_ref(new AMF0TypedObject(class_name), false); }
+std::shared_ptr<AMF0ECMAArray> AMF0::ECMAArray() { return share_ref(new AMF0ECMAArray(), false); }
 std::shared_ptr<AMF0Array> AMF0::Array() { return share_ref(new AMF0Array(), false); }
 
 bool AMF0::isNumber() const { return false; }
@@ -76,7 +77,7 @@ bool AMF0::isTypedObject() const { return false; }
 AMF0TypedObject *AMF0::asTypedObject() { return nullptr; }
 AMF0TypedObject *AMF0::asTypedObject(AMF0 *amf) { return amf ? amf->asTypedObject() : nullptr; }
 
-bool AMF0::decode(const uint8_t *cursor_, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst)
+bool AMF0::decode(const uint8_t *cursor_, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst, bool bestEffort)
 {
 	const uint8_t *cursor = cursor_;
 	size_t original_size = dst.size();
@@ -86,8 +87,9 @@ bool AMF0::decode(const uint8_t *cursor_, const uint8_t *limit, std::vector<std:
 		auto each = decode(&cursor, limit);
 		if(not each)
 		{
-			dst.resize(original_size);
-			return false;
+			if(not bestEffort)
+				dst.resize(original_size);
+			return bestEffort;
 		}
 		dst.push_back(each);
 	}
@@ -144,7 +146,8 @@ std::shared_ptr<AMF0> AMF0::decode(const uint8_t **cursor_ptr, const uint8_t *li
 			break;
 
 		case AMF0_ECMAARRAY_MARKER:
-			break; // no reason for these
+			rv = ECMAArray();
+			break;
 
 		case AMF0_STRICT_ARRAY_MARKER:
 			rv = Array();
@@ -357,7 +360,9 @@ AMF0Object * AMF0Object::putValueAtKey(const std::shared_ptr<AMF0> &value, const
 
 AMF0Object * AMF0Object::putValueAtKey(const std::shared_ptr<AMF0> &value, const std::string &key)
 {
-	m_members[key] = value;
+	if(key.size() < 65536)
+		m_members[key] = value;
+
 	return this;
 }
 
@@ -440,19 +445,15 @@ void AMF0Object::encodeMembers(Bytes &dst) const
 {
 	for(auto it = begin(); it != end(); it++)
 	{
-		size_t keyLength = it->first.size();
-		if(keyLength < 65536)
-		{
-			dst.push_back((keyLength >> 8) & 0xff);
-			dst.push_back((keyLength     ) & 0xff);
-			dst.insert(dst.end(), it->first.begin(), it->first.end());
+		size_t keyLength = it->first.size(); // safe, no long keys are ever inserted
+		dst.push_back((keyLength >> 8) & 0xff);
+		dst.push_back((keyLength     ) & 0xff);
+		dst.insert(dst.end(), it->first.begin(), it->first.end());
 
-			if(it->second)
-				it->second->encode(dst);
-			else
-				dst.push_back(AMF0_UNDEFINED_MARKER);
-		}
-		// else skip
+		if(it->second)
+			it->second->encode(dst);
+		else
+			dst.push_back(AMF0_UNDEFINED_MARKER);
 	}
 	dst.push_back(0);
 	dst.push_back(0);
@@ -524,6 +525,78 @@ void AMF0TypedObject::encode(Bytes &dst) const
 bool AMF0TypedObject::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth)
 {
 	return AMF0String::decodeString(false, cursor_ptr, limit, m_class_name) and AMF0Object::setFromEncoding(typeMarker, cursor_ptr, limit, depth);
+}
+
+// --- AMF0ECMAArray
+
+AMF0::Type AMF0ECMAArray::getType() const { return AMF0_ECMAARRAY; }
+bool AMF0ECMAArray::isECMAArray() const { return true; }
+AMF0ECMAArray *AMF0ECMAArray::asECMAArray() { return this; }
+
+void AMF0ECMAArray::encode(Bytes &dst) const
+{
+	size_t numElements = size();
+	if(numElements > (size_t)UINT32_MAX)
+		numElements = UINT32_MAX;
+
+	dst.push_back(AMF0_ECMAARRAY_MARKER);
+	dst.push_back((numElements >> 24) & 0xff);
+	dst.push_back((numElements >> 16) & 0xff);
+	dst.push_back((numElements >>  8) & 0xff);
+	dst.push_back((numElements      ) & 0xff);
+
+	for(auto it = begin(); it != end(); it++)
+	{
+		if(0 == numElements--)
+			break; // that's all we could fit
+
+		size_t keyLength = it->first.size(); // safe, no long keys are ever inserted
+		dst.push_back((keyLength >> 8) & 0xff);
+		dst.push_back((keyLength     ) & 0xff);
+		dst.insert(dst.end(), it->first.begin(), it->first.end());
+
+		if(it->second)
+			it->second->encode(dst);
+		else
+			dst.push_back(AMF0_UNDEFINED_MARKER);
+	}
+}
+
+bool AMF0ECMAArray::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth)
+{
+	const uint8_t *cursor = *cursor_ptr;
+
+	if(limit - cursor < 4)
+		return false;
+
+	size_t numElements = *cursor++;
+	numElements <<= 8; numElements += *cursor++;
+	numElements <<= 8; numElements += *cursor++;
+	numElements <<= 8; numElements += *cursor++;
+
+	while(numElements--)
+	{
+		if(limit - cursor < 3)
+			return false;
+
+		size_t keyLength = *cursor++;
+		keyLength <<= 8; keyLength += *cursor++;
+
+		if((size_t)(limit - cursor) < keyLength)
+			return false;
+
+		std::string key((const char *)cursor, keyLength);
+		cursor += keyLength;
+
+		auto value = decode(&cursor, limit, depth + 1);
+		if(not value)
+			return false;
+
+		putValueAtKey(value, key);
+	}
+
+	*cursor_ptr = cursor;
+	return true;
 }
 
 // --- AMF0Null

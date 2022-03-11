@@ -57,6 +57,7 @@ public:
 	static std::shared_ptr<AMF0Undefined> Undefined();
 	static std::shared_ptr<AMF0Object> Object();
 	static std::shared_ptr<AMF0TypedObject> TypedObject(const char *class_name);
+	static std::shared_ptr<AMF0ECMAArray> ECMAArray();
 	static std::shared_ptr<AMF0Array> Array();
 
 	virtual Type getType() const = 0;
@@ -111,7 +112,7 @@ public:
 	virtual AMF0TypedObject *asTypedObject();
 	static  AMF0TypedObject *asTypedObject(AMF0 *amf);
 
-	static bool decode(const uint8_t *cursor, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst);
+	static bool decode(const uint8_t *cursor, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst, bool bestEffort = false);
 	static std::shared_ptr<AMF0> decode(const uint8_t **cursor_ptr, const uint8_t *limit);
 
 	static Bytes encode(const AMF0 *v);
@@ -264,6 +265,20 @@ protected:
 	bool setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth) override;
 
 	std::string m_class_name;
+};
+
+class AMF0ECMAArray : public AMF0Object {
+public:
+	AMF0ECMAArray() = default;
+
+	Type getType() const override;
+	bool isECMAArray() const override;
+	AMF0ECMAArray *asECMAArray() override;
+
+	void encode(Bytes &dst) const override;
+
+protected:
+	bool setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth) override;
 };
 
 class AMF0Null : public AMF0 {

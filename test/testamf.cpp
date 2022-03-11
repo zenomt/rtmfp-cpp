@@ -24,6 +24,7 @@ int main(int argc, char **argv)
 	auto amf_obj = AMF0::Object();
 	auto amf_typed_obj = AMF0::TypedObject("typed");
 	auto amf_array = AMF0::Array();
+	auto amf_ecmaarray = AMF0::ECMAArray();
 
 	amf_obj->putValueAtKey(str, "str")->putValueAtKey(boolean, "bool")->putValueAtKey(number, "num");
 
@@ -50,6 +51,10 @@ int main(int argc, char **argv)
 		->appendValue(AMF0::Null())
 		;
 
+	amf_ecmaarray->putValueAtKey(str, "str")
+		->putValueAtKey(number, "number 3")
+		->putValueAtKey(AMF0::ECMAArray(), "empty ecma array");
+
 	_print(number);
 	number->encode(dst);
 
@@ -75,6 +80,9 @@ int main(int argc, char **argv)
 
 	_print(amf_array);
 	amf_array->encode(dst);
+
+	_print(amf_ecmaarray);
+	amf_ecmaarray->encode(dst);
 
 	Hex::print("encoding", dst);
 
