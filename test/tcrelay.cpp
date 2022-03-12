@@ -890,7 +890,7 @@ protected:
 				return;
 
 			std::vector<std::shared_ptr<AMF0>> args;
-			AMF0::decode(cursor, limit, args, true);
+			AMF0::decode(cursor, limit, args);
 			printf("%s %s\n", direction, messageTypeDesc);
 			for(auto it = args.begin(); it != args.end(); it++)
 				printf("  %s\n", (*it)->repr().c_str());

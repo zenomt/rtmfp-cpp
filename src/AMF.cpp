@@ -77,20 +77,15 @@ bool AMF0::isTypedObject() const { return false; }
 AMF0TypedObject *AMF0::asTypedObject() { return nullptr; }
 AMF0TypedObject *AMF0::asTypedObject(AMF0 *amf) { return amf ? amf->asTypedObject() : nullptr; }
 
-bool AMF0::decode(const uint8_t *cursor_, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst, bool bestEffort)
+bool AMF0::decode(const uint8_t *cursor_, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst)
 {
 	const uint8_t *cursor = cursor_;
-	size_t original_size = dst.size();
 
 	while(cursor < limit)
 	{
 		auto each = decode(&cursor, limit);
 		if(not each)
-		{
-			if(not bestEffort)
-				dst.resize(original_size);
-			return bestEffort;
-		}
+			return false;
 		dst.push_back(each);
 	}
 

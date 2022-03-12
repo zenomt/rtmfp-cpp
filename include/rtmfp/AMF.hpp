@@ -112,7 +112,7 @@ public:
 	virtual AMF0TypedObject *asTypedObject();
 	static  AMF0TypedObject *asTypedObject(AMF0 *amf);
 
-	static bool decode(const uint8_t *cursor, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst, bool bestEffort = false);
+	static bool decode(const uint8_t *cursor, const uint8_t *limit, std::vector<std::shared_ptr<AMF0>> &dst);
 	static std::shared_ptr<AMF0> decode(const uint8_t **cursor_ptr, const uint8_t *limit);
 
 	static Bytes encode(const AMF0 *v);
