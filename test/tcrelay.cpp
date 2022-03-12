@@ -767,7 +767,7 @@ protected:
 
 	void openConnection()
 	{
-		m_controlSend = m_rtmfp->openFlow(m_crypto.makeEPD(nullptr, "rtmfp:", nullptr), TCMetadata::encode(0, RO_SEQUENCE), PRI_IMMEDIATE);
+		m_controlSend = m_rtmfp->openFlow(m_crypto.makeEPD(nullptr, rtmfpUri, nullptr), TCMetadata::encode(0, RO_SEQUENCE), PRI_IMMEDIATE);
 		wireControlSend();
 
 		m_platform.addUdpInterface(0, AF_INET);
