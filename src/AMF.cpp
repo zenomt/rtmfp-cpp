@@ -583,6 +583,12 @@ bool AMF0ECMAArray::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_p
 		std::string key((const char *)cursor, keyLength);
 		cursor += keyLength;
 
+		if((cursor < limit) and (AMF0_OBJECT_END_MARKER == *cursor) and (0 == key.size()))
+		{
+			cursor++;
+			continue;
+		}
+
 		auto value = decode(&cursor, limit, depth + 1);
 		if(not value)
 			return false;
