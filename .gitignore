@@ -26,3 +26,4 @@ test/tcrelay
 test/testreorder
 test/testmedia
 test/redirector
+test/tcserver

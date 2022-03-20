@@ -1205,7 +1205,7 @@ struct InitiatorState {
 		m_cryptoCert(cryptoCert),
 		m_cookie(cookie, cookie + cookieLen),
 		m_interfaceID(interfaceID),
-		m_addr(addr)
+		m_addr(addr, Address::ORIGIN_OBSERVED)
 	{}
 
 	unsigned long m_threadNum;
