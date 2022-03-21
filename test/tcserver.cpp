@@ -1,6 +1,14 @@
 // Copyright © 2022 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+// TC Server, a simple live media server for RTMFP/RTMP “Tin-Can” clients.
+// See the help message and tcserver.md for more information.
+
+// TODO: app and client constraints
+// TODO: releaseStream
+// TODO: epoll RunLoop for Linux
+// TODO: stats
+
 #include <cassert>
 #include <cerrno>
 #include <csignal>

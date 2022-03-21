@@ -13,7 +13,8 @@ the necessary helpers and callback hooks to support P2P introduction and load
 balancing.
 
 The [`test`](test/) directory includes unit tests and examples. Of special
-note is [`tcrelay`](test/tcrelay.cpp), an RTMFP ↔︎ RTMP relay/proxy, and
+note are [`tcserver`](test/tcserver.md), a simple RTMFP and RTMP live media
+server; [`tcrelay`](test/tcrelay.cpp), an RTMFP ↔︎ RTMP relay/proxy; and
 [`redirector`](test/redirector.cpp), a simple load balancer.
 
 How to Use
