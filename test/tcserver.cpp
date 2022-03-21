@@ -578,7 +578,7 @@ protected:
 
 		Bytes nearNonce = getNearNonce();
 
-		for(int x = 0; x < secrets.size(); x++)
+		for(size_t x = 0; x < secrets.size(); x++)
 		{
 			std::string expectedAuth = hexHMACSHA256(secrets[x], m_appName);
 			if(expectedAuth == authToken)
