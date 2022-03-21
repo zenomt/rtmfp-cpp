@@ -1,9 +1,10 @@
 # TC Server
 
-This is a simple live media server for “TC” (RTMFP/RTMP “_Tin-Can_”) clients.
-It accepts RFC 7425 RTMFP as well as RTMP (TCP) connections. It can be
-configured to use a simplified dialect of RTMP for compatibility with some
-buggy clients.
+[This](tcserver.cpp) is a simple live media server for [“TC” (RTMFP/RTMP
+“_Tin-Can_”)](https://www.rfc-editor.org/rfc/rfc7425.html#section-5.1.1)
+clients. It accepts RFC 7425 RTMFP as well as RTMP (TCP)
+connections. It can be configured to use a simplified dialect of RTMP if
+needed for compatibility with some buggy clients.
 
 Currently RTMPS is not directly supported; instead use a TLS reverse-proxy
 such as _nginx_ to terminate RTMPS. Note however that real-time treatment of
@@ -31,9 +32,9 @@ streams published in the same App at once.
 One or more _authentication master keys_ can be set with the `-k` and `-K`
 command-line options. If at least one key is set, then an _authentication
 token_ is required to connect. An authentication token is the HMAC-SHA-256
-hash (expressed in lower-case hexadecimal) of the App name with an authentication
-master key. For example, for the App named `live/12345` and authentication
-master key `supersecret`, the authentication token would be
+keyed hash (expressed in lower-case hexadecimal) of the App name with an
+authentication master key. For example, for the App named `live/12345` and
+authentication master key `supersecret`, the authentication token would be
 
     HMAC-SHA-256(k="supersecret", m="live/12345")
     df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
@@ -69,10 +70,10 @@ two mitigations are available:
    the server’s fingerprint to ensure the connection is not intercepted. When
    run in this mode, the server prints its fingerprint on startup.
 
-2. RTMFP clients can prove posession of the authentication token to the server
+2. RTMFP clients can prove possession of the authentication token to the server
    without disclosing it by further hashing it with HMAC-SHA-256 using the
-   server's (binary) session nonce as the HMAC key. For example, for a plain
-   authentication token of
+   [server's (binary) session nonce](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.6.5)
+   as the HMAC key. For example, for a plain authentication token of
    `df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786` and
    server nonce (that is, the “far nonce” at the client on its RTMFP connection
    to the server) of
@@ -137,7 +138,7 @@ either of the following stream names:
 When subscribing to a stream that has already been published, the server will
 send the most recently received video keyframe, if available, along with video
 and audio configuration information and all data keyframes, to the new
-subscriber.  This provides an immediate start but may show a garbled picture
+subscriber. This provides an immediate start but may show a garbled picture
 until the next keyframe, depending on the video codec being used and the
 amount of motion.
 
