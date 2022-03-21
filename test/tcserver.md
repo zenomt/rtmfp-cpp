@@ -64,11 +64,16 @@ infrastructure (PKI), so connections are potentially vulnerable to man-in-the-mi
 (MITM) attacks. To prevent disclosure of the authentication token to a MITM,
 two mitigations are available:
 
-1. The server can be run in “Static Diffie-Hellman Keys” mode with the `-x`
-   command-line option, such that the server has an unforgeable RFC 7425
-   fingerprint. Clients can connect using an endpoint discriminator specifying
-   the server’s fingerprint to ensure the connection is not intercepted. When
-   run in this mode, the server prints its fingerprint on startup.
+1. The server can be run in
+   “[Static Diffie-Hellman Keys](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.3.3.5)”
+   mode with the `-x` command-line option, such that the server has an
+   [unforgeable](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.3.4)
+   [RFC 7425 fingerprint](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.3.2).
+   Clients can connect using an
+   [endpoint discriminator](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.4)
+   [specifying the server’s fingerprint](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.4.2.3)
+   to ensure the connection is not intercepted. When run in this mode, the
+   server prints its fingerprint on startup.
 
 2. RTMFP clients can prove possession of the authentication token to the server
    without disclosing it by further hashing it with HMAC-SHA-256 using the
