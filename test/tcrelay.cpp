@@ -32,6 +32,7 @@ extern "C" {
 #include "rtmfp/FlowSyncManager.hpp"
 #include "rtmfp/ReorderBuffer.hpp"
 #include "rtmfp/RedirectorClient.hpp"
+#include "rtmfp/Hex.hpp"
 
 #include "RTMP.hpp"
 #include "PosixRTMPPlatformAdapter.hpp"
@@ -879,6 +880,10 @@ protected:
 			case TCMSG_COMMAND_EX: messageTypeDesc = "TCMSG_COMMAND_EX"; break;
 			case TCMSG_DATA: messageTypeDesc = "TCMSG_DATA"; break;
 			case TCMSG_DATA_EX: messageTypeDesc = "TCMSG_DATA_EX"; break;
+
+			case TCMSG_USER_CONTROL:
+				Hex::print("TCMSG_USER_CONTROL", payload, len);
+				return;
 
 			default: return;
 			}
