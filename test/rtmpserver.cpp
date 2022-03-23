@@ -72,7 +72,6 @@ std::shared_ptr<Client> Client::newClient(RunLoop *rl, int fd)
 		return client;
 	}
 	client->m_rtmp = share_ref(new RTMP(&client->m_adapter), false);
-	client->m_adapter.setRTMP(client->m_rtmp.get());
 	if(not client->m_rtmp->init(true))
 	{
 		client.reset();

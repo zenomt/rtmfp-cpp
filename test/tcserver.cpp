@@ -807,7 +807,7 @@ protected:
 		streamBeginCommand[3] = (netStream->m_streamID >> 16) & 0xff;
 		streamBeginCommand[4] = (netStream->m_streamID >>  8) & 0xff;
 		streamBeginCommand[5] = (netStream->m_streamID      ) & 0xff;
-		write(netStream->m_streamID, TCMSG_USER_CONTROL, 0, streamBeginCommand, sizeof(streamBeginCommand), INFINITY, INFINITY);
+		write(0, TCMSG_USER_CONTROL, 0, streamBeginCommand, sizeof(streamBeginCommand), INFINITY, INFINITY);
 
 		write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 			AMF0::Object()
@@ -1201,7 +1201,6 @@ public:
 	RTMPClient(bool simple) : m_adapter(&mainRL)
 	{
 		m_rtmp = share_ref(new RTMP(&m_adapter), false);
-		m_adapter.setRTMP(m_rtmp.get());
 		m_rtmp->init(true);
 
 		if(simple)

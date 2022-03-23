@@ -19,8 +19,7 @@ namespace com { namespace zenomt { namespace rtmp {
 static const size_t INPUT_BUFFER_SIZE = 65536;
 
 PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_lowat, size_t writeSizePerSelect) :
-	m_rtmp(nullptr),
-	m_rtmpOpen(false),
+	m_clientOpen(true),
 	m_shutdown(false),
 	m_runloop(runloop),
 	m_fd(-1),
@@ -77,7 +76,10 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 	fcntl(m_fd, F_SETNOSIGPIPE, 1);
 #endif
 
-	tryRegisterDescriptors();
+	if(m_onreceivebytes)
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+	if(m_onwritable)
+		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
 
 	return true;
 }
@@ -85,18 +87,6 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 int PosixRTMPPlatformAdapter::getSocketFd() const
 {
 	return m_fd;
-}
-
-bool PosixRTMPPlatformAdapter::setRTMP(RTMP *rtmp)
-{
-	if(rtmp and not m_rtmp)
-	{
-		m_rtmp = rtmp;
-		m_rtmpOpen = true;
-		tryRegisterDescriptors();
-		return true;
-	}
-	return false;
 }
 
 Time PosixRTMPPlatformAdapter::getCurrentTime()
@@ -109,6 +99,18 @@ void PosixRTMPPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable
 	m_onwritable = onwritable;
 	if(m_fd >= 0)
 		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
+}
+
+void PosixRTMPPlatformAdapter::setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes)
+{
+	m_onreceivebytes = onreceivebytes;
+	if(m_fd >= 0)
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+}
+
+void PosixRTMPPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstreamdidclose)
+{
+	m_onstreamdidclose = onstreamdidclose;
 }
 
 void PosixRTMPPlatformAdapter::doLater(const Task &task)
@@ -131,28 +133,26 @@ bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
 	return true;
 }
 
-void PosixRTMPPlatformAdapter::onClosed()
+void PosixRTMPPlatformAdapter::onClientClosed()
 {
 	*m_doLaterAllowed = false;
-	m_rtmpOpen = false;
+	m_clientOpen = false;
 	m_onwritable = nullptr;
+	m_onreceivebytes = nullptr;
+	m_onstreamdidclose = nullptr;
 	closeIfDone();
 }
 
 // ---
 
-void PosixRTMPPlatformAdapter::tryRegisterDescriptors()
-{
-	if((m_fd >= 0) and m_rtmp)
-	{
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
-		if(m_onwritable)
-			m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
-	}
-}
-
 void PosixRTMPPlatformAdapter::onInterfaceReadable()
 {
+	if(not m_onreceivebytes)
+	{
+		m_runloop->unregisterDescriptor(m_fd, RunLoop::READABLE);
+		return;
+	}
+
 	ssize_t rv = ::recvfrom(m_fd, m_inputBuffer, INPUT_BUFFER_SIZE, 0, nullptr, nullptr);
 	if(rv <= 0)
 	{
@@ -166,15 +166,18 @@ void PosixRTMPPlatformAdapter::onInterfaceReadable()
 	if(m_shutdown)
 		return; // discard any read data if we're shutting down
 
-	if((not m_rtmpOpen) or not m_rtmp->onReceiveBytes(m_inputBuffer, (size_t)rv))
+	if(not m_clientOpen)
 		goto error;
+
+	if(not m_onreceivebytes(m_inputBuffer, (size_t)rv))
+		m_onreceivebytes = nullptr;
 
 	return;
 
 error:
 	close();
-	if(m_rtmpOpen)
-		m_rtmp->onInterfaceDidClose();
+	if(m_onstreamdidclose)
+		m_onstreamdidclose();
 }
 
 void PosixRTMPPlatformAdapter::onInterfaceWritable()
@@ -202,8 +205,8 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 				return;
 			::perror("sendto");
 			close();
-			if(m_rtmpOpen)
-				m_rtmp->onInterfaceDidClose();
+			if(m_onstreamdidclose)
+				m_onstreamdidclose();
 			return;
 		}
 		else if((size_t)rv < len)
@@ -223,7 +226,7 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 
 void PosixRTMPPlatformAdapter::closeIfDone()
 {
-	if(m_outputBuffer.empty() and (not m_rtmpOpen) and (not m_shutdown) and (m_fd >= 0))
+	if(m_outputBuffer.empty() and (not m_clientOpen) and (not m_shutdown) and (m_fd >= 0))
 	{
 		m_shutdown = true;
 		shutdown(m_fd, SHUT_WR);

@@ -138,6 +138,9 @@ bool RTMP::init(bool isServer)
 	if(not isServer)
 		queueHandshake01();
 
+	m_platform->setOnReceiveBytesCallback([this] (const void *bytes, size_t len) { return onReceiveBytes(bytes, len); });
+	m_platform->setOnStreamDidCloseCallback([this] { onInterfaceDidClose(); });
+
 	return true;
 }
 
@@ -260,7 +263,10 @@ void RTMP::setPaused(bool isPaused)
 bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 {
 	if((RT_UNKNOWN == m_state) or (RT_PROTOCOL_ERROR == m_state))
+	{
+		setClosedState();
 		return false;
+	}
 
 	m_receivedBytes += len;
 
@@ -999,7 +1005,7 @@ void RTMP::setClosedState()
 	{
 		m_state = RT_PROTOCOL_ERROR;
 		trimSendQueues(true);
-		m_platform->onClosed();
+		m_platform->onClientClosed();
 		swap(onerror_f, onerror);
 	}
 	clearCallbacks();

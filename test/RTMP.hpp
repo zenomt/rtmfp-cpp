@@ -58,13 +58,6 @@ public:
 
 	void setPaused(bool isPaused); // suspend processing
 
-	// -- Used by the Platform Adapter
-
-	// Input new bytes to the protocol. Answer true on success, false on error (like protocol error).
-	bool onReceiveBytes(const void *bytes, size_t len);
-
-	void onInterfaceDidClose();
-
 protected:
 	struct Message;
 	static const int NUM_CHUNKSTREAMS = 24; // must be at least NUM_PRIORITIES + 3
@@ -88,6 +81,8 @@ protected:
 		bool   m_busy { false };
 	};
 
+	bool onReceiveBytes(const void *bytes, size_t len);
+	void onInterfaceDidClose();
 	bool writeRawOutputBuffer();
 	size_t queueStartChunk(int chunkStreamID, uint32_t streamID, uint8_t type_, uint32_t timestamp, const uint8_t *payload, size_t len);
 	size_t queueNextChunk(int chunkStreamID, const uint8_t *payload, size_t cursor);
@@ -154,8 +149,15 @@ public:
 
 	virtual Time getCurrentTime() = 0;
 
+	// callback will be called while stream is writable until callback returns false.
 	using onwritable_f = std::function<bool(void)>;
 	virtual void notifyWhenWritable(const onwritable_f &onwritable) = 0;
+
+	// callback will be called when there is new data until callback returns false.
+	using onreceivebytes_f = std::function<bool(const void *bytes, size_t len)>;
+	virtual void setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes) = 0;
+
+	virtual void setOnStreamDidCloseCallback(const Task &onstreamdidclose) = 0;
 
 	// perform a task "later", as long as onClosed() was not called, or
 	// as long as the platform otherwise knows the RTMP is still operating.
@@ -168,7 +170,7 @@ public:
 
 	// Called when the protocol has concluded and has no more data to send, including
 	// on error or flush of all messages.
-	virtual void onClosed() = 0;
+	virtual void onClientClosed() = 0;
 };
 
 } } } // namespace com::zenomt::rtmp

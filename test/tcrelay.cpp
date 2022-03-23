@@ -350,7 +350,6 @@ public:
 	RTMPConnection(bool isServer) : m_adapter(&mainRL), m_connectionOpen(false)
 	{
 		m_rtmp = share_ref(new RTMP(&m_adapter), false);
-		m_adapter.setRTMP(m_rtmp.get());
 		m_rtmp->init(isServer);
 
 		m_rtmp->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
