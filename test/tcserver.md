@@ -10,10 +10,12 @@ Currently RTMPS is not directly supported; instead use a TLS reverse-proxy
 such as _nginx_ to terminate RTMPS. Note however that real-time treatment of
 outbound media will not operate ideally end-to-end in this configuration.
 
-The server accepts traditional TC commands such as `connect`, `setPeerInfo`,
-`createStream`, `deleteStream`, `publish`, `play`, `closeStream`, `pause`,
-`receiveVideo`, and `receiveAudio`. A stream can have any number of “data
-keyframes” controlled by `@setDataFrame` and `@clearDataFrame` _data_ messages.
+The server accepts the traditional TC control commands `connect`, `setPeerInfo`,
+`createStream`, and `deleteStream`, and stream commands `publish`, `play`,
+`closeStream`, `pause`, `receiveVideo`, and `receiveAudio`. A stream can have
+any number of “data keyframes” controlled by `@setDataFrame` and `@clearDataFrame`
+_data_ messages. Additionally, the server accepts `relay` and `broadcast`
+commands, described below.
 
 The server will perform RTMFP P2P introduction to clients that have issued
 at least one `setPeerInfo` command.
@@ -78,23 +80,24 @@ two mitigations are available:
 2. RTMFP clients can prove possession of the authentication token to the server
    without disclosing it by further hashing it with HMAC-SHA-256 using the
    [server's (binary) session nonce](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.6.5)
-   as the HMAC key. For example, for a plain authentication token of
+   as the HMAC key. For example, for a plain authentication token string of
    `df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786` and
-   server nonce (that is, the “far nonce” at the client on its RTMFP connection
-   to the server) of
+   binary server nonce (that is, the “far nonce” at the client on its RTMFP
+   connection to the server) of
    `55e154b9a21eaff92499897b384e2e9314b8c1305a383b66c365eaad3d83f4a0`, the
    client would send
    `a762c38f376a273a583714b342ee700348882476a2350fc4e74b700411246841` as the
    authentication token.
 
-In either case, if the client successfully authenticates to the server, the
+If the client successfully authenticates to the server over RTMFP, the
 server will send an `authToken` to the client in the `connect` response _info
 object_, hashed in the same way but using the client’s session nonce (that
 is, the “near nonce” at the client) as the HMAC key, to prove to the client
 that the server also knows the authentication token without disclosing it in
-the clear. In the second case, this allows the client to know that there is
+the clear. In the second case above, where the client didn’t disclose the plain
+authentication token, this allows the client to know that there is
 no MITM to the server. To continue the above examples, if the client’s near
-nonce (also the server’s far nonce) was
+binary session nonce (also the server’s far nonce) was
 `cbc290212a52dad978da93870e6929a5050d838a18723620b92df9a530535442`, the server
 would reply to the `connect` command with
 
@@ -109,6 +112,13 @@ would reply to the `connect` command with
         "objectEncoding": 0.0,
         "authToken": "bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c"
     }
+
+The authentication token calculator can help you validate your implementation
+using the `-K` option (capital `K` for a binary hex key); for example using
+the values above including the client’s nonce:
+
+    $ ./tcserver -K cbc290212a52dad978da93870e6929a5050d838a18723620b92df9a530535442 df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
+    ,auth,bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c,df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
 
 ## Streaming
 
