@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "PosixRTMPPlatformAdapter.hpp"
+#include "PosixStreamPlatformAdapter.hpp"
 
 namespace com { namespace zenomt { namespace rtmp {
 

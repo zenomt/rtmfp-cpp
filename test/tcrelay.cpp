@@ -35,7 +35,7 @@ extern "C" {
 #include "rtmfp/Hex.hpp"
 
 #include "RTMP.hpp"
-#include "PosixRTMPPlatformAdapter.hpp"
+#include "PosixStreamPlatformAdapter.hpp"
 #include "redirectorspec.hpp"
 
 using namespace com::zenomt;

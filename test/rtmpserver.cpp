@@ -11,7 +11,7 @@
 #include "rtmfp/AMF.hpp"
 #include "rtmfp/Address.hpp"
 
-#include "PosixRTMPPlatformAdapter.hpp"
+#include "PosixStreamPlatformAdapter.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmp;
