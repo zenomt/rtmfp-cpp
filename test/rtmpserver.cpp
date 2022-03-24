@@ -12,6 +12,7 @@
 #include "rtmfp/Address.hpp"
 
 #include "PosixStreamPlatformAdapter.hpp"
+#include "RTMP.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmp;
@@ -42,7 +43,7 @@ protected:
 	void onCreateStreamCommand(const Args &args);
 	void onPublishCommand(uint32_t streamID, const Args &args);
 
-	PosixRTMPPlatformAdapter m_adapter;
+	PosixStreamPlatformAdapter m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 	uint32_t m_nextStreamID;
 };

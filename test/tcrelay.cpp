@@ -472,7 +472,7 @@ protected:
 		return m_rtmp->write(pri, streamID, messageType, timestamp, payload, len, startWithin, finishWithin);
 	}
 
-	PosixRTMPPlatformAdapter m_adapter;
+	PosixStreamPlatformAdapter m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 	bool m_connectionOpen;
 };

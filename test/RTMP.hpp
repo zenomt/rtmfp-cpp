@@ -11,9 +11,9 @@
 #include "rtmfp/Priority.hpp"
 #include "rtmfp/WriteReceipt.hpp"
 
-namespace com { namespace zenomt { namespace rtmp {
+#include "IStreamPlatformAdapter.hpp"
 
-class IPlatformAdapter;
+namespace com { namespace zenomt { namespace rtmp {
 
 const size_t DEFAULT_CHUNK_SIZE = 128;
 const int CONTROL_CHUNKSTREAM_ID = 2;
@@ -33,7 +33,7 @@ public:
 	using Bytes = std::vector<uint8_t>;
 	enum State { RT_UNKNOWN, RT_UNINITIALIZED, RT_VERSION_SENT, RT_ACK_SENT, RT_OPEN, RT_CLOSING, RT_PROTOCOL_ERROR };
 
-	RTMP(IPlatformAdapter *platform);
+	RTMP(IStreamPlatformAdapter *platform);
 	bool init(bool isServer); // answer false if already initted or on error, true otherwise
 
 	void   setChunkSize(size_t newSize);
@@ -124,7 +124,7 @@ protected:
 	Bytes m_inputBuffer;
 	Bytes m_rawOutputBuffer;
 
-	IPlatformAdapter *m_platform;
+	IStreamPlatformAdapter *m_platform;
 	State    m_state;
 	bool     m_isServer;
 	bool     m_simpleMode;
@@ -141,36 +141,6 @@ protected:
 	size_t   m_peerBandwidth;
 	uint8_t  m_lastPeerBandwidthType;
 	bool     m_isPaused;
-};
-
-class IPlatformAdapter {
-public:
-	virtual ~IPlatformAdapter() {}
-
-	virtual Time getCurrentTime() = 0;
-
-	// callback will be called while stream is writable until callback returns false.
-	using onwritable_f = std::function<bool(void)>;
-	virtual void notifyWhenWritable(const onwritable_f &onwritable) = 0;
-
-	// callback will be called when there is new data until callback returns false.
-	using onreceivebytes_f = std::function<bool(const void *bytes, size_t len)>;
-	virtual void setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes) = 0;
-
-	virtual void setOnStreamDidCloseCallback(const Task &onstreamdidclose) = 0;
-
-	// perform a task "later", as long as onClosed() was not called, or
-	// as long as the platform otherwise knows the RTMP is still operating.
-	virtual void doLater(const Task &task) = 0;
-
-	// only called (and at most once) from onwritable(). answer true on success,
-	// false on failure (like no longer open). implementation MUST support receiving
-	// (and if necessary buffering) any length of write.
-	virtual bool writeBytes(const void *bytes, size_t len) = 0;
-
-	// Called when the protocol has concluded and has no more data to send, including
-	// on error or flush of all messages.
-	virtual void onClientClosed() = 0;
 };
 
 } } } // namespace com::zenomt::rtmp

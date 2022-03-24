@@ -105,7 +105,7 @@ struct RTMP::Message : public Object {
 
 // --- public methods
 
-RTMP::RTMP(IPlatformAdapter *platform) :
+RTMP::RTMP(IStreamPlatformAdapter *platform) :
 	m_platform(platform),
 	m_state(RT_UNKNOWN),
 	m_isServer(false),

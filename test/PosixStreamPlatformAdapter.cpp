@@ -14,11 +14,11 @@
 
 #include "PosixStreamPlatformAdapter.hpp"
 
-namespace com { namespace zenomt { namespace rtmp {
+namespace com { namespace zenomt {
 
 static const size_t INPUT_BUFFER_SIZE = 65536;
 
-PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_lowat, size_t writeSizePerSelect) :
+PosixStreamPlatformAdapter::PosixStreamPlatformAdapter(RunLoop *runloop, int unsent_lowat, size_t writeSizePerSelect) :
 	m_clientOpen(true),
 	m_shutdown(false),
 	m_runloop(runloop),
@@ -30,7 +30,7 @@ PosixRTMPPlatformAdapter::PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_
 	m_inputBuffer = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
 }
 
-PosixRTMPPlatformAdapter::~PosixRTMPPlatformAdapter()
+PosixStreamPlatformAdapter::~PosixStreamPlatformAdapter()
 {
 	close();
 	if(m_inputBuffer)
@@ -38,7 +38,7 @@ PosixRTMPPlatformAdapter::~PosixRTMPPlatformAdapter()
 	m_inputBuffer = nullptr;
 }
 
-void PosixRTMPPlatformAdapter::close()
+void PosixStreamPlatformAdapter::close()
 {
 	*m_doLaterAllowed = false;
 
@@ -55,7 +55,7 @@ void PosixRTMPPlatformAdapter::close()
 		cb();
 }
 
-bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
+bool PosixStreamPlatformAdapter::setSocketFd(int fd)
 {
 	if(m_fd >= 0)
 		return false;
@@ -84,36 +84,36 @@ bool PosixRTMPPlatformAdapter::setSocketFd(int fd)
 	return true;
 }
 
-int PosixRTMPPlatformAdapter::getSocketFd() const
+int PosixStreamPlatformAdapter::getSocketFd() const
 {
 	return m_fd;
 }
 
-Time PosixRTMPPlatformAdapter::getCurrentTime()
+Time PosixStreamPlatformAdapter::getCurrentTime()
 {
 	return m_runloop->getCurrentTime();
 }
 
-void PosixRTMPPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable)
+void PosixStreamPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable)
 {
 	m_onwritable = onwritable;
 	if(m_fd >= 0)
 		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
 }
 
-void PosixRTMPPlatformAdapter::setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes)
+void PosixStreamPlatformAdapter::setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes)
 {
 	m_onreceivebytes = onreceivebytes;
 	if(m_fd >= 0)
 		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
 }
 
-void PosixRTMPPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstreamdidclose)
+void PosixStreamPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstreamdidclose)
 {
 	m_onstreamdidclose = onstreamdidclose;
 }
 
-void PosixRTMPPlatformAdapter::doLater(const Task &task)
+void PosixStreamPlatformAdapter::doLater(const Task &task)
 {
 	std::shared_ptr<bool> allowed = m_doLaterAllowed;
 	m_runloop->doLater([allowed, task] {
@@ -122,7 +122,7 @@ void PosixRTMPPlatformAdapter::doLater(const Task &task)
 	});
 }
 
-bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
+bool PosixStreamPlatformAdapter::writeBytes(const void *bytes_, size_t len)
 {
 	if(m_fd < 0)
 		return false;
@@ -133,7 +133,7 @@ bool PosixRTMPPlatformAdapter::writeBytes(const void *bytes_, size_t len)
 	return true;
 }
 
-void PosixRTMPPlatformAdapter::onClientClosed()
+void PosixStreamPlatformAdapter::onClientClosed()
 {
 	*m_doLaterAllowed = false;
 	m_clientOpen = false;
@@ -145,7 +145,7 @@ void PosixRTMPPlatformAdapter::onClientClosed()
 
 // ---
 
-void PosixRTMPPlatformAdapter::onInterfaceReadable()
+void PosixStreamPlatformAdapter::onInterfaceReadable()
 {
 	if(not m_onreceivebytes)
 	{
@@ -180,7 +180,7 @@ error:
 		m_onstreamdidclose();
 }
 
-void PosixRTMPPlatformAdapter::onInterfaceWritable()
+void PosixStreamPlatformAdapter::onInterfaceWritable()
 {
 	while(m_onwritable and (m_outputBuffer.size() < m_writeSizePerSelect))
 	{
@@ -224,7 +224,7 @@ void PosixRTMPPlatformAdapter::onInterfaceWritable()
 	closeIfDone();
 }
 
-void PosixRTMPPlatformAdapter::closeIfDone()
+void PosixStreamPlatformAdapter::closeIfDone()
 {
 	if(m_outputBuffer.empty() and (not m_clientOpen) and (not m_shutdown) and (m_fd >= 0))
 	{
@@ -233,4 +233,4 @@ void PosixRTMPPlatformAdapter::closeIfDone()
 	}
 }
 
-} } } // namespace com::zenomt::rtmp
+} } // namespace com::zenomt

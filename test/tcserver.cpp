@@ -1260,7 +1260,7 @@ public:
 	}
 
 protected:
-	PosixRTMPPlatformAdapter m_adapter;
+	PosixStreamPlatformAdapter m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 };
 

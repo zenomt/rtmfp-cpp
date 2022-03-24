@@ -3,15 +3,15 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include "RTMP.hpp"
+#include "IStreamPlatformAdapter.hpp"
 #include "rtmfp/RunLoop.hpp"
 
-namespace com { namespace zenomt { namespace rtmp {
+namespace com { namespace zenomt {
 
-class PosixRTMPPlatformAdapter : public IPlatformAdapter {
+class PosixStreamPlatformAdapter : public IStreamPlatformAdapter {
 public:
-	PosixRTMPPlatformAdapter(RunLoop *runloop, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
-	~PosixRTMPPlatformAdapter();
+	PosixStreamPlatformAdapter(RunLoop *runloop, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
+	~PosixStreamPlatformAdapter();
 
 	void close();
 
@@ -47,4 +47,4 @@ protected:
 	std::shared_ptr<bool> m_doLaterAllowed;
 };
 
-} } } // namespace com::zenomt::rtmp
+} } // namespace com::zenomt
