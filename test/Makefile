@@ -5,7 +5,7 @@ OPENSSL_LIBDIR = -L/usr/local/openssl/lib
 CXXFLAGS = -Os -Wall -pedantic -std=c++11 -I../include
 
 LIBRARY = ../librtmfp.a
-RTMP = RTMP.o PosixRTMPPlatformAdapter.o
+RTMP = RTMP.o PosixStreamPlatformAdapter.o
 
 ifndef WITHOUT_OPENSSL
 FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay tcserver
