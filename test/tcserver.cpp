@@ -962,7 +962,7 @@ public:
 		if(m_controlRecv)
 			m_controlRecv->close(); // needed for AIR compatibility; this is not good, clean close should be on all RecvFlows closing.
 
-		m_netStreamTransportss.clear(); // closes all NetStream SendFlows
+		m_netStreamTransports.clear(); // closes all NetStream SendFlows
 
 		onShutdownComplete();
 	}
@@ -972,7 +972,7 @@ public:
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, (const uint8_t *)payload, len), startWithin, finishWithin);
 
-		auto &stream = m_netStreamTransportss[streamID]; // create on demand
+		auto &stream = m_netStreamTransports[streamID]; // create on demand
 		return stream.write(m_controlRecv, streamID, messageType, timestamp, (const uint8_t *)payload, len, startWithin, finishWithin);
 	}
 
@@ -1100,13 +1100,13 @@ protected:
 		flow->onComplete = [this, flow, reorderBuffer, streamID] (bool error) {
 			if(reorderBuffer)
 				reorderBuffer->flush();
-			m_netStreamTransportss[streamID].m_recvFlows.erase(flow);
+			m_netStreamTransports[streamID].m_recvFlows.erase(flow);
 		};
 
 		setOnMessage(flow, streamID, reorderBuffer);
 
 		flow->accept();
-		m_netStreamTransportss[streamID].m_recvFlows.insert(flow);
+		m_netStreamTransports[streamID].m_recvFlows.insert(flow);
 	}
 
 	void deliverMessage(uint32_t streamID, const uint8_t *bytes, size_t len)
@@ -1174,7 +1174,7 @@ protected:
 	FlowSyncManager m_syncManager;
 	std::shared_ptr<SendFlow> m_controlSend;
 	std::shared_ptr<RecvFlow> m_controlRecv;
-	std::map<uint32_t, NetStreamTransport> m_netStreamTransportss;
+	std::map<uint32_t, NetStreamTransport> m_netStreamTransports;
 	bool m_setPeerInfoReceived { false };
 	std::vector<Address> m_additionalAddresses;
 };

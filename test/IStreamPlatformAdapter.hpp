@@ -3,7 +3,7 @@
 // Copyright © 2022 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include "../include/rtmfp/Timer.hpp"
+#include "rtmfp/Timer.hpp"
 
 namespace com { namespace zenomt {
 
@@ -24,7 +24,7 @@ public:
 	virtual void setOnStreamDidCloseCallback(const Task &onstreamdidclose) = 0;
 
 	// perform a task "later", as long as onClosed() was not called, or
-	// as long as the platform otherwise knows the RTMP is still operating.
+	// as long as the platform otherwise knows the client is still operating.
 	virtual void doLater(const Task &task) = 0;
 
 	// only called (and at most once) from onwritable(). answer true on success,
