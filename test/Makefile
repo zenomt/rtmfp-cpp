@@ -12,7 +12,7 @@ RTWS = RTWebSocket.o SimpleWebSocketMessagePlatformAdapter.o SimpleWebSocket.o
 ifndef WITHOUT_OPENSSL
 FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay tcserver
 RTWS += SimpleWebSocket_OpenSSL.o
-# RTWS_EXAMPLES = testwebsock
+RTWS_EXAMPLES = testwebsock
 endif
 
 TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia
