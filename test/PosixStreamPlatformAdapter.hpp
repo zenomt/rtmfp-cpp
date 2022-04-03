@@ -8,7 +8,7 @@
 
 namespace com { namespace zenomt {
 
-class PosixStreamPlatformAdapter : public IStreamPlatformAdapter {
+class PosixStreamPlatformAdapter : public IStreamPlatformAdapter, public Object {
 public:
 	PosixStreamPlatformAdapter(RunLoop *runloop, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
 	~PosixStreamPlatformAdapter();

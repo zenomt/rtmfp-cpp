@@ -45,7 +45,7 @@ void PosixStreamPlatformAdapter::close()
 	if(m_fd >= 0)
 	{
 		m_runloop->unregisterDescriptor(m_fd);
-		::close(m_fd); // TODO really?
+		::close(m_fd);
 		m_fd = -1;
 	}
 
@@ -76,10 +76,12 @@ bool PosixStreamPlatformAdapter::setSocketFd(int fd)
 	fcntl(m_fd, F_SETNOSIGPIPE, 1);
 #endif
 
+	auto myself = share_ref(this);
+
 	if(m_onreceivebytes)
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
 	if(m_onwritable)
-		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
+		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
 
 	return true;
 }
@@ -96,16 +98,18 @@ Time PosixStreamPlatformAdapter::getCurrentTime()
 
 void PosixStreamPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable)
 {
+	auto myself = share_ref(this);
 	m_onwritable = onwritable;
 	if(m_fd >= 0)
-		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [this] { onInterfaceWritable(); });
+		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
 }
 
 void PosixStreamPlatformAdapter::setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes)
 {
+	auto myself = share_ref(this);
 	m_onreceivebytes = onreceivebytes;
 	if(m_fd >= 0)
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [this] { onInterfaceReadable(); });
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
 }
 
 void PosixStreamPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstreamdidclose)

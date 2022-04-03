@@ -85,7 +85,7 @@ serve as examples of how to write single-threaded and multi-threaded platform
 adapters for your host application.
 
 There is no requirement for *Platform Adapter’s* interfaces to be UDP sockets.
-For example, an *interface* could be a SOCKS proxy, tunnel, or network
+For example, an *interface* could be a SOCKS or TURN proxy, tunnel, or network
 simulator.
 
 #### RunLoop and Performer

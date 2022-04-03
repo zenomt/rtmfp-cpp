@@ -27,3 +27,4 @@ test/testreorder
 test/testmedia
 test/redirector
 test/tcserver
+test/testwebsock

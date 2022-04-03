@@ -1,3 +1,4 @@
+OPENSSL_INCLUDEDIR = -I/usr/local/openssl/include
 OPENSSL_LIBDIR = -L/usr/local/openssl/lib
 
 # CXXFLAGS = -Wall -pedantic -std=c++11 -g -I../include
@@ -6,13 +7,16 @@ CXXFLAGS = -Os -Wall -pedantic -std=c++11 -I../include
 
 LIBRARY = ../librtmfp.a
 RTMP = RTMP.o PosixStreamPlatformAdapter.o
+RTWS = RTWebSocket.o SimpleWebSocketMessagePlatformAdapter.o SimpleWebSocket.o
 
 ifndef WITHOUT_OPENSSL
 FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay tcserver
+RTWS += SimpleWebSocket_OpenSSL.o
+# RTWS_EXAMPLES = testwebsock
 endif
 
 TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia
-EXAMPLES = server testclient t2 rtmpserver $(FC_OPENSSL_EXAMPLES)
+EXAMPLES = server testclient t2 rtmpserver $(FC_OPENSSL_EXAMPLES) $(RTWS_EXAMPLES)
 
 default: all
 test-all: all
@@ -119,6 +123,12 @@ tcserver: tcserver.o $(RTMP) $(LIBRARY)
 redirector: redirector.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
+testwebsock: testwebsock.o PosixStreamPlatformAdapter.o $(RTWS) $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
+SimpleWebSocket_OpenSSL.o: CPPFLAGS += $(OPENSSL_INCLUDEDIR)
 
 # make ci: build all, but only run the automated tests.
 ci: all
