@@ -949,6 +949,7 @@ void RecvFlow::close(uintmax_t reason, const std::string &description)
 
 	Bytes msg;
 	msg.push_back(MSG_FLOW_EXCEPTION);
+	rtmfp::VLU::append(m_flowID, msg);
 	rtmfp::VLU::append(reason, msg);
 	msg.insert(msg.end(), description.begin(), description.end());
 
