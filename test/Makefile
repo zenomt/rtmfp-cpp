@@ -116,7 +116,7 @@ tcrelay: tcrelay.o $(RTMP) $(RTWS) $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
-tcserver: tcserver.o $(RTMP) $(LIBRARY)
+tcserver: tcserver.o $(RTMP) $(RTWS) $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 

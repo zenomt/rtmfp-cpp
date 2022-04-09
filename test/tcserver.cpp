@@ -36,14 +36,20 @@ extern "C" {
 #include "RTMP.hpp"
 #include "PosixStreamPlatformAdapter.hpp"
 #include "redirectorspec.hpp"
+#include "RTWebSocket.hpp"
+#include "SimpleWebSocket.hpp"
+#include "SimpleWebSocketMessagePlatformAdapter.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
 using namespace com::zenomt::rtmp;
+using namespace com::zenomt::websock;
 
 using Args = std::vector<std::shared_ptr<AMF0>>;
 
 namespace {
+
+enum Protocol { PROTO_UNSPEC, PROTO_RTMP, PROTO_RTMP_SIMPLE, PROTO_RTWS, PROTO_RTMFP };
 
 enum {
 	TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT = 3
@@ -75,6 +81,18 @@ FlashCryptoAdapter *flashcrypto = nullptr; // set in main()
 
 class Client;
 std::map<Bytes, std::shared_ptr<Client>> clients;
+
+std::string protocolDescription(Protocol protocol)
+{
+	switch(protocol)
+	{
+	case PROTO_RTMP: return "rtmp";
+	case PROTO_RTMP_SIMPLE: return "rtmp-simple";
+	case PROTO_RTWS: return "rtws";
+	case PROTO_RTMFP: return "rtmfp";
+	default: return "unspecified";
+	}
+}
 
 std::string hexHMACSHA256(const Bytes &key, const std::string &app)
 {
@@ -1264,6 +1282,179 @@ protected:
 	std::shared_ptr<RTMP> m_rtmp;
 };
 
+class RTWebSocketClient : public Client {
+// Almost, but not entirely, just like RTMFPClient.
+public:
+	static void newClient(int fd, const Address &addr)
+	{
+		auto client = share_ref(new RTWebSocketClient(), false);
+
+		client->setRandomConnectionID();
+		client->m_farAddress = addr;
+
+		client->m_platformStream = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
+		client->m_platformStream->onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
+
+		int tos = dscp << 2;
+		setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+		setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
+
+		if(not client->m_platformStream->setSocketFd(fd))
+		{
+			::close(fd);
+			return;
+		}
+
+		client->m_wsMessageAdapter = share_ref(new rtws::SimpleWebSocketMessagePlatformAdapter(client->m_platformStream), false);
+		client->m_websock = share_ref(new SimpleWebSocket_OpenSSL(client->m_platformStream), false);
+		client->m_wsMessageAdapter->init(client->m_websock);
+		client->m_rtws = share_ref(new rtws::RTWebSocket(client->m_wsMessageAdapter), false);
+
+		client->m_wsMessageAdapter->onOpen = [client] { client->m_rtws->init(); };
+		client->m_rtws->onRecvFlow = [client] (std::shared_ptr<rtws::RecvFlow> flow) { client->acceptControlFlow(flow); };
+		client->m_rtws->onError = [client] { client->close(); };
+
+		clients[client->m_connectionID] = client;
+	}
+
+	void close() override
+	{
+		if(not m_open)
+			return;
+
+		Client::close();
+		m_netStreamTransports.clear(); // closes all NetStream flows
+		if(m_rtws)
+			m_rtws->close(); // closes everything
+		if(m_platformStream)
+			m_platformStream->close();
+		onShutdownComplete();
+	}
+
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override
+	{
+		if(0 == streamID)
+			return m_controlSend->write(TCMessage::message(messageType, timestamp, (const uint8_t *)payload, len), startWithin, finishWithin);
+
+		auto &stream = m_netStreamTransports[streamID]; // create on demand
+		return stream.write(m_controlRecv, streamID, messageType, timestamp, (const uint8_t *)payload, len, startWithin, finishWithin);
+	}
+
+protected:
+	struct NetStreamTransport {
+		~NetStreamTransport()
+		{
+			if(m_video) m_video->close();
+			if(m_audio) m_audio->close();
+			if(m_data) m_data->close();
+
+			for(auto it = m_recvFlows.begin(); it != m_recvFlows.end(); it++)
+				(*it)->close();
+		}
+
+		rtws::SendFlow * openFlowForType(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType)
+		{
+			Priority pri = PRI_IMMEDIATE;
+			ReceiveOrder rxIntent = RO_SEQUENCE;
+			std::shared_ptr<rtws::SendFlow> *flowRef = &m_data;
+
+			if(TCMSG_VIDEO == messageType)
+			{
+				flowRef = &m_video;
+				pri = PRI_PRIORITY; // lower than audio/data but still time-critical
+			}
+			else if(TCMSG_AUDIO == messageType)
+				flowRef = &m_audio;
+
+			if(not *flowRef)
+				*flowRef = control->openReturnFlow(TCMetadata::encode(streamID, rxIntent), pri);
+
+			return flowRef->get();
+		}
+
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+		{
+			rtws::SendFlow *flow = openFlowForType(control, streamID, messageType);
+			if(not flow)
+				return nullptr;
+			return flow->write(TCMessage::message(messageType, timestamp, payload, len), startWithin, finishWithin);
+		}
+
+		std::shared_ptr<rtws::SendFlow> m_video;
+		std::shared_ptr<rtws::SendFlow> m_audio;
+		std::shared_ptr<rtws::SendFlow> m_data;
+		std::set<std::shared_ptr<rtws::RecvFlow>> m_recvFlows;
+	};
+
+	void acceptControlFlow(std::shared_ptr<rtws::RecvFlow> flow)
+	{
+		uint32_t streamID = 0;
+		if(m_controlRecv or (not TCMetadata::parse(flow->getMetadata(), &streamID, nullptr)) or (0 != streamID))
+			return;
+
+		m_controlRecv = flow;
+		m_controlSend = m_controlRecv->openReturnFlow(TCMetadata::encode(0, RO_SEQUENCE), PRI_IMMEDIATE);
+		if(not m_controlSend)
+			return;
+
+		m_controlSend->onException = [this] (uintmax_t reason, const std::string &description) { close(); };
+		m_controlSend->onRecvFlow = [this] (std::shared_ptr<rtws::RecvFlow> flow) { acceptOtherFlow(flow); };
+
+		m_controlRecv->onComplete = [this] { close(); };
+		setOnMessage(m_controlRecv, 0);
+
+		m_controlRecv->accept();
+
+		printf("%s,accept-control,rtws,%s\n", m_farAddress.toPresentation().c_str(), Hex::encode(m_connectionID).c_str());
+	}
+
+	void acceptOtherFlow(std::shared_ptr<rtws::RecvFlow> flow)
+	{
+		uint32_t streamID = 0;
+		if(not TCMetadata::parse(flow->getMetadata(), &streamID, nullptr)) // only TC flows for now
+			return;
+
+		if(streamID and not m_netStreams.count(streamID))
+			return; // reject if not for an active stream ID
+
+		flow->setBufferCapacity((1<<24) - 1); // 16MB, big enough for largest TCMessage
+
+		flow->onComplete = [this, flow, streamID] {
+			m_netStreamTransports[streamID].m_recvFlows.erase(flow);
+		};
+
+		setOnMessage(flow, streamID);
+
+		flow->accept();
+		m_netStreamTransports[streamID].m_recvFlows.insert(flow);
+	}
+
+	void setOnMessage(std::shared_ptr<rtws::RecvFlow> flow, uint32_t streamID)
+	{
+		flow->onMessage = [this, streamID] (const uint8_t *bytes, size_t len, uintmax_t messageNumber) {
+			uint32_t syncID = 0;
+			size_t count = 0;
+			if(FlowSyncManager::parse(bytes, len, syncID, count))
+				return; // TODO make a FlowSyncManager for RTWS. don't relay flow sync messages.
+
+			uint8_t messageType = 0;
+			uint32_t timestamp = 0;
+			size_t rv = TCMessage::parseHeader(bytes, bytes + len, &messageType, &timestamp);
+			if(rv)
+				onMessage(streamID, messageType, timestamp, bytes + rv, len - rv);
+		};
+	}
+
+	std::shared_ptr<rtws::SendFlow> m_controlSend;
+	std::shared_ptr<rtws::RecvFlow> m_controlRecv;
+	std::map<uint32_t, NetStreamTransport> m_netStreamTransports;
+
+	std::shared_ptr<rtws::RTWebSocket> m_rtws;
+	std::shared_ptr<SimpleWebSocket> m_websock;
+	std::shared_ptr<rtws::SimpleWebSocketMessagePlatformAdapter> m_wsMessageAdapter;
+	std::shared_ptr<PosixStreamPlatformAdapter> m_platformStream;
+};
+
 // --- App
 
 std::shared_ptr<App> App::getApp(const std::string &name)
@@ -1458,7 +1649,7 @@ void signal_handler(int param)
 	interrupted = true;
 }
 
-bool listenRTMP(const Address &addr, bool simple)
+bool listenTCP(const Address &addr, Protocol protocol)
 {
 	int fd = socket(addr.getFamily(), SOCK_STREAM, IPPROTO_TCP);
 	if(fd < 0)
@@ -1484,7 +1675,7 @@ bool listenRTMP(const Address &addr, bool simple)
 	union Address::in_sockaddr boundAddr;
 	socklen_t addrLen = sizeof(boundAddr);
 	getsockname(fd, &boundAddr.s, &addrLen);
-	printf(",listen,rtmp%s,%s\n", simple ? "-simple" : "", Address(&boundAddr.s).toPresentation().c_str());
+	printf(",listen,%s,%s\n", protocolDescription(protocol).c_str(), Address(&boundAddr.s).toPresentation().c_str());
 
 	if(listen(fd, 5))
 	{
@@ -1492,7 +1683,7 @@ bool listenRTMP(const Address &addr, bool simple)
 		return false;
 	}
 
-	mainRL.registerDescriptor(fd, RunLoop::READABLE, [simple] (RunLoop *sender, int fd, RunLoop::Condition cond) {
+	mainRL.registerDescriptor(fd, RunLoop::READABLE, [protocol] (RunLoop *sender, int fd, RunLoop::Condition cond) {
 		Address::in_sockaddr boundAddr_u;
 		socklen_t addrLen = sizeof(Address::in_sockaddr);
 		int newFd = accept(fd, &boundAddr_u.s, &addrLen);
@@ -1503,8 +1694,26 @@ bool listenRTMP(const Address &addr, bool simple)
 		}
 
 		Address boundAddr(&boundAddr_u.s);
-		printf("%s,accept,rtmp%s\n", boundAddr.toPresentation().c_str(), simple ? "-simple" : "");
-		RTMPClient::newClient(newFd, simple, boundAddr);
+		printf("%s,accept,%s\n", boundAddr.toPresentation().c_str(), protocolDescription(protocol).c_str());
+
+		switch(protocol)
+		{
+		case PROTO_RTMP:
+			RTMPClient::newClient(newFd, false, boundAddr);
+			break;
+
+		case PROTO_RTMP_SIMPLE:
+			RTMPClient::newClient(newFd, true, boundAddr);
+			break;
+
+		case PROTO_RTWS:
+			RTWebSocketClient::newClient(newFd, boundAddr);
+			break;
+
+		default:
+			::close(newFd);
+			break;
+		}
 	});
 
 	return true;
@@ -1556,6 +1765,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -B addr:port  -- listen for rtmfp on UDP addr:port\n");
 	printf("  -b addr:port  -- listen for rtmp on TCP addr:port\n");
 	printf("  -s addr:port  -- listen for rtmp-simple on TCP addr:port\n");
+	printf("  -w addr:port  -- listen for RTWebSocket on TCP addr:port\n");
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
@@ -1586,6 +1796,7 @@ int main(int argc, char **argv)
 	std::vector<Address> rtmfpAddrs;
 	std::vector<Address> rtmpAddrs;
 	std::vector<Address> rtmpSimpleAddrs;
+	std::vector<Address> rtwsAddrs;
 	int ch;
 	bool advertiseReflexive = true;
 	bool ephemeralDH = true;
@@ -1594,7 +1805,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:mk:K:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:mk:K:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1650,6 +1861,10 @@ int main(int argc, char **argv)
 		case 's':
 			if(not appendAddress(optarg, rtmpSimpleAddrs))
 				return usage(argv[0], 1, "(-s) can't parse bind address: ", optarg);
+			break;
+		case 'w':
+			if(not appendAddress(optarg, rtwsAddrs))
+				return usage(argv[0], 1, "(-w) can't parse bind address: ", optarg);
 			break;
 		case 'm':
 			allowMultipleConnections = true;
@@ -1709,7 +1924,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	if(0 == rtmfpAddrs.size() + rtmpAddrs.size() + rtmpSimpleAddrs.size())
+	if(0 == rtmfpAddrs.size() + rtmpAddrs.size() + rtmpSimpleAddrs.size() + rtwsAddrs.size())
 		return usage(argv[0], 1, "specify at least one listen address");
 	if(redirectorSpecs.size() and rtmfpAddrs.empty())
 		return usage(argv[0], 1, "redirectors specified but not listening for rtmfp");
@@ -1777,11 +1992,15 @@ int main(int argc, char **argv)
 	}
 
 	for(auto it = rtmpAddrs.begin(); it != rtmpAddrs.end(); it++)
-		if(not listenRTMP(*it, false))
+		if(not listenTCP(*it, PROTO_RTMP))
 			return 1;
 
 	for(auto it = rtmpSimpleAddrs.begin(); it != rtmpSimpleAddrs.end(); it++)
-		if(not listenRTMP(*it, true))
+		if(not listenTCP(*it, PROTO_RTMP_SIMPLE))
+			return 1;
+
+	for(auto it = rtwsAddrs.begin(); it != rtwsAddrs.end(); it++)
+		if(not listenTCP(*it, PROTO_RTWS))
 			return 1;
 
 	::signal(SIGINT, signal_handler);
