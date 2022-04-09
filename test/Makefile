@@ -112,7 +112,7 @@ rtmpserver: rtmpserver.o $(RTMP) $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+
 
-tcrelay: tcrelay.o $(RTMP) $(LIBRARY)
+tcrelay: tcrelay.o $(RTMP) $(RTWS) $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
