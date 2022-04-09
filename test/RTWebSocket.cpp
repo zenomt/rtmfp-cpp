@@ -1011,7 +1011,7 @@ Bytes RecvFlow::getMetadata() const
 
 std::shared_ptr<SendFlow> RecvFlow::openReturnFlow(const void *metadataBytes, size_t metadataLen, Priority pri)
 {
-	if(m_complete or not isOpen())
+	if(m_complete or not m_open)
 		return nullptr;
 	return m_owner->basicOpenFlow(metadataBytes, metadataLen, pri, &m_flowID);
 }
