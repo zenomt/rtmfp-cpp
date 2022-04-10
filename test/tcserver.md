@@ -1,14 +1,16 @@
 # TC Server
 
-[This](tcserver.cpp) is a simple live media server for [“TC” (RTMFP/RTMP
+[`tcserver`](tcserver.cpp) is a simple live media server for [“TC” (RTMFP/RTMP
 “_Tin-Can_”)](https://www.rfc-editor.org/rfc/rfc7425.html#section-5.1.1)
-clients. It accepts RFC 7425 RTMFP as well as RTMP (TCP)
+clients. It accepts RFC 7425 RTMFP, RTMP (TCP), and RFC 7425 styled
+[RTWebSocket](https://github.com/zenomt/rtwebsocket) (TCP)
 connections. It can be configured to use a simplified dialect of RTMP if
 needed for compatibility with some buggy clients.
 
-Currently RTMPS is not directly supported; instead use a TLS reverse-proxy
-such as _nginx_ to terminate RTMPS. Note however that real-time treatment of
-outbound media will not operate ideally end-to-end in this configuration.
+Currently TLS for RTMPS and Secure WebSockets (WSS) is not directly supported;
+instead use a TLS reverse-proxy such as _nginx_ to terminate TLS connections.
+Note however that real-time treatment of outbound media will not operate
+ideally end-to-end in this configuration.
 
 The server accepts the traditional TC control commands `connect`, `setPeerInfo`,
 `createStream`, and `deleteStream`, and stream commands `publish`, `play`,
@@ -19,6 +21,9 @@ commands, described below.
 
 The server will perform RTMFP P2P introduction to clients that have issued
 at least one `setPeerInfo` command.
+
+RTWebSocket connections use the same message and metadata formats, and flow
+association semantics, as described in RFC 7425 for RTMFP.
 
 ## Apps
 
@@ -58,8 +63,8 @@ command, where the user name would go in a traditional `NetConnection.connect()`
     }
     "df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786"
 
-Note that this token would be in the clear in RTMP connections, so RTMPS is
-recommended to protect the token from disclosure.
+Note that this token would be in the clear in RTMP and RTWebSocket connections,
+so RTMPS or WSS are recommended to protect the token from disclosure.
 
 Note that RFC 7425 RTMFP connections are not authenticated with a public key
 infrastructure (PKI), so connections are potentially vulnerable to man-in-the-middle

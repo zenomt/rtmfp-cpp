@@ -7,12 +7,13 @@ Samples, Examples, and Manual Tests
 These programs all answer brief usage info with the `-h` option. For more information on
 what's going on in each, check the source.
 
-* [`tcserver`](tcserver.cpp): A simple live media server for RTMFP and RTMP. Please
-  see its [documentation](tcserver.md).
-* [`tcrelay`](tcrelay.cpp): A relay/translator/proxy for RTMFP and RTMP. It can also speak a
-  simplified form of RTMP for compatibility with buggy implementations. Video and audio
-  messages will expire after configurable deadlines to help stay live during congestion.
-  Can register with `redirector` for load balancing.
+* [`tcserver`](tcserver.cpp): A simple live media server for RTMFP, RTMP, and
+  [RTWebSocket](https://github.com/zenomt/rtwebsocket). Please see its
+  [documentation](tcserver.md).
+* [`tcrelay`](tcrelay.cpp): A relay/translator/proxy for RTMFP, RTMP, and RTWebSocket.
+  It can also speak a simplified form of RTMP for compatibility with buggy implementations.
+  Video and audio messages will expire after configurable deadlines to help stay live during
+  congestion. Can register with `redirector` for load balancing.
 * [`redirector`](redirector.cpp): A simple load balancer implementing the
   [`http://zenomt.com/ns/rtmfp#redirector`](http://zenomt.com/ns/rtmfp#redirector) protocol.
   Usable as-is or as an example starting point for more sophisticated applications.
