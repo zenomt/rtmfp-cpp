@@ -271,6 +271,14 @@ public:
 			closeStream(it->second);
 		m_netStreams.clear();
 
+		auto myself = share_ref(this);
+		for(auto it = m_watchedBy.begin(); it != m_watchedBy.end(); it++)
+			(*it)->onWatchedClientDidClose(myself);
+		m_watchedBy.clear();
+		for(auto it = m_watching.begin(); it != m_watching.end(); it++)
+			(*it)->onWatchingClientDidClose(myself);
+		m_watching.clear();
+
 		if(m_app)
 			m_app->removeClient(share_ref(this));
 		m_app.reset();
@@ -516,7 +524,7 @@ protected:
 				printf("  %s\n", (*it)->repr().c_str());
 		}
 
-		if( (args.size() < 3)
+		if( (args.size() < 2)
 		 or (not args[0]->isString()) // command name
 		 or (not args[1]->isNumber()) // transaction ID
 		)
@@ -559,6 +567,8 @@ protected:
 			onBroadcastCommand(args);
 		else if(0 == strcmp("setPeerInfo", commandName))
 			onSetPeerInfoCommand(args);
+		else if(0 == strcmp("watch", commandName))
+			onWatchCommand(args);
 		// TODO: releaseStream for preemption/override
 	}
 
@@ -610,6 +620,13 @@ protected:
 
 	void onConnectCommand(const Args &args)
 	{
+		if(args.size() < 3)
+		{
+			printf("%s,error,connect-missing-arg\n", m_farAddress.toPresentation().c_str());
+			close();
+			return;
+		}
+
 		if(m_connecting)
 		{
 			printf("%s,error,connect-after-connect\n", m_farAddress.toPresentation().c_str());
@@ -684,7 +701,7 @@ protected:
 			streamID = (m_nextStreamID++ & UINT32_C(0xffffff));
 		} while((0 == streamID) or m_netStreams.count(streamID));
 
-		m_netStreams[streamID] = share_ref(new NetStream(share_ref(this), streamID));
+		m_netStreams[streamID] = share_ref(new NetStream(share_ref(this), streamID), false);
 
 		printf("%s,createStream,%lu\n", m_farAddress.toPresentation().c_str(), (unsigned long)streamID);
 
@@ -744,6 +761,39 @@ protected:
 
 	virtual void onSetPeerInfoCommand(const Args &args)
 	{
+	}
+
+	void onWatchCommand(const Args &args)
+	{
+		if(args.size() < 4)
+			return; // args[3] is target connectionID in hex
+
+		Bytes target;
+		if((not args[3]->isString()) or not Hex::decode(args[3]->stringValue(), target))
+		{
+			printf("%s,watch,malformed,\n", m_farAddress.toPresentation().c_str());
+			write(0, TCMSG_COMMAND, 0, Message::command("onDisconnected", 0, nullptr, args[3]), INFINITY, INFINITY);
+			return;
+		}
+
+		auto it = clients.find(target);
+		if(it == clients.end())
+		{
+			sendOnDisconnected(target);
+			printf("%s,watch,not-found,\n", m_farAddress.toPresentation().c_str());
+			return;
+		}
+
+		if(it->second.get() == this)
+		{
+			printf("%s,watch,self,\n", m_farAddress.toPresentation().c_str());
+			return;
+		}
+
+		printf("%s,watch,found,%s\n", m_farAddress.toPresentation().c_str(), it->second->m_farAddress.toPresentation().c_str());
+
+		m_watching.insert(it->second);
+		it->second->onWatchRequest(share_ref(this));
 	}
 
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
@@ -912,6 +962,27 @@ protected:
 		m_app->onStreamMessage(netStream->m_hashname, messageType, timestamp, payload, len);
 	}
 
+	void onWatchedClientDidClose(std::shared_ptr<Client> watched)
+	{
+		m_watching.erase(watched);
+		sendOnDisconnected(watched->m_connectionID);
+	}
+
+	void onWatchRequest(std::shared_ptr<Client> watcher)
+	{
+		m_watchedBy.insert(watcher);
+	}
+
+	void onWatchingClientDidClose(std::shared_ptr<Client> watcher)
+	{
+		m_watchedBy.erase(watcher);
+	}
+
+	void sendOnDisconnected(const Bytes &target)
+	{
+		write(0, TCMSG_COMMAND, 0, Message::command("onDisconnected", 0, nullptr, AMF0::String(Hex::encode(target))), INFINITY, INFINITY);
+	}
+
 	uint32_t m_nextStreamID { 1 };
 	bool m_connecting { false };
 	bool m_connected { false };
@@ -922,6 +993,8 @@ protected:
 	Address m_farAddress;
 	std::shared_ptr<App> m_app;
 	std::map<uint32_t, std::shared_ptr<NetStream>> m_netStreams;
+	std::set<std::shared_ptr<Client>> m_watching;
+	std::set<std::shared_ptr<Client>> m_watchedBy;
 };
 
 class RTMFPClient : public Client {

@@ -16,14 +16,14 @@ The server accepts the traditional TC control commands `connect`, `setPeerInfo`,
 `createStream`, and `deleteStream`, and stream commands `publish`, `play`,
 `closeStream`, `pause`, `receiveVideo`, and `receiveAudio`. A stream can have
 any number of “data keyframes” controlled by `@setDataFrame` and `@clearDataFrame`
-_data_ messages. Additionally, the server accepts `relay` and `broadcast`
-commands, described below.
+_data_ messages. Additionally, the server accepts `relay`, `broadcast`, and
+`watch` commands, described below.
 
 The server will perform RTMFP P2P introduction to clients that have issued
 at least one `setPeerInfo` command.
 
 RTWebSocket connections use the same message and metadata formats, and flow
-association semantics, as described in RFC 7425 for RTMFP.
+association semantics, as described in RFC 7425 for RTMFP flows.
 
 ## Apps
 
@@ -220,11 +220,32 @@ ID 0, that looks like (assuming the sender’s connection ID is
 `6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176`):
 
     "onRelay"
-	0.0
+    0.0
     NULL
     "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176"
     "this is a broadcast"
     "foo"
+
+## Watching For Client Disconnections
+
+A client can request to be notified if another client disconnects from the
+server with the `watch` command. The first normal argument (after the unused
+command argument object, which should be AMF0 `NULL`) is the Connection ID
+to watch. For example, to be notified when Connection ID
+`1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637` disconnects:
+
+    "watch"
+    0.0
+    NULL
+    "1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637"
+
+If the requested Connection ID disconnects (or is not currently connected),
+an `onDisconnected` command is sent to the watcher:
+
+    "onDisconnected"
+    0.0
+    NULL
+    "1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637"
 
 ## TODO
 
