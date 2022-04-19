@@ -823,7 +823,7 @@ protected:
 		std::string publishName = args[3]->stringValue();
 		std::string hashname = App::asHashName(publishName);
 
-		printf("%s,releaseStream,%s,%s\n", m_farAddress.toPresentation().c_str(), logEscape(publishName).c_str(), hashname.c_str());
+		printf("%s,releaseStream,%s,%s,%s\n", m_farAddress.toPresentation().c_str(), logEscape(m_appName).c_str(), logEscape(publishName).c_str(), hashname.c_str());
 
 		if((App::isHashName(publishName)) or (0 == publishName.compare(0, 5, "asis:")))
 			return;
