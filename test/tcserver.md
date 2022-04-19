@@ -16,10 +16,10 @@ The server accepts the traditional TC control commands `connect`, `setPeerInfo`,
 `createStream`, and `deleteStream`, and stream commands `publish`, `play`,
 `closeStream`, `pause`, `receiveVideo`, and `receiveAudio`. A stream can have
 any number of “data keyframes” controlled by `@setDataFrame` and `@clearDataFrame`
-_data_ messages. Additionally, the server accepts `relay`, `broadcast`, and
-`watch` commands, described below.
+_data_ messages. Additionally, the server accepts `releaseStream`, `relay`,
+`broadcast`, and `watch` commands, described below.
 
-The server will perform RTMFP P2P introduction to clients that have issued
+The server will perform P2P introduction to RTMFP clients that have issued
 at least one `setPeerInfo` command.
 
 RTWebSocket connections use the same message and metadata formats, and flow
@@ -141,7 +141,8 @@ stream can be shared with clients that should only be able to subscribe, and
 the plain name shared (or generated) only with (or by) clients authorized to
 publish it. For convenience, the hashed name is sent to the publisher in the
 `NetStream.Publish.Start` status event’s _info object_ as the `hashname`
-member.
+member. A `NetStream.Publish.BadName` status event is sent if the stream name
+is unacceptable or if a stream by that name is already being published.
 
 By default, to match the expected behavior of traditional TC servers such as
 Adobe Media Server, timestamps on stream messages are translated so that
@@ -165,6 +166,20 @@ amount of motion.
 Note: some clients (such as Videolan Client “VLC”) have trouble if there are
 discontinuities in a TC stream, which can happen if video or audio frames
 expire and are abandoned before they can be transmitted.
+
+Use the `releaseStream` control command to terminate the publish of a stream
+by another client. You must use the plain (non-hashed) name of the stream,
+just like when publishing. This is usually used when a publisher is stuck or
+has crashed, to allow a new publish to replace the stuck one.
+
+    "releaseStream"
+    0.0
+    NULL
+    "foo"
+
+This command has no effect if the stream is not currently being published. A
+`NetStream.Publish.BadName` stream status event is sent to the publisher, if
+any.
 
 ## Relaying and Broadcasting Messages
 

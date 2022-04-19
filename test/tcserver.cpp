@@ -5,7 +5,6 @@
 // See the help message and tcserver.md for more information.
 
 // TODO: app and client constraints
-// TODO: releaseStream
 // TODO: epoll RunLoop for Linux
 // TODO: stats
 
@@ -161,6 +160,7 @@ struct NetStream : public Object {
 
 struct Stream {
 	bool m_publishing { false };
+	std::shared_ptr<NetStream> m_publisher;
 	std::set<std::shared_ptr<NetStream>> m_subscribers;
 	std::map<std::string, Bytes> m_dataFrames; // Bytes includes callback name
 	Bytes m_videoInit;
@@ -171,6 +171,7 @@ struct Stream {
 	void unpublishClear()
 	{
 		m_publishing = false;
+		m_publisher.reset();
 		m_dataFrames.clear();
 		m_videoInit.clear();
 		m_audioInit.clear();
@@ -216,8 +217,9 @@ public:
 	void subscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
 	void unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
 
-	bool publishStream(const std::string &hashname); // false means stream was already being published
+	bool publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream); // false means stream was already being published
 	void unpublishStream(const std::string &hashname);
+	void releaseStream(const std::string &hashname);
 
 	void onStreamMessage(const std::string &hashname, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len);
 
@@ -444,6 +446,22 @@ public:
 			), INFINITY, INFINITY);
 	}
 
+	void releaseStream(std::shared_ptr<NetStream> netStream)
+	{
+		assert(NetStream::NS_PUBLISHING == netStream->m_state);
+
+		write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
+			AMF0::Object()
+				->putValueAtKey(AMF0::String("error"), "level")
+				->putValueAtKey(AMF0::String("NetStream.Publish.BadName"), "code")
+				->putValueAtKey(AMF0::String("publish terminated by releaseStream"), "description")
+				->putValueAtKey(AMF0::String(netStream->m_name), "detail")
+				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
+			), INFINITY, INFINITY);
+
+		closeStream(netStream);
+	}
+
 	virtual Bytes getNearNonce()
 	{
 		return Bytes();
@@ -569,7 +587,8 @@ protected:
 			onSetPeerInfoCommand(args);
 		else if(0 == strcmp("watch", commandName))
 			onWatchCommand(args);
-		// TODO: releaseStream for preemption/override
+		else if(0 == strcmp("releaseStream", commandName))
+			onReleaseStreamCommand(args);
 	}
 
 	void onStreamCommand(uint32_t streamID, const Args &args)
@@ -796,6 +815,22 @@ protected:
 		it->second->onWatchRequest(share_ref(this));
 	}
 
+	void onReleaseStreamCommand(const Args &args)
+	{
+		if((args.size() < 4) or not args[3]->isString())
+			return;
+
+		std::string publishName = args[3]->stringValue();
+		std::string hashname = App::asHashName(publishName);
+
+		printf("%s,releaseStream,%s,%s\n", m_farAddress.toPresentation().c_str(), logEscape(publishName).c_str(), hashname.c_str());
+
+		if((App::isHashName(publishName)) or (0 == publishName.compare(0, 5, "asis:")))
+			return;
+
+		m_app->releaseStream(hashname);
+	}
+
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
 	{
 		printf("%s,%s,%lu,%s,%s,%s\n", m_farAddress.toPresentation().c_str(), name, (unsigned long)netStream->m_streamID, logEscape(m_appName).c_str(), logEscape(netStream->m_name).c_str(), netStream->m_hashname.c_str());
@@ -813,7 +848,7 @@ protected:
 
 		if( (App::isHashName(publishName))
 		 or (0 == publishName.compare(0, 5, "asis:"))
-		 or (not m_app->publishStream(hashname))
+		 or (not m_app->publishStream(hashname, netStream))
 		)
 		{
 			printf("%s,publish-reject,%lu,%s\n", m_farAddress.toPresentation().c_str(), (unsigned long)netStream->m_streamID, logEscape(publishName).c_str());
@@ -1575,12 +1610,13 @@ void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStre
 	cleanupStream(hashname);
 }
 
-bool App::publishStream(const std::string &hashname)
+bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
 {
 	auto &stream = m_streams[hashname];
 	if(stream.m_publishing)
 		return false;
 	stream.m_publishing = true;
+	stream.m_publisher = netStream;
 
 	for(auto it = stream.m_subscribers.begin(); it != stream.m_subscribers.end(); it++)
 		(*it)->m_owner->sendPublishNotify(*it, stream);
@@ -1597,6 +1633,17 @@ void App::unpublishStream(const std::string &hashname)
 		(*it)->m_owner->sendUnpublishNotify(*it);
 
 	cleanupStream(hashname);
+}
+
+void App::releaseStream(const std::string &hashname)
+{
+	auto it = m_streams.find(hashname);
+	if(it == m_streams.end())
+		return;
+
+	auto &stream = it->second;
+	if(stream.m_publisher)
+		stream.m_publisher->m_owner->releaseStream(stream.m_publisher);
 }
 
 void App::cleanupStream(const std::string &hashname)
