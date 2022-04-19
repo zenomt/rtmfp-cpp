@@ -271,5 +271,4 @@ an `onDisconnected` command is sent to the watcher:
   - max published streams
   - not-before date/time
   - relay and broadcast rate limits
-* `releaseStream` command for override/preemption
 * Stats
