@@ -242,6 +242,7 @@ int main(int argc, char **argv)
 		case 'l':
 			{
 				std::string str = optarg;
+				memset(optarg, '#', strlen(optarg));
 				auto pos = str.find(':');
 				if(std::string::npos == pos)
 				{

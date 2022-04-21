@@ -1991,6 +1991,7 @@ int main(int argc, char **argv)
 			break;
 		case 'k':
 			secrets.push_back(Bytes(optarg, optarg + strlen(optarg)));
+			memset(optarg, '#', strlen(optarg));
 			break;
 		case 'K':
 			{
@@ -1998,6 +1999,7 @@ int main(int argc, char **argv)
 				if(not Hex::decode(optarg, key))
 					return usage(argv[0], 1, "-K can't parse hex key: ", optarg);
 				secrets.push_back(key);
+				memset(optarg, '#', strlen(optarg));
 			}
 			break;
 		case 'L':
@@ -2007,6 +2009,7 @@ int main(int argc, char **argv)
 		case 'l':
 			{
 				std::string str = optarg;
+				memset(optarg, '#', strlen(optarg));
 				auto pos = str.find(":");
 				if(std::string::npos == pos)
 					return usage(argv[0], 1, "unrecognized redirector username:password");
