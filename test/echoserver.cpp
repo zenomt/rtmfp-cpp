@@ -1,6 +1,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 
 #include "rtmfp/SelectRunLoop.hpp"
