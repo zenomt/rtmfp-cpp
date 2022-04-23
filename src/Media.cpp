@@ -56,6 +56,7 @@ void _toNTP4(uint8_t *dst, Time val)
 Media::Media(const Media &other) :
 	streamID(other.streamID),
 	codec(other.codec),
+	mediaType(other.mediaType),
 	trackName(other.trackName),
 	reorderSuggestion(other.reorderSuggestion),
 	m_origin(other.m_origin),
@@ -116,6 +117,10 @@ size_t Media::setFromMetadata(const Bytes &metadata)
 		case OPTION_CODEC:
 			codec = std::string((const char *)value, valueLen);
 			sawCodec = true;
+			break;
+
+		case OPTION_MEDIA_TYPE:
+			mediaType = std::string((const char *)value, valueLen);
 			break;
 
 		case OPTION_TIME_ORIGIN:
@@ -179,6 +184,9 @@ Bytes Media::toMetadata() const
 
 	Option::append(OPTION_STREAM_ID, streamID, rv);
 	Option::append(OPTION_CODEC, codec.data(), codec.size(), rv);
+
+	if(mediaType.size())
+		Option::append(OPTION_MEDIA_TYPE, mediaType.data(), mediaType.size(), rv);
 
 	if(m_origin > 0)
 	{

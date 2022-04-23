@@ -13,7 +13,8 @@ rtmfp:Metadata a rdfs:Class;
 metadata format: 'http://zenomt.com/ns/rtmfp#media' <00> [options...]
   options:
     1d stream id: <vlu> (required)
-    4c codec: <utf-8 ...> (required, usually fourcc, more as needed, see RFC 6381 & https://mp4ra.org/#/codecs)
+    4c codec: <utf-8 ...> (required, usually fourcc+, see RFC 6381 & https://mp4ra.org/#/codecs, WebCodecs registry, etc.)
+    44 media type: <utf-8 ...> (recommended, ex. 'audio', 'video', 'text', 'application', 'message', 'image', ...)
     00 time origin: <128-bit NTPv4 timestamp> (default 0, era must be non-negative)
     01 timescale: <vlu ticks> <vlu per-seconds> (default 1000/1s, both must be nonzero)
     0a receive intent = network arrival order (if not present, intent = original queuing order)
@@ -23,8 +24,11 @@ metadata format: 'http://zenomt.com/ns/rtmfp#media' <00> [options...]
          note: without separate program info, primary/default track is lowest id per A or V type.
          note: changes to a track: keep track id in new flow, use flow sync to order end/begin.
 
-  example: 'http://zenomt.com/ns/rtmfp#media' 00   02 1d 01   05 4c 61 76 63 31   05 01 85 bf 10 01
-    (stream ID 1, codec 'avc1', timescale 90000/1, other params default)
+  example: 'http://zenomt.com/ns/rtmfp#media' 00   02 1d 01   05 4c 61 76 63 31   05 01 85 bf 10 01   06 44 76 69 64 65 6f
+    (stream ID 1, codec 'avc1', timescale 90000/1, type 'video', other params default)
+
+  example: 'http://zenomt.com/ns/rtmfp#media' 00   02 1d 01   0a 4c 50 43 4d 55 2f 38 30 30 30   06 44 61 75 64 69 6f
+    (stream ID 1, codec 'PCMU/8000', type 'audio', other params default ex. timescale 1000/1)
 
 message format:
 

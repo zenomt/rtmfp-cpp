@@ -27,6 +27,7 @@ public:
 
 	uintmax_t   streamID { 0 };
 	std::string codec;
+	std::string mediaType; // "audio", "video", "text", "application", "message", "image", ...
 	std::string trackName;
 	Time        reorderSuggestion { -1.0 }; // < 0 means no suggestion
 
@@ -86,6 +87,7 @@ public:
 	enum {
 		OPTION_STREAM_ID              = 0x1d,
 		OPTION_CODEC                  = 0x4c,
+		OPTION_MEDIA_TYPE             = 0x44,
 		OPTION_TIME_ORIGIN            = 0x00,
 		OPTION_TIMESCALE              = 0x01,
 		OPTION_RECEIVE_INTENT_NETWORK = 0x0a,

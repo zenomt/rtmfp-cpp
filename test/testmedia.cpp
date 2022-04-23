@@ -46,16 +46,19 @@ int main(int argc, char **argv)
 	assert(1 == m2->streamID);
 	assert(0 == m2->getOrigin());
 	assert(0 == m2->codec.compare("avc1"));
+	assert(0 == m2->mediaType.compare(""));
 	assert(m2->getTickDuration() < 1./999.);
 	assert(m2->getTickDuration() > 1./1001.);
 	assert(m2->reorderSuggestion < 0);
 
 	m2->setTimescale(90000, 1);
+	m2->mediaType = "video";
 	auto m3 = Media::fromMetadata(m2->toMetadata());
 	printf("m3 tick duration %.8Lf should be %.8Lf\n", m3->getTickDuration(), Time(1.0/90000.0));
 	Hex::print("m3", m3->toMetadata());
 	assert(m3->getTickDuration() < 1./89999);
 	assert(m3->getTickDuration() > 1./90001);
+	assert(0 == m3->mediaType.compare("video"));
 
 	m3->setOrigin(5000.5);
 	auto m4 = Media::fromMetadata(m3->toMetadata());
