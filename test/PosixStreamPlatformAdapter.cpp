@@ -151,7 +151,7 @@ void PosixStreamPlatformAdapter::onClientClosed()
 
 void PosixStreamPlatformAdapter::onInterfaceReadable()
 {
-	if(not m_onreceivebytes)
+	if(m_clientOpen and not m_onreceivebytes)
 	{
 		m_runloop->unregisterDescriptor(m_fd, RunLoop::READABLE);
 		return;

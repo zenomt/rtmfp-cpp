@@ -265,7 +265,7 @@ bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 	if((RT_UNKNOWN == m_state) or (RT_PROTOCOL_ERROR == m_state))
 	{
 		setClosedState();
-		return false;
+		return true;
 	}
 
 	m_receivedBytes += len;
@@ -287,7 +287,7 @@ bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 		if(consumed < 0)
 		{
 			setClosedState();
-			return false;
+			return true;
 		}
 		if(0 == consumed)
 			break;
