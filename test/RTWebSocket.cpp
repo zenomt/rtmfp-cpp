@@ -762,6 +762,7 @@ bool SendFlow::transmit(int pri)
 	{
 		Bytes msg;
 		msg.push_back(MSG_DATA_ABANDON);
+		rtmfp::VLU::append(m_flowID, msg);
 		if(m_abandonCount > 1)
 			rtmfp::VLU::append(m_abandonCount - 1, msg);
 		m_owner->sendBytes(msg);
