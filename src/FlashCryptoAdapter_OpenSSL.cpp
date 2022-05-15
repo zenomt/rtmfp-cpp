@@ -161,7 +161,7 @@ public:
 		m_key = Bytes(key, key + len);
 
 		m_ctx = EVP_MAC_CTX_new(m_mac);
-		if((not m_ctx) or not EVP_MAC_init(m_ctx, NULL, 0, params))
+		if((not m_ctx) or not EVP_MAC_init(m_ctx, key, len, params))
 			return false;
 
 		return true;
