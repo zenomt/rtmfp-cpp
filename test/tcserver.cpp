@@ -266,7 +266,7 @@ public:
 
 	virtual void close()
 	{
-		printf("%s,close,%s,%s\n", m_farAddress.toPresentation().c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
+		printf("%s,close,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
 		m_open = false;
 
 		for(auto it = m_netStreams.begin(); it != m_netStreams.end(); it++)
@@ -496,7 +496,7 @@ protected:
 	{
 		if(verbose > 1)
 		{
-			printf("%s,debug-stream,streamID,%u,type,%d,timestamp,%u,len,%lu\n", m_farAddress.toPresentation().c_str(), streamID, messageType, timestamp, (unsigned long)len);
+			printf("%s,debug-stream,streamID,%u,type,%d,timestamp,%u,len,%lu\n", m_farAddressStr.c_str(), streamID, messageType, timestamp, (unsigned long)len);
 			fflush(stdout);
 		}
 
@@ -547,7 +547,7 @@ protected:
 		 or (not args[1]->isNumber()) // transaction ID
 		)
 		{
-			printf("%s,error,invalid-command-format\n", m_farAddress.toPresentation().c_str());
+			printf("%s,error,invalid-command-format\n", m_farAddressStr.c_str());
 			close();
 			return;
 		}
@@ -570,7 +570,7 @@ protected:
 
 		if(not m_connected)
 		{
-			printf("%s,error,command-before-connect\n", m_farAddress.toPresentation().c_str());
+			printf("%s,error,command-before-connect\n", m_farAddressStr.c_str());
 			close();
 			return;
 		}
@@ -641,14 +641,14 @@ protected:
 	{
 		if(args.size() < 3)
 		{
-			printf("%s,error,connect-missing-arg\n", m_farAddress.toPresentation().c_str());
+			printf("%s,error,connect-missing-arg\n", m_farAddressStr.c_str());
 			close();
 			return;
 		}
 
 		if(m_connecting)
 		{
-			printf("%s,error,connect-after-connect\n", m_farAddress.toPresentation().c_str());
+			printf("%s,error,connect-after-connect\n", m_farAddressStr.c_str());
 			close();
 			return;
 		}
@@ -665,7 +665,7 @@ protected:
 			matchedKey = validateAuth(args);
 			if(matchedKey < 0)
 			{
-				printf("%s,connect-reject,bad-auth,%s\n", m_farAddress.toPresentation().c_str(), logEscape(m_appName).c_str());
+				printf("%s,connect-reject,bad-auth,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str());
 
 				write(0, TCMSG_COMMAND, 0, Message::command("_error", args[1]->doubleValue(), nullptr,
 					AMF0::Object()
@@ -697,7 +697,7 @@ protected:
 				resultObject->putValueAtKey(AMF0::String(hexHMACSHA256(farNonce, hexHMACSHA256(secrets[matchedKey], m_appName))), "authToken");
 		}
 
-		printf("%s,connect,%s,%s\n", m_farAddress.toPresentation().c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
+		printf("%s,connect,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
 
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, resultObject), INFINITY, INFINITY);
 
@@ -722,7 +722,7 @@ protected:
 
 		m_netStreams[streamID] = share_ref(new NetStream(share_ref(this), streamID), false);
 
-		printf("%s,createStream,%lu\n", m_farAddress.toPresentation().c_str(), (unsigned long)streamID);
+		printf("%s,createStream,%lu\n", m_farAddressStr.c_str(), (unsigned long)streamID);
 
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, AMF0::Number(streamID)), INFINITY, INFINITY);
 	}
@@ -736,7 +736,7 @@ protected:
 		if(it != m_netStreams.end())
 		{
 			closeStream(it->second);
-			printf("%s,deleteStream,%lu\n", m_farAddress.toPresentation().c_str(), (unsigned long)streamID);
+			printf("%s,deleteStream,%lu\n", m_farAddressStr.c_str(), (unsigned long)streamID);
 			m_netStreams.erase(streamID);
 		}
 	}
@@ -752,7 +752,7 @@ protected:
 		auto it = clients.find(dst);
 		if(it == clients.end())
 		{
-			printf("%s,relay,not-found,\n", m_farAddress.toPresentation().c_str());
+			printf("%s,relay,not-found,\n", m_farAddressStr.c_str());
 			return;
 		}
 
@@ -760,7 +760,7 @@ protected:
 		for(size_t x = 4; x < args.size(); x++)
 			args[x]->encode(msg);
 
-		printf("%s,relay,found,%s\n", m_farAddress.toPresentation().c_str(), it->second->m_farAddress.toPresentation().c_str());
+		printf("%s,relay,found,%s\n", m_farAddressStr.c_str(), it->second->m_farAddressStr.c_str());
 
 		it->second->sendRelay(m_connectionID, msg);
 	}
@@ -773,7 +773,7 @@ protected:
 		for(size_t x = 3; x < args.size(); x++)
 			args[x]->encode(msg);
 
-		printf("%s,broadcast,%s\n", m_farAddress.toPresentation().c_str(), logEscape(m_appName).c_str());
+		printf("%s,broadcast,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str());
 
 		m_app->broadcastMessage(m_connectionID, msg);
 	}
@@ -790,7 +790,7 @@ protected:
 		Bytes target;
 		if((not args[3]->isString()) or not Hex::decode(args[3]->stringValue(), target))
 		{
-			printf("%s,watch,malformed,\n", m_farAddress.toPresentation().c_str());
+			printf("%s,watch,malformed,\n", m_farAddressStr.c_str());
 			write(0, TCMSG_COMMAND, 0, Message::command("onDisconnected", 0, nullptr, args[3]), INFINITY, INFINITY);
 			return;
 		}
@@ -799,17 +799,17 @@ protected:
 		if(it == clients.end())
 		{
 			sendOnDisconnected(target);
-			printf("%s,watch,not-found,\n", m_farAddress.toPresentation().c_str());
+			printf("%s,watch,not-found,\n", m_farAddressStr.c_str());
 			return;
 		}
 
 		if(it->second.get() == this)
 		{
-			printf("%s,watch,self,\n", m_farAddress.toPresentation().c_str());
+			printf("%s,watch,self,\n", m_farAddressStr.c_str());
 			return;
 		}
 
-		printf("%s,watch,found,%s\n", m_farAddress.toPresentation().c_str(), it->second->m_farAddress.toPresentation().c_str());
+		printf("%s,watch,found,%s\n", m_farAddressStr.c_str(), it->second->m_farAddressStr.c_str());
 
 		m_watching.insert(it->second);
 		it->second->onWatchRequest(share_ref(this));
@@ -823,7 +823,7 @@ protected:
 		std::string publishName = args[3]->stringValue();
 		std::string hashname = App::asHashName(publishName);
 
-		printf("%s,releaseStream,%s,%s,%s\n", m_farAddress.toPresentation().c_str(), logEscape(m_appName).c_str(), logEscape(publishName).c_str(), hashname.c_str());
+		printf("%s,releaseStream,%s,%s,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str(), logEscape(publishName).c_str(), hashname.c_str());
 
 		if((App::isHashName(publishName)) or (0 == publishName.compare(0, 5, "asis:")))
 			return;
@@ -833,7 +833,7 @@ protected:
 
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
 	{
-		printf("%s,%s,%lu,%s,%s,%s\n", m_farAddress.toPresentation().c_str(), name, (unsigned long)netStream->m_streamID, logEscape(m_appName).c_str(), logEscape(netStream->m_name).c_str(), netStream->m_hashname.c_str());
+		printf("%s,%s,%lu,%s,%s,%s\n", m_farAddressStr.c_str(), name, (unsigned long)netStream->m_streamID, logEscape(m_appName).c_str(), logEscape(netStream->m_name).c_str(), netStream->m_hashname.c_str());
 	}
 
 	void onPublishCommand(std::shared_ptr<NetStream> netStream, const Args &args)
@@ -851,7 +851,7 @@ protected:
 		 or (not m_app->publishStream(hashname, netStream))
 		)
 		{
-			printf("%s,publish-reject,%lu,%s\n", m_farAddress.toPresentation().c_str(), (unsigned long)netStream->m_streamID, logEscape(publishName).c_str());
+			printf("%s,publish-reject,%lu,%s\n", m_farAddressStr.c_str(), (unsigned long)netStream->m_streamID, logEscape(publishName).c_str());
 
 			write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 				AMF0::Object()
@@ -1026,6 +1026,7 @@ protected:
 	std::string m_appName;
 	Bytes m_connectionID;
 	Address m_farAddress;
+	std::string m_farAddressStr;
 	std::shared_ptr<App> m_app;
 	std::map<uint32_t, std::shared_ptr<NetStream>> m_netStreams;
 	std::set<std::shared_ptr<Client>> m_watching;
@@ -1076,7 +1077,7 @@ public:
 
 		m_controlRecv->forwardIHello(epd, epdLen, addr, tag, tagLen);
 
-		if(verbose) printf("%s,rtmfp-intro,%s\n", m_farAddress.toPresentation().c_str(), addr.toPresentation().c_str());
+		if(verbose) printf("%s,rtmfp-intro,%s\n", m_farAddressStr.c_str(), addr.toPresentation().c_str());
 	}
 
 	void close() override
@@ -1163,7 +1164,7 @@ protected:
 		m_setPeerInfoReceived = true;
 		m_additionalAddresses.clear();
 
-		printf("%s,setPeerInfo,rtmfp,%s", m_farAddress.toPresentation().c_str(), Hex::encode(m_connectionID).c_str());
+		printf("%s,setPeerInfo,rtmfp,%s", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str());
 
 		for(size_t x = 3; x < args.size(); x++)
 		{
@@ -1190,6 +1191,7 @@ protected:
 			return false;
 
 		m_farAddress = m_controlRecv->getFarAddress();
+		m_farAddressStr = m_farAddress.toPresentation();
 
 		m_controlSend->onException = [this] (uintmax_t reason) { close(); };
 		m_controlSend->onRecvFlow = [this] (std::shared_ptr<RecvFlow> flow) { acceptOtherFlow(flow); };
@@ -1200,7 +1202,7 @@ protected:
 		m_controlRecv->onFarAddressDidChange = [this] { onFarAddressDidChange(); };
 		setOnMessage(m_controlRecv, 0, nullptr);
 
-		printf("%s,accept,rtmfp\n", m_farAddress.toPresentation().c_str());
+		printf("%s,accept,rtmfp\n", m_farAddressStr.c_str());
 		m_controlRecv->accept();
 
 		return true;
@@ -1294,7 +1296,8 @@ protected:
 	{
 		Address oldAddress = m_farAddress;
 		m_farAddress = m_controlRecv->getFarAddress();
-		printf("%s,address-change,rtmfp,%s\n", oldAddress.toPresentation().c_str(), m_farAddress.toPresentation().c_str());
+		m_farAddressStr = m_farAddress.toPresentation();
+		printf("%s,address-change,rtmfp,%s\n", oldAddress.toPresentation().c_str(), m_farAddressStr.c_str());
 	}
 
 	FlowSyncManager m_syncManager;
@@ -1314,6 +1317,7 @@ public:
 			return;
 
 		client->m_farAddress = addr;
+		client->m_farAddressStr = client->m_farAddress.toPresentation();
 
 		client->m_adapter.onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
 		client->m_rtmp->onmessage = [client] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
@@ -1399,6 +1403,7 @@ public:
 
 		client->setRandomConnectionID();
 		client->m_farAddress = addr;
+		client->m_farAddressStr = client->m_farAddress.toPresentation();
 
 		client->m_platformStream = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
 		client->m_platformStream->onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
@@ -1513,7 +1518,11 @@ protected:
 
 		m_controlRecv->accept();
 
-		printf("%s,accept-control,rtws,%s\n", m_farAddress.toPresentation().c_str(), Hex::encode(m_connectionID).c_str());
+		auto forwardedFor = m_websock->getHeader("x-forwarded-for");
+		if(not forwardedFor.empty())
+			m_farAddressStr = m_farAddress.toPresentation() + ";" + logEscape(forwardedFor);
+
+		printf("%s,accept-control,rtws,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str());
 	}
 
 	void acceptOtherFlow(std::shared_ptr<rtws::RecvFlow> flow)
@@ -1880,8 +1889,8 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	if(msg or arg)
 		printf("\n");
 
-	printf("usage: %s (-B|-b|-s addr:port)... [options] -- server\n", prog);
-	printf("usage: %s (-k|-K key) app...                -- auth token generator\n", prog);
+	printf("usage: %s (-B|-b|-s|-w addr:port)... [options] -- server\n", prog);
+	printf("usage: %s (-k|-K key) app...                   -- auth token generator\n", prog);
 	printf("  -B addr:port  -- listen for rtmfp on UDP addr:port\n");
 	printf("  -b addr:port  -- listen for rtmp on TCP addr:port\n");
 	printf("  -s addr:port  -- listen for rtmp-simple on TCP addr:port\n");
