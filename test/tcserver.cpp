@@ -63,6 +63,7 @@ Time finishByMargin = 0.1;
 Time checkpointLifetime = 4.5;
 Time reorderWindowPeriod = 1.0;
 Time delaycc_delay = INFINITY;
+Time shutdownTimeout = 300.0;
 bool expirePreviousGop = true;
 bool allowMultipleConnections = false;
 bool interrupted = false;
@@ -1778,7 +1779,7 @@ void signal_handler(int param)
 	interrupted = true;
 }
 
-bool listenTCP(const Address &addr, Protocol protocol)
+bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenFds)
 {
 	int fd = socket(addr.getFamily(), SOCK_STREAM, IPPROTO_TCP);
 	if(fd < 0)
@@ -1844,6 +1845,8 @@ bool listenTCP(const Address &addr, Protocol protocol)
 			break;
 		}
 	});
+
+	listenFds.push_back(fd);
 
 	return true;
 }
@@ -2123,22 +2126,24 @@ int main(int argc, char **argv)
 		redirectorClient->connect();
 	}
 
+	std::vector<int> listenFds;
+
 	for(auto it = rtmpAddrs.begin(); it != rtmpAddrs.end(); it++)
-		if(not listenTCP(*it, PROTO_RTMP))
+		if(not listenTCP(*it, PROTO_RTMP, listenFds))
 			return 1;
 
 	for(auto it = rtmpSimpleAddrs.begin(); it != rtmpSimpleAddrs.end(); it++)
-		if(not listenTCP(*it, PROTO_RTMP_SIMPLE))
+		if(not listenTCP(*it, PROTO_RTMP_SIMPLE, listenFds))
 			return 1;
 
 	for(auto it = rtwsAddrs.begin(); it != rtwsAddrs.end(); it++)
-		if(not listenTCP(*it, PROTO_RTWS))
+		if(not listenTCP(*it, PROTO_RTWS, listenFds))
 			return 1;
 
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);
 
-	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete] {
+	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
 		if(interrupted)
 		{
 			interrupted = false;
@@ -2149,11 +2154,21 @@ int main(int argc, char **argv)
 				clients.clear();
 				rtmfpShutdownComplete = true;
 			}
+			else
+				mainRL.scheduleRel(Timer::makeAction([] { interrupted = true; }), shutdownTimeout);
+
 			stopping = true;
 
 			auto safeClients = clients;
 			for(auto it = safeClients.begin(); it != safeClients.end(); it++)
 				it->second->close();
+
+			for(auto it = listenFds.begin(); it != listenFds.end(); it++)
+			{
+				mainRL.unregisterDescriptor(*it);
+				::close(*it);
+			}
+			listenFds.clear();
 
 			rtmfp.shutdown(true);
 			fflush(stdout);
@@ -2163,7 +2178,7 @@ int main(int argc, char **argv)
 			mainRL.stop();
 	};
 
-	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 1);
+	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 2);
 
 	auto workerThread = std::thread([] { workerRL.run(); });
 

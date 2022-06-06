@@ -14,6 +14,9 @@ class SelectRunLoop : public RunLoop {
 public:
 	using RunLoop::RunLoop;
 
+	using RunLoop::registerDescriptor;
+	using RunLoop::unregisterDescriptor;
+
 	void registerDescriptor(int fd, Condition cond, const Action &action) override;
 	void unregisterDescriptor(int fd, Condition cond) override;
 

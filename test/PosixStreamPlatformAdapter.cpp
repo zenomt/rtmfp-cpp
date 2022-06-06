@@ -158,7 +158,9 @@ void PosixStreamPlatformAdapter::onInterfaceReadable()
 	}
 
 	ssize_t rv = ::recvfrom(m_fd, m_inputBuffer, INPUT_BUFFER_SIZE, 0, nullptr, nullptr);
-	if(rv <= 0)
+	if(0 == rv)
+		goto error; // if we select and get 0 from recvfrom, the other side has closed.
+	if(rv < 0)
 	{
 		if((EAGAIN == errno) or (EINTR == errno))
 			return;
