@@ -2143,7 +2143,7 @@ int main(int argc, char **argv)
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);
 
-	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
+	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds, &redirectors] {
 		if(interrupted)
 		{
 			interrupted = false;
@@ -2169,6 +2169,9 @@ int main(int argc, char **argv)
 				::close(*it);
 			}
 			listenFds.clear();
+
+			for(auto it = redirectors.begin(); it != redirectors.end(); it++)
+				(*it)->close();
 
 			rtmfp.shutdown(true);
 			fflush(stdout);
