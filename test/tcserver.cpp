@@ -590,6 +590,8 @@ protected:
 			onWatchCommand(args);
 		else if(0 == strcmp("releaseStream", commandName))
 			onReleaseStreamCommand(args);
+		else
+			onUnknownCommand(args);
 	}
 
 	void onStreamCommand(uint32_t streamID, const Args &args)
@@ -730,6 +732,8 @@ protected:
 
 	void onDeleteStreamCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
+
 		if((args.size() < 4) or (not args[3]->isNumber()))
 			return;
 		uint32_t streamID = (uint32_t)args[3]->doubleValue();
@@ -744,6 +748,8 @@ protected:
 
 	void onRelayCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
+
 		// TODO rate limit
 
 		Bytes dst;
@@ -768,6 +774,8 @@ protected:
 
 	void onBroadcastCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
+
 		// TODO rate limit
 
 		Bytes msg;
@@ -781,10 +789,13 @@ protected:
 
 	virtual void onSetPeerInfoCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
 	}
 
 	void onWatchCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
+
 		if(args.size() < 4)
 			return; // args[3] is target connectionID in hex
 
@@ -818,6 +829,8 @@ protected:
 
 	void onReleaseStreamCommand(const Args &args)
 	{
+		ackCommandTransaction(args);
+
 		if((args.size() < 4) or not args[3]->isString())
 			return;
 
@@ -830,6 +843,26 @@ protected:
 			return;
 
 		m_app->releaseStream(hashname);
+	}
+
+	void ackCommandTransaction(const Args &args)
+	{
+		if(args[1]->doubleValue() > 0.0)
+			write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, AMF0::Undefined()), INFINITY, INFINITY);
+	}
+
+	void onUnknownCommand(const Args &args)
+	{
+		write(0, TCMSG_COMMAND, 0, Message::command(
+			args[1]->doubleValue() > 0.0 ? "_error" : "onStatus",
+			args[1]->doubleValue(),
+			nullptr,
+			AMF0::Object()
+				->putValueAtKey(AMF0::String("error"), "level")
+				->putValueAtKey(AMF0::String("NetConnection.Call.Failed"), "code")
+				->putValueAtKey(AMF0::String("Method not found"), "description")
+				->putValueAtKey(args[0], "detail")
+			), INFINITY, INFINITY);
 	}
 
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
@@ -1162,6 +1195,8 @@ protected:
 
 	void onSetPeerInfoCommand(const Args &args) override
 	{
+		Client::onSetPeerInfoCommand(args);
+
 		m_setPeerInfoReceived = true;
 		m_additionalAddresses.clear();
 

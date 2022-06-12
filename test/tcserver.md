@@ -184,9 +184,11 @@ any.
 ## Relaying and Broadcasting Messages
 
 Each connected client has a _Connection ID_ assigned by the server. For RTMFP
-clients this is typically the client’s Peer ID; for other connections it is
-randomly assigned by the server. The Connection ID is available in the `connect`
-response’s _info object_ as the `connectionID` member.
+clients this is typically the client’s
+[Peer ID](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.3.2);
+for other connections it is randomly assigned by the server. The Connection
+ID is available in the `connect` response’s _info object_ as the `connectionID`
+member.
 
 A client can send a message directly to another client connected to the same
 server (in the same or a different App) using the `relay` command. The first
