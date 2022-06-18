@@ -47,22 +47,25 @@ void FlowSyncManager::reset(uint32_t syncID)
 
 Bytes FlowSyncManager::makeSyncMessage(size_t count)
 {
+	return makeSyncMessage(m_nextSyncID++, count);
+}
+
+Bytes FlowSyncManager::makeSyncMessage(uint32_t syncID, size_t count)
+{
 	Bytes rv = TCMessage::message(TCMSG_USER_CONTROL, 0, nullptr, 0);
 
 	rv.push_back((TC_USERCONTROL_FLOW_SYNC >> 8) & 0xff);
 	rv.push_back((TC_USERCONTROL_FLOW_SYNC     ) & 0xff);
 
-	rv.push_back((m_nextSyncID >> 24) & 0xff);
-	rv.push_back((m_nextSyncID >> 16) & 0xff);
-	rv.push_back((m_nextSyncID >>  8) & 0xff);
-	rv.push_back((m_nextSyncID      ) & 0xff);
+	rv.push_back((syncID >> 24) & 0xff);
+	rv.push_back((syncID >> 16) & 0xff);
+	rv.push_back((syncID >>  8) & 0xff);
+	rv.push_back((syncID      ) & 0xff);
 
 	rv.push_back((count >> 24) & 0xff);
 	rv.push_back((count >> 16) & 0xff);
 	rv.push_back((count >>  8) & 0xff);
 	rv.push_back((count      ) & 0xff);
-
-	m_nextSyncID++;
 
 	return rv;
 }

@@ -437,6 +437,8 @@ public:
 
 	void sendUnpublishNotify(std::shared_ptr<NetStream> netStream)
 	{
+		syncAudioAndData(netStream->m_streamID);
+
 		write(netStream->m_streamID, TCMSG_COMMAND, netStream->m_highestTimestamp, Message::command("onStatus", 0, nullptr,
 			AMF0::Object()
 				->putValueAtKey(AMF0::String("status"), "level")
@@ -445,6 +447,8 @@ public:
 				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
 				->putValueAtKey(AMF0::String("being published"), "description")
 			), INFINITY, INFINITY);
+
+		syncAudioAndData(netStream->m_streamID);
 	}
 
 	void releaseStream(std::shared_ptr<NetStream> netStream)
@@ -1052,6 +1056,10 @@ protected:
 		write(0, TCMSG_COMMAND, 0, Message::command("onDisconnected", 0, nullptr, AMF0::String(Hex::encode(target))), INFINITY, INFINITY);
 	}
 
+	virtual void syncAudioAndData(uint32_t streamID)
+	{
+	}
+
 	uint32_t m_nextStreamID { 1 };
 	bool m_connecting { false };
 	bool m_connected { false };
@@ -1185,6 +1193,16 @@ protected:
 			if(not flow)
 				return nullptr;
 			return flow->write(TCMessage::message(messageType, timestamp, payload, len), startWithin, finishWithin);
+		}
+
+		void syncAudioAndData(uint32_t syncID)
+		{
+			if(m_audio and m_data)
+			{
+				Bytes message = FlowSyncManager::makeSyncMessage(syncID, 2);
+				m_audio->write(message, INFINITY, INFINITY);
+				m_data->write(message, INFINITY, INFINITY);
+			}
 		}
 
 		std::shared_ptr<SendFlow> m_video;
@@ -1336,6 +1354,16 @@ protected:
 		printf("%s,address-change,rtmfp,%s\n", oldAddress.toPresentation().c_str(), m_farAddressStr.c_str());
 	}
 
+	void syncAudioAndData(uint32_t streamID) override
+	{
+		if(streamID)
+		{
+			auto &stream = m_netStreamTransports[streamID];
+			stream.syncAudioAndData(m_nextSyncID++);
+		}
+	}
+
+	uint32_t m_nextSyncID { 0 };
 	FlowSyncManager m_syncManager;
 	std::shared_ptr<SendFlow> m_controlSend;
 	std::shared_ptr<RecvFlow> m_controlRecv;
@@ -1529,6 +1557,16 @@ protected:
 			return flow->write(TCMessage::message(messageType, timestamp, payload, len), startWithin, finishWithin);
 		}
 
+		void syncAudioAndData(uint32_t syncID)
+		{
+			if(m_audio and m_data)
+			{
+				Bytes message = FlowSyncManager::makeSyncMessage(syncID, 2);
+				m_audio->write(message, INFINITY, INFINITY);
+				m_data->write(message, INFINITY, INFINITY);
+			}
+		}
+
 		std::shared_ptr<rtws::SendFlow> m_video;
 		std::shared_ptr<rtws::SendFlow> m_audio;
 		std::shared_ptr<rtws::SendFlow> m_data;
@@ -1598,6 +1636,16 @@ protected:
 		};
 	}
 
+	void syncAudioAndData(uint32_t streamID) override
+	{
+		if(streamID)
+		{
+			auto &stream = m_netStreamTransports[streamID];
+			stream.syncAudioAndData(m_nextSyncID++);
+		}
+	}
+
+	uint32_t m_nextSyncID { 0 };
 	std::shared_ptr<rtws::SendFlow> m_controlSend;
 	std::shared_ptr<rtws::RecvFlow> m_controlRecv;
 	std::map<uint32_t, NetStreamTransport> m_netStreamTransports;

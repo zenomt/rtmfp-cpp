@@ -24,6 +24,8 @@ public:
 	// answer a Flow Synchronization User Control TC message (type 4, eventType 34, timestamp 0).
 	Bytes makeSyncMessage(size_t count);
 
+	static Bytes makeSyncMessage(uint32_t syncID, size_t count);
+
 	// answer the number of bytes parsed if this is a Flow Synchronization message (15),
 	// or 0 if it is not. tcmessage points to the beginning of a full TC message (including type
 	// and timestamp).
