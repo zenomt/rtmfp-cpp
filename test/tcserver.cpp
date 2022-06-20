@@ -445,7 +445,7 @@ public:
 				->putValueAtKey(AMF0::String("NetStream.Play.UnpublishNotify"), "code")
 				->putValueAtKey(AMF0::String(netStream->m_name), "detail")
 				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
-				->putValueAtKey(AMF0::String("being published"), "description")
+				->putValueAtKey(AMF0::String("publish stop"), "description")
 			), INFINITY, INFINITY);
 
 		syncAudioAndData(netStream->m_streamID);
