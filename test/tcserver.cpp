@@ -20,6 +20,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <netinet/tcp.h>
 }
 
 #include "rtmfp/rtmfp.hpp"
@@ -1905,6 +1906,25 @@ bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenF
 			::perror("accept");
 			return;
 		}
+
+		int optval = 1;
+		int optlen = sizeof(optval);
+		setsockopt(newFd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);
+
+#ifdef TCP_KEEPALIVE
+		optval = 30;
+		setsockopt(newFd, IPPROTO_TCP, TCP_KEEPALIVE, &optval, optlen);
+#endif
+
+#ifdef TCP_KEEPIDLE
+		optval = 30;
+		setsockopt(newFd, IPPROTO_TCP, TCP_KEEPIDLE, &optval, optlen);
+#endif
+
+#ifdef TCP_KEEPINTVL
+		optval = 30;
+		setsockopt(newFd, IPPROTO_TCP, TCP_KEEPINTVL, &optval, optlen);
+#endif
 
 		Address boundAddr(&boundAddr_u.s);
 		printf("%s,accept,%s\n", boundAddr.toPresentation().c_str(), protocolDescription(protocol).c_str());
