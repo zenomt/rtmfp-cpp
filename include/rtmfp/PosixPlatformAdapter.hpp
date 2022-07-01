@@ -33,6 +33,8 @@ public:
 	bool perform(unsigned long thread, const Task &task) override;
 	void onShutdownComplete() override;
 
+	size_t maxWritesPerInterfaceWritable { 4 };
+
 protected:
 	struct UdpInterface {
 		int m_fd;
@@ -40,6 +42,7 @@ protected:
 	};
 
 	void onInterfaceReadable(int fd, int interfaceID);
+	long receiveOnePacket(int fd, int interfaceID);
 
 	RTMFP                  *m_rtmfp;
 	RunLoop                *m_runloop;

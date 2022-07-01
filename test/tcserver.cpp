@@ -1470,7 +1470,10 @@ public:
 		client->m_farAddress = addr;
 		client->m_farAddressStr = client->m_farAddress.toPresentation();
 
-		client->m_platformStream = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
+		// RTWebSocket is expected to mostly be used with a reverse proxy, which decreases the
+		// potential effectiveness of TCP_NOTSENT_LOWAT. Allow bigger writes per select since
+		// it won't make a big difference for real-time responsiveness through proxied connections.
+		client->m_platformStream = share_ref(new PosixStreamPlatformAdapter(&mainRL, 4096, 8192), false);
 		client->m_platformStream->onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
 
 		int tos = dscp << 2;

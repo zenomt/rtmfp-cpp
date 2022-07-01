@@ -6,6 +6,7 @@
 
 #include "../include/rtmfp/PosixPlatformAdapter.hpp"
 
+#include <fcntl.h>
 #include <unistd.h>
 #include <netinet/ip.h>
 
@@ -83,6 +84,12 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
 	}
 
+	{
+		int flags = fcntl(uif.m_fd, F_GETFL);
+		flags |= O_NONBLOCK;
+		fcntl(uif.m_fd, F_SETFL, flags);
+	}
+
 	union Address::in_sockaddr boundAddr;
 	socklen_t addrLen = sizeof(boundAddr);
 	if( (bind(uif.m_fd, tmpAddr.getSockaddr(), tmpAddr.getSockaddrLen()))
@@ -135,8 +142,15 @@ bool PosixPlatformAdapter::notifyWhenInterfaceWritable(int interfaceID, const st
 	if(m_interfaces.has(interfaceID))
 	{
 		m_runloop->registerDescriptor(m_interfaces.at(interfaceID).m_fd, RunLoop::WRITABLE,
-			[onwritable] (RunLoop *sender, int fd, RunLoop::Condition cond) {
-				if(not onwritable())
+			[this, onwritable] (RunLoop *sender, int fd, RunLoop::Condition cond) {
+				size_t times = 0;
+				bool keepGoing = true;
+				while(keepGoing && (times < maxWritesPerInterfaceWritable))
+				{
+					keepGoing = onwritable();
+					times++;
+				}
+				if(not keepGoing)
 					sender->unregisterDescriptor(fd, RunLoop::WRITABLE);
 			});
 
@@ -210,6 +224,12 @@ void PosixPlatformAdapter::onShutdownComplete()
 
 void PosixPlatformAdapter::onInterfaceReadable(int fd, int interfaceID)
 {
+	long rv;
+	do { rv = receiveOnePacket(fd, interfaceID); } while(rv >= 0);
+}
+
+long PosixPlatformAdapter::receiveOnePacket(int fd, int interfaceID)
+{
 	union Address::in_sockaddr addr_u;
 	uint8_t buf[8192];
 	struct cmsghdr cmsg_buf[8]; // big enough to receive at least a few command messages, we should only need one
@@ -244,6 +264,8 @@ void PosixPlatformAdapter::onInterfaceReadable(int fd, int interfaceID)
 
 		m_rtmfp->onReceivePacket(buf, rv, interfaceID, &addr_u.s, tos);
 	}
+
+	return (long)rv;
 }
 
 } } } // namespace com::zenomt::rtmfp
