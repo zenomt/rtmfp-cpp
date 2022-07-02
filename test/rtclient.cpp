@@ -9,7 +9,7 @@
 #endif
 
 #include "rtmfp/rtmfp.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PosixPlatformAdapter.hpp"
 #include "rtmfp/Hex.hpp"
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 	crypto.setSSeqRecvRequired(requireSSEQ);
 	printf("my fingerprint: %s\n", Hex::encode(crypto.getFingerprint()).c_str());
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 	PosixPlatformAdapter platform(&rl);
 	RTMFP rtmfp(&platform, &crypto);
 	platform.setRtmfp(&rtmfp);

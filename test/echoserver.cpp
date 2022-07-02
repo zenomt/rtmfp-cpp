@@ -4,7 +4,7 @@
 #include <cstring>
 #include <unistd.h>
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/Hex.hpp"
@@ -299,9 +299,9 @@ int main(int argc, char **argv)
 	printf("my fingerprint: %s static: %s\n", Hex::encode(crypto.getFingerprint()).c_str(), crypto.isStatic() ? "yes" : "no");
 	printf("my name: %s\n", name);
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 	Performer performer(&rl);
-	SelectRunLoop workerRL;
+	PreferredRunLoop workerRL;
 	Performer workerPerformer(&workerRL);
 	PerformerPosixPlatformAdapter platform(&rl, &performer, &workerPerformer);
 

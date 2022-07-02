@@ -1,5 +1,5 @@
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/Address.hpp"
 #include "rtmfp/Hex.hpp"
 
@@ -23,7 +23,7 @@ using Address = com::zenomt::rtmfp::Address;
 
 namespace {
 
-SelectRunLoop rl;
+PreferredRunLoop rl;
 
 class TrackRTWebSocket : public RTWebSocket {
 public:

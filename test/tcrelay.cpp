@@ -25,7 +25,7 @@ extern "C" {
 }
 
 #include "rtmfp/rtmfp.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/TCMessage.hpp"
@@ -83,11 +83,11 @@ const char *destservname = "1935";
 const char *rtmfpUri = "rtmfp:";
 int dscp = 0;
 
-SelectRunLoop mainRL;
+PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
-SelectRunLoop workerRL;
+PreferredRunLoop workerRL;
 Performer workerPerformer(&workerRL);
-SelectRunLoop lookupRL;
+PreferredRunLoop lookupRL;
 Performer lookupPerformer(&lookupRL);
 
 std::set<std::shared_ptr<Client>> clients;

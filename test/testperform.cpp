@@ -1,6 +1,6 @@
 #include <cstdio>
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/Performer.hpp"
 
 using namespace com::zenomt;
@@ -14,10 +14,10 @@ void worker(std::shared_ptr<RunLoop> rl)
 
 int main(int argc, char *argv[])
 {
-	auto rl = share_ref<RunLoop>(new SelectRunLoop(), false);
+	auto rl = share_ref<RunLoop>(new PreferredRunLoop(), false);
 	auto performer = share_ref<Performer>(new Performer(rl.get()), false);
 
-	auto workerRL = share_ref<RunLoop>(new SelectRunLoop(true), false);
+	auto workerRL = share_ref<RunLoop>(new PreferredRunLoop(true), false);
 	auto workerPerformer = share_ref<Performer>(new Performer(workerRL.get()), false);
 
 	workerPerformer->perform([] { printf("worker perform async before thread start\n"); });

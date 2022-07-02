@@ -5,7 +5,7 @@
 
 #include "rtmfp/PosixPlatformAdapter.hpp"
 #include "rtmfp/PlainCryptoAdapter.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/Hex.hpp"
 
 using namespace com::zenomt;
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	if(not port)
 		return usage(argv[0], "specify port");
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 
 	PosixPlatformAdapter platform(&rl);
 	PlainCryptoAdapter crypto(name);

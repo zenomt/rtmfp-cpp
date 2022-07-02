@@ -6,7 +6,7 @@
 
 #include "rtmfp/PosixPlatformAdapter.hpp"
 #include "rtmfp/PlainCryptoAdapter.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "addrlist.hpp"
 
 using namespace com::zenomt;
@@ -110,7 +110,7 @@ int main(int argc, char * const argv[])
 	if(not addrlist_parse(argc, argv, optind, false, dstAddrs))
 		return 1;
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 
 	LossyPlatformAdapter platform(&rl);
 	platform.setThresh(thresh);

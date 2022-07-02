@@ -4,7 +4,7 @@
 #include "rtmfp/IndexSet.hpp"
 #include "rtmfp/List.hpp"
 #include "rtmfp/Timer.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 
 using namespace com::zenomt;
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	int count = 0;
 	Timer::Action action = [count] (std::shared_ptr<Timer> sender, double now) mutable { count++; printf("runloop action %.20Lf @%.7f %p times %d\n", sender->getNextFireTime(), now, (void *)sender.get(), count); };
 	RunLoop::Action rlAction = [] (RunLoop *sender, int fd, RunLoop::Condition cond) { printf("%d activated for %d! unregistering.\n", fd, cond); sender->unregisterDescriptor(fd); };
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 	rl.schedule(action, rl.getCurrentTime() + 1, 1.0L + 1.0L / 576460752303423488.0L);
 	rl.registerDescriptor(0, RunLoop::READABLE, rlAction);
 	rl.registerDescriptor(1, RunLoop::WRITABLE, rlAction);

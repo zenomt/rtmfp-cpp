@@ -66,7 +66,7 @@ have any same-family addresses, and so not be able to connect at all.
 #include <cstring>
 #include <unistd.h>
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/Hex.hpp"
@@ -90,9 +90,9 @@ std::vector<Address> staticAddresses;
 bool crossFamilyForward = false;
 bool crossFamilyRedirect = true;
 
-SelectRunLoop mainRL;
+PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
-SelectRunLoop workerRL;
+PreferredRunLoop workerRL;
 Performer workerPerformer(&workerRL);
 FlashCryptoAdapter_OpenSSL crypto;
 List<std::shared_ptr<Client>> activeClients;

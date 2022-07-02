@@ -24,7 +24,7 @@ extern "C" {
 }
 
 #include "rtmfp/rtmfp.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/TCMessage.hpp"
@@ -74,9 +74,9 @@ size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
 std::vector<Bytes> secrets;
 
-SelectRunLoop mainRL;
+PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
-SelectRunLoop workerRL;
+PreferredRunLoop workerRL;
 Performer workerPerformer(&workerRL);
 FlashCryptoAdapter *flashcrypto = nullptr; // set in main()
 

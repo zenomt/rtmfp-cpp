@@ -6,7 +6,7 @@
 
 #include "rtmfp/PosixPlatformAdapter.hpp"
 #include "rtmfp/PlainCryptoAdapter.hpp"
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 
 #include "addrlist.hpp"
 
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 	if(not addrlist_parse(argc, argv, optind, false, dstAddrs))
 		return 1;
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 
 	PosixPlatformAdapter platform(&rl);
 	platform.onShutdownCompleteCallback = [&rl] { printf("shutdown complete\n"); rl.stop(); };

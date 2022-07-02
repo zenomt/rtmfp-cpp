@@ -92,7 +92,9 @@ simulator.
 This library provides a [simple `select()` based](include/rtmfp/SelectRunLoop.hpp)
 [run loop](include/rtmfp/RunLoop.hpp) suitable for many socket-based applications.
 It also includes a [simple `epoll` based run loop](include/rtmfp/EPollRunLoop.hpp)
-for Linux that scales better than `select()` for handling many sockets.
+for Linux that scales better than `select()` for handling many sockets. Use the
+[`PreferredRunLoop` alias](include/rtmfp/RunLoops.hpp) to automatically choose the
+best variant available at compile time for the target OS.
 
 A [`Performer`](include/rtmfp/Performer.hpp) can be attached to a run loop
 to enable invoking a task inside/synchronized with the run loop from any

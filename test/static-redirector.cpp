@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <unistd.h>
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/PosixPlatformAdapter.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	SelectRunLoop rl;
+	PreferredRunLoop rl;
 	PosixPlatformAdapter platform(&rl);
 
 	RTMFP rtmfp(&platform, &crypto);

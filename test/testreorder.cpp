@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstdio>
 
-#include "rtmfp/SelectRunLoop.hpp"
+#include "rtmfp/RunLoops.hpp"
 #include "rtmfp/ReorderBuffer.hpp"
 
 using namespace com::zenomt;
@@ -9,7 +9,7 @@ using namespace com::zenomt::rtmfp;
 
 int main(int argc, char **argv)
 {
-	SelectRunLoop rl;
+	SelectRunLoop rl; // intentionally keep SelectRunLoop so there's at least one test for it on Linux
 	size_t lateCount = 0;
 	size_t receivedCount = 0;
 
