@@ -9,6 +9,7 @@ add_library(rtmfp STATIC
 	src/Address.cpp
 	src/AMF.cpp
 	src/Checksums.cpp
+	src/EPollRunLoop.cpp
 	src/FlashCryptoAdapter.cpp
 	src/FlashCryptoAdapter_OpenSSL.cpp
 	src/Flow.cpp
