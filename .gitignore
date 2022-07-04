@@ -21,7 +21,6 @@ test/testamf
 test/testtcmsg
 test/testflowsync
 test/static-redirector
-test/rtmpserver
 test/tcrelay
 test/testreorder
 test/testmedia

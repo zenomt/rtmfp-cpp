@@ -16,7 +16,7 @@ RTWS_EXAMPLES = testwebsock
 endif
 
 TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia
-EXAMPLES = server testclient t2 rtmpserver $(FC_OPENSSL_EXAMPLES) $(RTWS_EXAMPLES)
+EXAMPLES = server testclient t2 $(FC_OPENSSL_EXAMPLES) $(RTWS_EXAMPLES)
 
 default: all
 test-all: all
@@ -107,10 +107,6 @@ rtclient: rtclient.o $(LIBRARY)
 static-redirector: static-redirector.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
-
-rtmpserver: rtmpserver.o $(RTMP) $(LIBRARY)
-	rm -f $@
-	$(CXX) -o $@ $+
 
 tcrelay: tcrelay.o $(RTMP) $(RTWS) $(LIBRARY)
 	rm -f $@

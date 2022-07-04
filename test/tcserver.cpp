@@ -5,7 +5,6 @@
 // See the help message and tcserver.md for more information.
 
 // TODO: app and client constraints
-// TODO: epoll RunLoop for Linux
 // TODO: stats
 
 #include <cassert>
