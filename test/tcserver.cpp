@@ -1383,7 +1383,7 @@ public:
 		client->m_farAddress = addr;
 		client->m_farAddressStr = client->m_farAddress.toPresentation();
 
-		client->m_adapter.onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
+		client->m_adapter->onShutdownCompleteCallback = [client] { client->onShutdownComplete(); };
 		client->m_rtmp->onmessage = [client] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
 			client->onMessage(streamID, messageType, timestamp, payload, len);
 		};
@@ -1392,9 +1392,10 @@ public:
 		clients[client->m_connectionID] = client;
 	}
 
-	RTMPClient(bool simple) : m_adapter(&mainRL)
+	RTMPClient(bool simple)
 	{
-		m_rtmp = share_ref(new RTMP(&m_adapter), false);
+		m_adapter = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
+		m_rtmp = share_ref(new RTMP(m_adapter), false);
 		m_rtmp->init(true);
 
 		if(simple)
@@ -1412,7 +1413,7 @@ public:
 		setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 		setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
 
-		if(not m_adapter.setSocketFd(fd))
+		if(not m_adapter->setSocketFd(fd))
 		{
 			::close(fd);
 			return false;
@@ -1454,7 +1455,7 @@ public:
 	}
 
 protected:
-	PosixStreamPlatformAdapter m_adapter;
+	std::shared_ptr<PosixStreamPlatformAdapter> m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 };
 

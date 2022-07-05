@@ -105,7 +105,7 @@ struct RTMP::Message : public Object {
 
 // --- public methods
 
-RTMP::RTMP(IStreamPlatformAdapter *platform) :
+RTMP::RTMP(std::shared_ptr<IStreamPlatformAdapter> platform) :
 	m_platform(platform),
 	m_state(RT_UNKNOWN),
 	m_isServer(false),
@@ -124,6 +124,12 @@ RTMP::RTMP(IStreamPlatformAdapter *platform) :
 	m_lastPeerBandwidthType(TC_SET_PEER_BW_LIMIT_SOFT),
 	m_isPaused(false)
 {
+}
+
+RTMP::~RTMP()
+{
+	m_platform->setOnReceiveBytesCallback(nullptr);
+	m_platform->setOnStreamDidCloseCallback(nullptr);
 }
 
 bool RTMP::init(bool isServer)

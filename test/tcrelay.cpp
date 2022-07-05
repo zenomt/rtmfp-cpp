@@ -3,7 +3,6 @@
 
 // TODO:
 //  * don't relay setPeerInfo
-//  * send an empty setPeerInfo on RTMFP after connect
 //  * happy eyeballs for RTMP (handle multiple addresses from getaddrinfo))
 //  * use URIs for dest
 //    - rewrite connect tcUrl
@@ -352,12 +351,10 @@ protected:
 
 class RTMPConnection : public Connection {
 public:
-	RTMPConnection(bool isServer) : m_adapter(&mainRL), m_connectionOpen(false)
-	{
-		m_rtmp = share_ref(new RTMP(&m_adapter), false);
-		m_rtmp->init(isServer);
+	static std::shared_ptr<RTMPConnection> newRTMPConnection(bool isServer) {
+		auto conn = share_ref(new RTMPConnection(isServer), false);
 
-		m_rtmp->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
+		conn->m_rtmp->onmessage = [conn] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
 			if((TCMSG_USER_CONTROL == messageType) and (len >= 2) and (((TC_USERCONTROL_FLOW_SYNC >> 8) & 0xff) == payload[0]) and ((TC_USERCONTROL_FLOW_SYNC & 0xff) == payload[1]))
 			{
 				if(verbose)
@@ -365,12 +362,21 @@ public:
 				return;
 			}
 
-			if(onmessage)
-				onmessage(streamID, messageType, timestamp, payload, len);
+			if(conn->onmessage)
+				conn->onmessage(streamID, messageType, timestamp, payload, len);
 		};
 
-		m_rtmp->onerror = [this] { callOnError(); };
-		m_adapter.onShutdownCompleteCallback = [this] { callOnShutdownComplete(); };
+		conn->m_rtmp->onerror = [conn] { conn->callOnError(); };
+		conn->m_adapter->onShutdownCompleteCallback = [conn] { conn->callOnShutdownComplete(); };
+
+		return conn;
+	}
+
+	RTMPConnection(bool isServer) : m_connectionOpen(false)
+	{
+		m_adapter = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
+		m_rtmp = share_ref(new RTMP(m_adapter), false);
+		m_rtmp->init(isServer);
 
 		if(PROTO_RTMP_SIMPLE == (isServer ? inputProtocol : outputProtocol))
 		{
@@ -385,7 +391,7 @@ public:
 		setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 		setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
 
-		if(not m_adapter.setSocketFd(fd))
+		if(not m_adapter->setSocketFd(fd))
 		{
 			::close(fd);
 			return false;
@@ -447,7 +453,7 @@ error:
 	{
 		retain();
 		close();
-		m_adapter.close();
+		m_adapter->close();
 		release();
 	}
 
@@ -477,7 +483,7 @@ protected:
 		return m_rtmp->write(pri, streamID, messageType, timestamp, payload, len, startWithin, finishWithin);
 	}
 
-	PosixStreamPlatformAdapter m_adapter;
+	std::shared_ptr<PosixStreamPlatformAdapter> m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 	bool m_connectionOpen;
 };
@@ -988,7 +994,7 @@ public:
 
 	static void newRTMPClient(int fd)
 	{
-		auto rv = share_ref(new RTMPConnection(true), false);
+		auto rv = RTMPConnection::newRTMPConnection(true);
 		if(not rv->setFd(fd))
 			return;
 
@@ -1051,7 +1057,7 @@ protected:
 		if(PROTO_RTMFP == outputProtocol)
 			m_outgoing = share_ref(new RTMFPOutgoingConnection(), false);
 		else // PROTO_RTMP or PROTO_RTMP_SIMPLE
-			m_outgoing = share_ref(new RTMPConnection(false), false);
+			m_outgoing = RTMPConnection::newRTMPConnection(false);
 	}
 
 	void printMessage(const char *direction, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)

@@ -33,7 +33,9 @@ public:
 	using Bytes = std::vector<uint8_t>;
 	enum State { RT_UNKNOWN, RT_UNINITIALIZED, RT_VERSION_SENT, RT_ACK_SENT, RT_OPEN, RT_CLOSING, RT_PROTOCOL_ERROR };
 
-	RTMP(IStreamPlatformAdapter *platform);
+	RTMP(std::shared_ptr<IStreamPlatformAdapter> platform);
+	~RTMP();
+
 	bool init(bool isServer); // answer false if already initted or on error, true otherwise
 
 	void   setChunkSize(size_t newSize);
@@ -124,7 +126,7 @@ protected:
 	Bytes m_inputBuffer;
 	Bytes m_rawOutputBuffer;
 
-	IStreamPlatformAdapter *m_platform;
+	std::shared_ptr<IStreamPlatformAdapter> m_platform;
 	State    m_state;
 	bool     m_isServer;
 	bool     m_simpleMode;
