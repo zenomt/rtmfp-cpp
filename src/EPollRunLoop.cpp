@@ -138,9 +138,9 @@ void EPollRunLoop::run(Time runInterval, Time minSleep)
 			sleepTime = minSleep;
 		if(sleepTime > 0.0)
 		{
-			if(sleepTime < 0.001)
-				sleepTime = 0.001; // be sure to sleep at all so we don't spin
-			sleepTime += 0.0005; // round up, epoll timeout resolution is ms, epoll_pwait2 (ns) is too new
+			sleepTime += Time(0.0009999999); // ceil-ish, epoll timeout resolution is ms, epoll_pwait2 (ns) is too new
+			if(sleepTime < Time(0.001))
+				sleepTime = Time(0.001); // be sure to sleep at all so we don't spin
 		}
 
 		uncacheTime();
