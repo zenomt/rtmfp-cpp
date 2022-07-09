@@ -25,14 +25,18 @@ at least one `setPeerInfo` command.
 RTWebSocket connections use the same message and metadata formats, and flow
 association semantics, as described in RFC 7425 for RTMFP flows.
 
-## Apps
+## Apps (Partitions)
 
-Each client connects to a server-side “App”, specified by the `app` member
-of the `connect` command’s argument object. The App provides a namespace in
-the server for stream names, as well as the reach of the `broadcast` command
-(described below). Within an App there may be at most one publisher for any
-stream name at once; however, there can be any number of distinctly named
-streams published in the same App at once.
+Each client connects to a named partition (an “App”), specified by the `app`
+member of the `connect` command’s argument object. The App provides a namespace
+in the server for stream names, as well as the reach of the `broadcast` command
+(described below). Within an App there may be at most one active publisher
+for a stream name at a time; however, there can be any number of distinctly
+named streams published in the same App at the same time.
+
+Note: The `app` designator should typically be set to the path component of
+the `tcUrl` member of the `connect` command’s argument object, without the
+leading slash (if any).
 
 ## Authentication
 

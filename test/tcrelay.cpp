@@ -79,7 +79,8 @@ Protocol inputProtocol = PROTO_UNSPEC;
 Protocol outputProtocol = PROTO_UNSPEC;
 const char *desthostname = nullptr;
 const char *destservname = "1935";
-const char *rtmfpUri = "rtmfp:";
+const char *overrideRtmfpUri = nullptr;
+const char *backupRtmfpUri = "rtmfp:";
 int dscp = 0;
 
 PreferredRunLoop mainRL;
@@ -777,9 +778,40 @@ protected:
 			RTMFPConnection::checkFinished();
 	}
 
-	void openConnection()
+	std::string findConnectUri(uint32_t streamID, uint8_t messageType, const uint8_t *payload, size_t len)
 	{
-		m_controlSend = m_rtmfp->openFlow(m_crypto.makeEPD(nullptr, rtmfpUri, nullptr), TCMetadata::encode(0, RO_SEQUENCE), PRI_IMMEDIATE);
+		if(overrideRtmfpUri)
+			return overrideRtmfpUri;
+
+		if(len and (0 == streamID) and ((TCMSG_COMMAND == messageType) or (TCMSG_COMMAND_EX == messageType)))
+		{
+			const uint8_t *cursor = payload;
+			const uint8_t *limit = cursor + len;
+
+			if((TCMSG_COMMAND_EX == messageType) and (0 != *cursor++)) // COMMAND_EX has a format id, and only format id=0 is defined
+				goto notfound;
+
+			std::vector<std::shared_ptr<AMF0>> args;
+			if( (not AMF0::decode(cursor, limit, args))
+			 or (args.size() < 3)
+			 or (not args[0]->isString())
+			 or (not args[2]->isObject())
+			 or (0 != strcmp(args[0]->stringValue(), "connect"))
+			)
+				goto notfound;
+
+			auto tcUrl = args[2]->getValueAtKey("tcUrl");
+			if(tcUrl and tcUrl->isString())
+				return tcUrl->stringValue();
+		}
+
+notfound:
+		return backupRtmfpUri;
+	}
+
+	void openConnection(const std::string &uri)
+	{
+		m_controlSend = m_rtmfp->openFlow(m_crypto.makeEPD(nullptr, uri.c_str(), nullptr), TCMetadata::encode(0, RO_SEQUENCE), PRI_IMMEDIATE);
 		wireControlSend();
 
 		m_platform.addUdpInterface(0, AF_INET);
@@ -798,7 +830,7 @@ protected:
 	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) override
 	{
 		if(not m_controlSend)
-			openConnection();
+			openConnection(findConnectUri(streamID, messageType, payload, len));
 
 		return RTMFPConnection::basicWrite(streamID, messageType, timestamp, payload, len, startWithin, finishWithin);
 	}
@@ -1279,7 +1311,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -4            -- bind to IPv4 0.0.0.0:%d\n", port);
 	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
-	printf("  -u uri        -- set URI for IHello (rtmfp, default \"%s\")\n", rtmfpUri);
+	printf("  -u uri        -- override URI for IHello (rtmfp, default tcUrl from connect command)\n");
 	printf("  -L redir-spec -- add redirector/LB spec <name>@<ip:port>[,ip:port...]\n");
 	printf("  -l user:passw -- add redirector username:password\n");
 	printf("  -d addr:port  -- advertise addr:port at redirector\n");
@@ -1384,7 +1416,7 @@ int main(int argc, char **argv)
 			port = atoi(optarg);
 			break;
 		case 'u':
-			rtmfpUri = optarg;
+			overrideRtmfpUri = optarg;
 			break;
 		case 'L':
 			if(not parse_redirector_spec(optarg, redirectorSpecs))
