@@ -4,6 +4,7 @@
 // TC Server, a simple live media server for RTMFP/RTMP “Tin-Can” clients.
 // See the help message and tcserver.md for more information.
 
+// TODO: support http://zenomt.com/ns/rtmfp#media (rtmfp, rtws)
 // TODO: app and client constraints
 // TODO: stats
 
@@ -72,6 +73,7 @@ int dscp = 0;
 size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
 std::vector<Bytes> secrets;
+const char *serverInfo = nullptr;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -384,7 +386,7 @@ public:
 				previous.reset();
 				if(expirePreviousGop)
 				{
-					Time deadline = mainRL.getCurrentTime();
+					Time deadline = mainRL.getCurrentTime() + finishByMargin;
 					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
 						each->startBy = std::min(each->startBy, deadline);
 						each->finishBy = std::min(each->finishBy, deadline);
@@ -703,6 +705,9 @@ protected:
 			if(not farNonce.empty())
 				resultObject->putValueAtKey(AMF0::String(hexHMACSHA256(farNonce, hexHMACSHA256(secrets[matchedKey], m_appName))), "authToken");
 		}
+
+		if(serverInfo)
+			resultObject->putValueAtKey(AMF0::String(serverInfo), "serverInfo");
 
 		printf("%s,connect,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
 
@@ -1494,6 +1499,7 @@ public:
 		client->m_wsMessageAdapter->onOpen = [client] { client->m_rtws->init(); };
 		client->m_rtws->onRecvFlow = [client] (std::shared_ptr<rtws::RecvFlow> flow) { client->acceptControlFlow(flow); };
 		client->m_rtws->onError = [client] { client->close(); };
+		client->m_rtws->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 0.25; // TODO tune default
 
 		clients[client->m_connectionID] = client;
 	}
@@ -2004,6 +2010,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -b addr:port  -- listen for rtmp on TCP addr:port\n");
 	printf("  -s addr:port  -- listen for rtmp-simple on TCP addr:port\n");
 	printf("  -w addr:port  -- listen for RTWebSocket on TCP addr:port\n");
+	printf("  -i string     -- set connect serverInfo (%s%s)\n", serverInfo ? "default " : "unset", serverInfo ? serverInfo : "");
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
@@ -2011,8 +2018,8 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -T DSCP|name  -- set DiffServ field on outgoing packets (default %d)\n", dscp);
-	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
-	printf("  -x            -- use static Diffie-Hellman keys instead of ephemeral\n");
+	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, rtws, default %.3Lf)\n", delaycc_delay);
+	printf("  -x            -- use static Diffie-Hellman keys instead of ephemeral (rtmfp)\n");
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
 	printf("  -m            -- allow multiple connections per session (rtmfp)\n");
@@ -2043,7 +2050,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:mk:K:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -2103,6 +2110,9 @@ int main(int argc, char **argv)
 		case 'w':
 			if(not appendAddress(optarg, rtwsAddrs))
 				return usage(argv[0], 1, "(-w) can't parse bind address: ", optarg);
+			break;
+		case 'i':
+			serverInfo = optarg;
 			break;
 		case 'm':
 			allowMultipleConnections = true;

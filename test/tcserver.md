@@ -119,7 +119,8 @@ would reply to the `connect` command with
         "description": "you connected!",
         "connectionID": "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176",
         "objectEncoding": 0.0,
-        "authToken": "bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c"
+        "authToken": "bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c",
+        "serverInfo": "some info 12345"
     }
 
 The authentication token calculator can help you validate your implementation
@@ -270,6 +271,7 @@ an `onDisconnected` command is sent to the watcher:
 
 ## TODO
 
+* Support [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
 * App constraints
   - lifetime
   - expiration date/time
