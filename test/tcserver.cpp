@@ -143,7 +143,49 @@ struct NetStream : public Object {
 	NetStream() = delete;
 
 	NetStream(std::shared_ptr<Client> owner, uint32_t streamID) : m_owner(owner), m_streamID(streamID)
-	{}
+	{
+		resetPlayParams();
+	}
+
+	void resetPlayParams()
+	{
+		m_audioLifetime = audioLifetime;
+		m_videoLifetime = videoLifetime;
+		m_finishByMargin = finishByMargin;
+		m_expirePreviousGop = expirePreviousGop;
+	}
+
+	static void trySetTimeParam(Time *dst, const AMF0Object *params, const char *key, Time defaultSetting)
+	{
+		auto value = params->getValueAtKey(key);
+		if(value)
+		{
+			Time timeValue = value->doubleValue();
+			if(timeValue >= 0.0)
+			{
+				Time max = std::max(Time(10.0), defaultSetting * 2); // safety to avoid buffering too much
+				*dst = std::min(timeValue, max);
+
+				if(verbose) printf("set play param %s to %f\n", key, (double)*dst);
+			}
+		}
+	}
+
+	void overridePlayParams(const AMF0Object *params)
+	{
+		if(not params)
+			return;
+
+		trySetTimeParam(&m_audioLifetime, params, "audioLifetime", audioLifetime);
+		trySetTimeParam(&m_videoLifetime, params, "videoLifetime", videoLifetime);
+		trySetTimeParam(&m_finishByMargin, params, "finishByMargin", finishByMargin);
+
+		if(params->has("expirePreviousGop"))
+		{
+			m_expirePreviousGop = params->getValueAtKey("expirePreviousGop")->isTruthy();
+			if(verbose) printf("set play param expirePreviousGop to %s\n", m_expirePreviousGop ? "true" : "false");
+		}
+	}
 
 	std::shared_ptr<Client> m_owner;
 	State m_state { NS_IDLE };
@@ -158,6 +200,10 @@ struct NetStream : public Object {
 	bool m_paused { false };
 	bool m_receiveVideo { true };
 	bool m_receiveAudio { true };
+	Time m_audioLifetime;
+	Time m_videoLifetime;
+	Time m_finishByMargin;
+	bool m_expirePreviousGop;
 	List<std::shared_ptr<WriteReceipt>> m_gopReceipts;
 };
 
@@ -353,7 +399,7 @@ public:
 					startWithin = checkpointLifetime;
 				else
 				{
-					startWithin = videoLifetime;
+					startWithin = netStream->m_videoLifetime;
 					isVideoCodingLayer = true;
 				}
 			}
@@ -364,7 +410,7 @@ public:
 			{
 				if(netStream->m_paused or not netStream->m_receiveAudio)
 					return;
-				startWithin = audioLifetime;
+				startWithin = netStream->m_audioLifetime;
 			}
 			break;
 
@@ -372,7 +418,7 @@ public:
 			break;
 		}
 
-		auto rv = write(netStream->m_streamID, messageType, adjustedTimestamp, payload, len, startWithin, startWithin + finishByMargin);
+		auto rv = write(netStream->m_streamID, messageType, adjustedTimestamp, payload, len, startWithin, startWithin + netStream->m_finishByMargin);
 
 		if(isVideoCodingLayer and rv)
 		{
@@ -384,9 +430,9 @@ public:
 			if(App::isVideoKeyframe(payload, len))
 			{
 				previous.reset();
-				if(expirePreviousGop)
+				if(netStream->m_expirePreviousGop)
 				{
-					Time deadline = mainRL.getCurrentTime() + finishByMargin;
+					Time deadline = mainRL.getCurrentTime() + netStream->m_finishByMargin;
 					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
 						each->startBy = std::min(each->startBy, deadline);
 						each->finishBy = std::min(each->finishBy, deadline);
@@ -942,6 +988,10 @@ protected:
 		netStream->m_hashname = App::asHashName(playName);
 
 		netStream->m_state = NetStream::NS_PLAYING;
+		netStream->resetPlayParams();
+
+		if(args.size() > 4)
+			netStream->overridePlayParams(args[4]->asObject());
 
 		logStreamEvent("play", netStream);
 

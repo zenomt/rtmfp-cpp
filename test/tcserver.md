@@ -186,6 +186,25 @@ This command has no effect if the stream is not currently being published. A
 `NetStream.Publish.BadName` stream status event is sent to the publisher, if
 any.
 
+### Adjusting Real-Time Treatment For Stream Playback
+
+By default, when sending stream messages to a subscriber, the server will use
+the queue lifetimes and other treatments as specified by the corresponding
+command-line arguments or their default values. The subscriber can override
+these default settings by specifying an argument to the `play` stream command.
+
+If the first regular argument of the `play` command is an Object, then any
+members present override their corresponding deadlines or treatments. The
+following member names are recognized:
+
+- `audioLifetime`: (Number) Audio queue lifetime (seconds).
+- `videoLifetime`: (Number) Video queue lifetime.
+- `finishByMargin`: (Number) Additional time to complete a message if transmission has started.
+- `expirePreviousGop`: (Truthy) Whether to expire the previous Group of Pictures (GOP) early when a new GOP starts.
+
+For safety, the server caps each parameter above at 10 seconds or twice the
+default value, whichever is greater.
+
 ## Relaying and Broadcasting Messages
 
 Each connected client has a _Connection ID_ assigned by the server. For RTMFP

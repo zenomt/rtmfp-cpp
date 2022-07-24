@@ -71,6 +71,7 @@ public:
 	virtual AMF0Boolean *asBoolean();
 	static  AMF0Boolean *asBoolean(AMF0 *amf);
 	virtual bool booleanValue() const;
+	virtual bool isTruthy() const;
 
 	virtual bool isString() const;
 	virtual AMF0String *asString();
@@ -135,6 +136,7 @@ public:
 	Type getType() const override;
 	bool isNumber() const override;
 	AMF0Number *asNumber() override;
+	bool isTruthy() const override;
 
 	double doubleValue() const override;
 	void doubleValue(double v);
@@ -158,6 +160,7 @@ public:
 	Type getType() const override;
 	bool isBoolean() const override;
 	AMF0Boolean *asBoolean() override;
+	bool isTruthy() const override;
 
 	bool booleanValue() const override;
 	void booleanValue(bool v);
@@ -182,6 +185,7 @@ public:
 	Type getType() const override;
 	bool isString() const override;
 	AMF0String *asString() override;
+	bool isTruthy() const override;
 
 	const char *stringValue() const override;
 	void stringValue(const char *v);
@@ -209,6 +213,7 @@ public:
 	Type getType() const override;
 	bool isObject() const override;
 	AMF0Object *asObject() override;
+	bool isTruthy() const override;
 
 	AMF0Object *putValueAtKey(AMF0 *value, const char *key);
 	AMF0Object *putValueAtKey(const std::shared_ptr<AMF0> &value, const char *key);
@@ -322,6 +327,7 @@ public:
 	Type getType() const override;
 	bool isArray() const override;
 	AMF0Array *asArray() override;
+	bool isTruthy() const override;
 
 	AMF0Array *putValueAtIndex(AMF0 *value, uint32_t index);
 	AMF0Array *putValueAtIndex(const std::shared_ptr<AMF0> &value, uint32_t index);

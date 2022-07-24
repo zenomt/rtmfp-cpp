@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdio>
 
 #include "rtmfp/AMF.hpp"
@@ -9,7 +10,7 @@ using Bytes = AMF0::Bytes;
 
 static void _print(const std::shared_ptr<AMF0> &amf)
 {
-	printf("%s\n", amf->repr().c_str());
+	printf("%s (truthy: %s)\n", amf->repr().c_str(), amf->isTruthy() ? "yes" : "no");
 }
 
 int main(int argc, char **argv)
@@ -114,6 +115,11 @@ int main(int argc, char **argv)
 	printf("removing final two\n");
 	remove_array->remove(remove_array->size() - 2, 2);
 	_print(remove_array);
+
+	assert(AMF0::Number(1)->isTruthy());
+	assert(AMF0::String("anything")->isTruthy());
+	assert(not AMF0::Number(0)->isTruthy());
+	assert(not AMF0::String("")->isTruthy());
 
 	return 0;
 }

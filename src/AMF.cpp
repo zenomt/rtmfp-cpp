@@ -36,6 +36,7 @@ bool AMF0::isBoolean() const { return false; }
 AMF0Boolean *AMF0::asBoolean() { return nullptr; }
 AMF0Boolean *AMF0::asBoolean(AMF0 *amf) { return amf ? amf->asBoolean() : nullptr; }
 bool AMF0::booleanValue() const { return false; }
+bool AMF0::isTruthy() const { return false; }
 
 bool AMF0::isString() const { return false; }
 AMF0String *AMF0::asString() { return nullptr; }
@@ -195,6 +196,7 @@ AMF0Number * AMF0Number::asNumber() { return this; }
 double AMF0Number::doubleValue() const { return m_value; }
 void AMF0Number::doubleValue(double v) { m_value = v; }
 void AMF0Number::repr(std::string &dst, size_t depth) const { dst.append(std::to_string(doubleValue())); }
+bool AMF0Number::isTruthy() const { return (m_value < 0.0) or (m_value > 0.0); }
 
 void AMF0Number::encode(Bytes &dst) const
 {
@@ -251,6 +253,7 @@ bool AMF0Boolean::isBoolean() const { return true; }
 AMF0Boolean * AMF0Boolean::asBoolean() { return this; }
 bool AMF0Boolean::booleanValue() const { return m_value; }
 void AMF0Boolean::booleanValue(bool v) { m_value = v; }
+bool AMF0Boolean::isTruthy() const { return m_value; }
 void AMF0Boolean::repr(std::string &dst, size_t depth) const { dst.append(booleanValue() ? "true" : "false"); }
 
 void AMF0Boolean::encode(Bytes &dst) const
@@ -278,6 +281,7 @@ AMF0String * AMF0String::asString() { return this; }
 const char * AMF0String::stringValue() const { return m_value.c_str(); }
 void AMF0String::stringValue(const char *v) { m_value = v; }
 size_t AMF0String::size() const { return m_value.size(); }
+bool AMF0String::isTruthy() const { return size(); }
 void AMF0String::repr(std::string &dst, size_t depth) const { dst.push_back('"'); dst.append(m_value); dst.push_back('"'); }
 
 bool AMF0String::decodeString(bool isLongString, const uint8_t **cursor_ptr, const uint8_t *limit, std::string &dst)
@@ -342,6 +346,7 @@ bool AMF0String::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr,
 AMF0::Type AMF0Object::getType() const { return AMF0_OBJECT; }
 bool AMF0Object::isObject() const { return true; }
 AMF0Object * AMF0Object::asObject() { return this; }
+bool AMF0Object::isTruthy() const { return true; }
 
 AMF0Object * AMF0Object::putValueAtKey(AMF0 *value, const char *key)
 {
@@ -641,6 +646,7 @@ bool AMF0Undefined::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_p
 AMF0::Type AMF0Array::getType() const { return AMF0_ARRAY; }
 bool AMF0Array::isArray() const { return true; }
 AMF0Array * AMF0Array::asArray() { return this; }
+bool AMF0Array::isTruthy() const { return true; }
 
 AMF0Array * AMF0Array::putValueAtIndex(AMF0 *value, uint32_t index)
 {
