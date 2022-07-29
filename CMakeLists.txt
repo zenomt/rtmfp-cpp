@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 
 project(rtmfp-cpp VERSION 1.4.0)
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -12,7 +12,6 @@ add_library(rtmfp STATIC
 	src/AMF.cpp
 	src/Checksums.cpp
 	src/FlashCryptoAdapter.cpp
-	src/FlashCryptoAdapter_OpenSSL.cpp
 	src/Flow.cpp
 	src/FlowSyncManager.cpp
 	src/Hex.cpp
@@ -35,6 +34,10 @@ add_library(rtmfp STATIC
 	src/WriteReceipt.cpp
 )
 
+if(OpenSSL_FOUND)
+	target_sources(rtmfp PRIVATE src/FlashCryptoAdapter_OpenSSL.cpp)
+endif()
+
 if(NOT WIN32)
 	target_sources(rtmfp PRIVATE
 		src/EPollRunLoop.cpp
@@ -56,7 +59,9 @@ target_include_directories(rtmfp INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include>)
 
-target_link_libraries(rtmfp PRIVATE OpenSSL::Crypto)
+if(OpenSSL_FOUND)
+	target_link_libraries(rtmfp PRIVATE OpenSSL::Crypto)
+endif()
 
 if(WIN32)
 	target_link_libraries(rtmfp PRIVATE ws2_32)
