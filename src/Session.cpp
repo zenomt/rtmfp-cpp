@@ -16,8 +16,6 @@
 #ifndef _WIN32
 #include <sys/types.h>
 #include <netinet/ip.h>
-#else
-#include <ws2tcpip.h>
 #endif
 
 #ifndef IPTOS_ECN_ECT0
