@@ -436,7 +436,7 @@ public:
 	virtual Bytes sign(const uint8_t *msg, size_t msgLen, std::shared_ptr<CryptoCert> recipient) = 0;
 
 	// Answer true if the near end wins glare §3.5.1.3.
-	virtual bool checkNearWinsGlare(std::shared_ptr<CryptoCert> far) = 0;
+	virtual bool checkNearWinsGlare(std::shared_ptr<CryptoCert> farCert) = 0;
 
 	// Answer a CryptoCert object for the encoded certificate, or empty if
 	// bytes does not encode a valid certificate.

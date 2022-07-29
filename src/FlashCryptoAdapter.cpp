@@ -364,9 +364,9 @@ Bytes FlashCryptoAdapter::sign(const uint8_t *msg, size_t len, std::shared_ptr<C
 	return Bytes(1, 'X');
 }
 
-bool FlashCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> far)
+bool FlashCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> farCert)
 {
-	return not (far->encode() < m_encodedCert); // §4.3.6
+	return not (farCert->encode() < m_encodedCert); // §4.3.6
 }
 
 std::shared_ptr<CryptoCert> FlashCryptoAdapter::decodeCertificate(const uint8_t *cert, size_t len)
@@ -429,11 +429,11 @@ std::vector<int> FlashCryptoAdapter::getSupportedDHGroups() const
 	return rv;
 }
 
-int FlashCryptoAdapter::getBestDHGroup(FlashCryptoCert *far) const
+int FlashCryptoAdapter::getBestDHGroup(FlashCryptoCert *farCert) const
 {
 	auto groups = getSupportedDHGroups();
 	for(auto it = groups.begin(); it != groups.end(); it++)
-		if(far->supportsDHGroup(*it))
+		if(farCert->supportsDHGroup(*it))
 			return *it;
 	return -1;
 }

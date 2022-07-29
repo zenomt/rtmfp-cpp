@@ -98,7 +98,7 @@ public:
 	Bytes getNearEncodedCertForEPD(const uint8_t *epd, size_t epdLen) override;
 	bool isSelectedByEPD(const uint8_t *epd, size_t len) override;
 	Bytes sign(const uint8_t *msg, size_t len, std::shared_ptr<CryptoCert> recipient) override;
-	bool checkNearWinsGlare(std::shared_ptr<CryptoCert> far) override;
+	bool checkNearWinsGlare(std::shared_ptr<CryptoCert> farCert) override;
 	std::shared_ptr<CryptoCert> decodeCertificate(const uint8_t *cert, size_t len) override;
 	// pseudoRandomBytes to be implemented by concrete subclass
 	void cryptoHash256(uint8_t *dst, const uint8_t *msg, size_t len) override; // uses sha256() method
@@ -122,7 +122,7 @@ public:
 	// Answer the best DH group supported by the near and far end, or -1 if there is
 	// no best match. The default implementation answers the first group from
 	// getSupportedDHGroups() supported by the far end, or -1. This should usually be sufficient.
-	virtual int getBestDHGroup(FlashCryptoCert *far) const;
+	virtual int getBestDHGroup(FlashCryptoCert *farCert) const;
 
 	// Answer true if groupID is supported, false if not. The default implementation
 	// checks for groupID in getSupportedDHGroups().

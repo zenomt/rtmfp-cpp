@@ -3,7 +3,10 @@
 
 #include "../include/rtmfp/Address.hpp"
 
+#ifndef _WIN32
 #include <arpa/inet.h>
+#endif
+
 #include <cstdio>
 #include <cstring>
 

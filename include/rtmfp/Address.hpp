@@ -3,8 +3,14 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
+#else
+#include <winsock2.h>
+#include <WinSock.h>
+#include <ws2tcpip.h>
+#endif
 
 #include <string>
 #include <vector>

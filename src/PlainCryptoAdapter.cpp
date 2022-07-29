@@ -181,9 +181,9 @@ Bytes PlainCryptoAdapter::sign(const uint8_t *msg, size_t msgLen, std::shared_pt
 	return Bytes(1, 'X');
 }
 
-bool PlainCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> far)
+bool PlainCryptoAdapter::checkNearWinsGlare(std::shared_ptr<CryptoCert> farCert)
 {
-	return m_identity < ((PlainCryptoCert *)far.get())->m_identity;
+	return m_identity < ((PlainCryptoCert *)farCert.get())->m_identity;
 }
 
 std::shared_ptr<CryptoCert> PlainCryptoAdapter::decodeCertificate(const uint8_t *bytes, size_t len)

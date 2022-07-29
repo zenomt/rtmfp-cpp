@@ -13,8 +13,19 @@
 #include "../include/rtmfp/PacketAssembler.hpp"
 #include "SendFrag.hpp"
 
+#ifndef _WIN32
 #include <sys/types.h>
 #include <netinet/ip.h>
+#else
+#include <ws2tcpip.h>
+#endif
+
+#ifndef IPTOS_ECN_ECT0
+#define IPTOS_ECN_ECT0 0x02
+#define IPTOS_ECN_ECT1 0x01
+#define IPTOS_ECN_CE   0x03
+#define IPTOS_ECN_MASK 0x03
+#endif
 
 namespace com { namespace zenomt { namespace rtmfp {
 
