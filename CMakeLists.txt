@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.1)
 
-project(rtmfp-cpp)
+project(rtmfp-cpp VERSION 1.4.0)
+
+find_package(OpenSSL REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -9,7 +11,6 @@ add_library(rtmfp STATIC
 	src/Address.cpp
 	src/AMF.cpp
 	src/Checksums.cpp
-	src/EPollRunLoop.cpp
 	src/FlashCryptoAdapter.cpp
 	src/FlashCryptoAdapter_OpenSSL.cpp
 	src/Flow.cpp
@@ -20,16 +21,12 @@ add_library(rtmfp STATIC
 	src/Media.cpp
 	src/Object.cpp
 	src/PacketAssembler.cpp
-	src/Performer.cpp
-	src/PerformerPosixPlatformAdapter.cpp
 	src/PlainCryptoAdapter.cpp
-	src/PosixPlatformAdapter.cpp
 	src/RecvFlow.cpp
 	src/RedirectorClient.cpp
 	src/ReorderBuffer.cpp
 	src/RTMFP.cpp
 	src/RunLoop.cpp
-	src/SelectRunLoop.cpp
 	src/SendFlow.cpp
 	src/Session.cpp
 	src/TCMessage.cpp
@@ -38,11 +35,34 @@ add_library(rtmfp STATIC
 	src/WriteReceipt.cpp
 )
 
+if(NOT WIN32)
+	target_sources(rtmfp PRIVATE
+		src/EPollRunLoop.cpp
+		src/Performer.cpp
+		src/PerformerPosixPlatformAdapter.cpp
+		src/PosixPlatformAdapter.cpp
+		src/SelectRunLoop.cpp
+	)
+endif()
+
 target_compile_options(rtmfp PRIVATE -Os)
+
+if(WIN32)
+	target_compile_options(rtmfp PRIVATE /permissive-)
+	target_compile_definitions(rtmfp PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
+
 target_include_directories(rtmfp INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include>)
-target_link_libraries(rtmfp PRIVATE crypto)
+
+target_link_libraries(rtmfp PRIVATE OpenSSL::Crypto)
+
+if(WIN32)
+	target_link_libraries(rtmfp PRIVATE ws2_32)
+endif()
+
+export (TARGETS rtmfp NAMESPACE rtmfp:: FILE rtmfp-targets.cmake)
 
 install (TARGETS rtmfp
 	EXPORT rtmfp-targets
@@ -51,7 +71,6 @@ install (TARGETS rtmfp
 )
 install (DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION include)
 install (EXPORT rtmfp-targets
-	FILE rtmfp-targets.cmake
 	NAMESPACE rtmfp::
 	DESTINATION lib/cmake/rtmfp
 )
