@@ -157,10 +157,9 @@ struct NetStream : public Object {
 
 	static void trySetTimeParam(Time *dst, const AMF0Object *params, const char *key, Time defaultSetting)
 	{
-		auto value = params->getValueAtKey(key);
-		if(value)
+		if(params->has(key))
 		{
-			Time timeValue = value->doubleValue();
+			Time timeValue = params->getValueAtKey(key)->doubleValue();
 			if(timeValue >= 0.0)
 			{
 				Time max = std::max(Time(10.0), defaultSetting * 2); // safety to avoid buffering too much
@@ -168,6 +167,15 @@ struct NetStream : public Object {
 
 				if(verbose) printf("set play param %s to %f\n", key, (double)*dst);
 			}
+		}
+	}
+
+	static void trySetBoolParam(bool *dst, const AMF0Object *params, const char *key)
+	{
+		if(params->has(key))
+		{
+			*dst = params->getValueAtKey(key)->isTruthy();
+			if(verbose) printf("set play param %s to %s\n", key, *dst ? "true" : "false");
 		}
 	}
 
@@ -180,11 +188,7 @@ struct NetStream : public Object {
 		trySetTimeParam(&m_videoLifetime, params, "videoLifetime", videoLifetime);
 		trySetTimeParam(&m_finishByMargin, params, "finishByMargin", finishByMargin);
 
-		if(params->has("expirePreviousGop"))
-		{
-			m_expirePreviousGop = params->getValueAtKey("expirePreviousGop")->isTruthy();
-			if(verbose) printf("set play param expirePreviousGop to %s\n", m_expirePreviousGop ? "true" : "false");
-		}
+		trySetBoolParam(&m_expirePreviousGop, params, "expirePreviousGop");
 	}
 
 	std::shared_ptr<Client> m_owner;
