@@ -5,6 +5,11 @@
 
 #ifndef _WIN32
 #include <arpa/inet.h>
+#else
+
+// Uses of sscanf are safe here. See comment near first use.
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #endif
 
 #include <cstdio>
@@ -335,12 +340,16 @@ static size_t _count_colons(const char *src)
 
 bool Address::setFromPresentation(const char *src, bool withPort)
 {
-	char ip[INET6_ADDRSTRLEN]; // INET6_ADDRSTRLEN is 46
+	char ip[46]; // INET6_ADDRSTRLEN is 46, explicit here to match sscanf use below
 	int port = 0;
 	int family = _count_colons(src) > 1 ? AF_INET6 : AF_INET;
 
 	if(withPort)
 	{
+		// The uses of sscanf() in this function are safe because all string
+		// conversions specify a maximum field width that fits in the destination
+		// array including the terminating NUL.
+
 		if(2 != sscanf(src, "[%45[0-9a-fA-F:.]]:%d", ip, &port))
 		{
 			if(AF_INET6 == family)

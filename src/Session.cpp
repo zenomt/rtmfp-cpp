@@ -106,7 +106,7 @@ void ISession::encryptAndSendPacket(PacketAssembler *packet, uint32_t sessionID,
 	sid_encode[0] = sessionID ^ sid_encode[1] ^ sid_encode[2];
 	memmove(sendBuf, sid_encode, sizeof(uint32_t));
 
-	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), addr.getSockaddrLen(), tos);
+	m_rtmfp->m_platform->writePacket(sendBuf, dstLen + sizeof(uint32_t), interfaceID, addr.getSockaddr(), socklen_t(addr.getSockaddrLen()), tos);
 }
 
 // --- StartupSession
@@ -800,7 +800,7 @@ void Session::unbindFlow(long flowID, SendFlow *flow)
 	m_last_idle_time = m_rtmfp->getCurrentTime();
 }
 
-void Session::unbindFlow(long flowID, RecvFlow *flow)
+void Session::unbindFlow(uintmax_t flowID, RecvFlow *flow)
 {
 	auto it = m_recvFlows.find(flowID);
 	if((it != m_recvFlows.end()) and (it->second.get() == flow))
@@ -1199,7 +1199,7 @@ void Session::scheduleBurstAlarm()
 		{
 			Time overslept = now - sender->getNextFireTime();
 			if(overslept > 0)
-				m_data_burst_limit += size_t((overslept / m_srtt) * m_cwnd);
+				m_data_burst_limit += long((overslept / m_srtt) * m_cwnd);
 		}
 
 		rescheduleTransmission();
@@ -1370,9 +1370,9 @@ void Session::onUserData(uint8_t flags, uintmax_t flowID, uintmax_t sequenceNumb
 		std::shared_ptr<SendFlow> associatedFlow;
 		if(associatedFlowID)
 		{
-			if((*associatedFlowID < LONG_MAX) and m_sendFlows.has(*associatedFlowID))
+			if((*associatedFlowID < LONG_MAX) and m_sendFlows.has(long(*associatedFlowID)))
 			{
-				associatedFlow = m_sendFlows.at(*associatedFlowID);
+				associatedFlow = m_sendFlows.at(long(*associatedFlowID));
 				onRecvFlow_f = associatedFlow->onRecvFlow;
 
 				if(not associatedFlow->isOpen())
@@ -1483,7 +1483,7 @@ bool Session::onInterfaceWritable(int interfaceID, int priority)
 
 					assert(m_outstandingFrags.sum() > presendOutstanding);
 					size_t amountSent = m_outstandingFrags.sum() - presendOutstanding;
-					m_data_burst_limit -= amountSent;
+					m_data_burst_limit -= (long)amountSent;
 
 					break;
 				}
@@ -1561,7 +1561,7 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, 
 		if((timestampEcho >= 0) and (timestampEcho != m_ts_echo_rx))
 		{
 			m_ts_echo_rx = timestampEcho;
-			uint16_t rtt_ticks = m_rtmfp->getCurrentTimestamp() - timestampEcho;
+			uint16_t rtt_ticks = uint16_t(m_rtmfp->getCurrentTimestamp() - timestampEcho);
 			if(rtt_ticks < 32768)
 			{
 				Time rtt = rtt_ticks;
@@ -1950,15 +1950,15 @@ void Session::onExceptionChunk(uint8_t mode, uint8_t chunkType, const uint8_t *c
 	uintmax_t exceptionCode;
 	size_t rv;
 
-	if(0 == (rv = VLU::parse(cursor, limit, &flowID)))
+	if((0 == (rv = VLU::parse(cursor, limit, &flowID))) or (flowID > LONG_MAX))
 		return;
 	cursor += rv;
 
 	if(0 == VLU::parse(cursor, limit, &exceptionCode))
 		return;
 
-	if(m_sendFlows.has(flowID))
-		m_sendFlows.at(flowID)->onExceptionReport(exceptionCode);
+	if(m_sendFlows.has((long)flowID))
+		m_sendFlows.at((long)flowID)->onExceptionReport(exceptionCode);
 }
 
 void Session::onPingChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr)
@@ -2007,7 +2007,7 @@ void Session::onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, 
 	uintmax_t bufferBlocksAvailable;
 	uintmax_t cumulativeAck;
 
-	if(0 == (rv = VLU::parse(cursor, limit, &flowID)))
+	if((0 == (rv = VLU::parse(cursor, limit, &flowID))) or (flowID > LONG_MAX))
 		return;
 	cursor += rv;
 
@@ -2019,7 +2019,7 @@ void Session::onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, 
 		return;
 	cursor += rv;
 
-	if(m_sendFlows.has(flowID))
+	if(m_sendFlows.has((long)flowID))
 	{
 		size_t bufferBytesAvailable;
 		if(bufferBlocksAvailable > SIZE_MAX / 1024)
@@ -2027,7 +2027,7 @@ void Session::onAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, 
 		else
 			bufferBytesAvailable = bufferBlocksAvailable * 1024;
 
-		m_sendFlows.at(flowID)->onAck(chunkType, bufferBytesAvailable, cumulativeAck, cursor, limit);
+		m_sendFlows.at((long)flowID)->onAck(chunkType, bufferBytesAvailable, cumulativeAck, cursor, limit);
 		m_any_acks = true;
 		m_keepalive_outstanding = false;
 		m_retransmit_deadline_epoch = INFINITY;

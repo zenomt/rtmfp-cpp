@@ -244,7 +244,7 @@ std::vector<uint8_t> RTMFP::makeCookie(const struct sockaddr *addr_) const
 {
 	std::vector<uint8_t> dough;
 	std::vector<uint8_t> cookie;
-	uint64_t seconds = getInstanceAge();
+	uintmax_t seconds = uintmax_t(getInstanceAge());
 
 	dough.insert(dough.end(), m_secret, m_secret + sizeof(m_secret));
 
@@ -275,7 +275,7 @@ RTMFP::CookieCheck RTMFP::checkCookie(const uint8_t *cookie, size_t cookieLen, c
 	if((0 == rv) or (cookieLen != rv + sizeof(hash) + sizeof(hash)))
 		return COOKIE_BAD; // bad VLU or wrong size
 
-	uintmax_t now = getInstanceAge();
+	uintmax_t now = uintmax_t(getInstanceAge());
 	if((seconds > now) or (now - seconds > MAX_COOKIE_LIFETIME))
 		return COOKIE_BAD; // too old or wrong epoch
 
@@ -392,7 +392,7 @@ void RTMFP::makeRIKeyingChunk(Bytes &dst, uint32_t rsid, const Bytes &skrc, Byte
 	rikeyingPayload.insert(rikeyingPayload.end(), rsig.begin(), rsig.end());
 
 	dst.push_back(CHUNK_RIKEYING);
-	dst.push_back(rikeyingPayload.size() >> 8);
+	dst.push_back((rikeyingPayload.size() >> 8) & 0xff);
 	dst.push_back(rikeyingPayload.size() & 0xff);
 	dst.insert(dst.end(), rikeyingPayload.begin(), rikeyingPayload.end());
 }

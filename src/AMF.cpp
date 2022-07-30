@@ -673,7 +673,7 @@ AMF0Array * AMF0Array::appendValue(const std::shared_ptr<AMF0> &value)
 	if(size() == UINT32_MAX)
 		return nullptr;
 
-	return putValueAtIndex(value, size());
+	return putValueAtIndex(value, uint32_t(size()));
 }
 
 void AMF0Array::resize(size_t newSize)

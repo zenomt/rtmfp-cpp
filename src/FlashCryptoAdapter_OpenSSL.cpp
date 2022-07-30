@@ -29,10 +29,10 @@ namespace {
 struct MODP_Group {
 	int                  group_id;
 	const unsigned char *g;
-	size_t               g_len;
+	int                  g_len;
 	const unsigned char *modulus;
-	size_t               modulus_len;
-	size_t               exponent_len_bits;
+	int                  modulus_len;
+	int                  exponent_len_bits;
 };
 
 const unsigned char TWO[] = { 2 };
@@ -266,10 +266,10 @@ public:
 
 	bool crypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv) override
 	{
-		int outl = len;
+		int outl = (int)len;
 
 		if( (not EVP_CipherInit_ex(m_ctx, NULL, NULL, NULL, (const unsigned char *)iv, -1))
-		 or (not EVP_CipherUpdate(m_ctx, (unsigned char *)dst, &outl, (const unsigned char *)src, len))
+		 or (not EVP_CipherUpdate(m_ctx, (unsigned char *)dst, &outl, (const unsigned char *)src, (int)len))
 		)
 			return false;
 
@@ -339,7 +339,7 @@ public:
 		if(not m_exponent)
 			return false;
 
-		BIGNUM *otherBN = BN_bin2bn((const unsigned char *)otherPublic, len, NULL);
+		BIGNUM *otherBN = BN_bin2bn((const unsigned char *)otherPublic, (int)len, NULL);
 		bool rv = otherBN and validate_public(otherBN, otherPublic, len) and modp(otherBN, dst);
 
 		if(otherBN)

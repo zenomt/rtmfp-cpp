@@ -35,12 +35,12 @@ void PacketAssembler::init(uint8_t *buf, size_t frontMargin, size_t maxLen, uint
 
 	if(ts >= 0)
 	{
-		*m_cursor++ = ts >> 8;
+		*m_cursor++ = (ts >> 8) & 0xff;
 		*m_cursor++ = ts & 0xff;
 	}
 	if(tse >= 0)
 	{
-		*m_cursor++ = tse >> 8;
+		*m_cursor++ = (tse >> 8) & 0xff;
 		*m_cursor++ = tse & 0xff;
 	}
 }
@@ -118,7 +118,7 @@ bool PacketAssembler::getTimeCriticalFlag() const
 void PacketAssembler::commitChunk()
 {
 	size_t chunkLength = m_cursor - m_currentChunkStart;
-	*(m_currentChunkStart - 2) = chunkLength >> 8;
+	*(m_currentChunkStart - 2) = (chunkLength >> 8) & 0xff;
 	*(m_currentChunkStart - 1) = chunkLength & 0xff;
 	m_currentChunkStart = nullptr;
 }

@@ -101,7 +101,7 @@ public:
 	void replayEarlyPackets();
 	void bindFlow(std::shared_ptr<SendFlow> flow);
 	void unbindFlow(long flowID, SendFlow *flow);
-	void unbindFlow(long flowID, RecvFlow *flow);
+	void unbindFlow(uintmax_t flowID, RecvFlow *flow);
 	void startIIKeying(const Bytes &iikeyingChunk);
 	bool makeIIKeyingChunk(const Bytes &cookie, const Bytes &skic, Bytes &dst);
 	long getTimestampIfNew();

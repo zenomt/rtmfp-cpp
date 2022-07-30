@@ -69,7 +69,7 @@ size_t TCMetadata::parse(const uint8_t *metadata, const uint8_t *limit, uint32_t
 		return 0; // impossible RTMP stream ID
 
 	if(outStreamID)
-		*outStreamID = streamID;
+		*outStreamID = (uint32_t)streamID;
 
 	if(outRxOrder)
 		*outRxOrder = ((metadata[2] & TCMETADATA_FLAG_RXI_MASK) == TCMETADATA_RXI_NETWORK) ? RO_NETWORK : RO_SEQUENCE;

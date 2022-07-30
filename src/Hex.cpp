@@ -20,7 +20,7 @@ void Hex::print(const char *msg, const void *bytes_, size_t len)
 {
 	const uint8_t *bytes = (const uint8_t *)bytes_;
 
-	printf("%s (%ld)\n", msg, (unsigned long)len);
+	printf("%s (%zu)\n", msg, len);
 	size_t x = 0;
 	while(x < len)
 	{
@@ -57,7 +57,7 @@ void Hex::dump(const char *msg, const void *bytes_, const void *limit_, bool nl)
 	const uint8_t *bytes = (uint8_t *)bytes_;
 	const uint8_t *limit = (uint8_t *)limit_;
 
-	printf("%s (%lu): ", msg, limit - bytes);
+	printf("%s (%tu): ", msg, limit - bytes);
 	while(bytes < limit)
 		printf("%02x ", *bytes++);
 	if(nl)

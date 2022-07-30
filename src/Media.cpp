@@ -35,9 +35,9 @@ Time _fromNTP4(const uint8_t *val)
 	if(*val >= 0x80)
 		return -1.0;
 
-	Time rv = _readU64(val);
+	Time rv = Time(_readU64(val));
 
-	Time fraction = _readU64(val + 8);
+	Time fraction = Time(_readU64(val + 8));
 	fraction /= _scale64;
 
 	return rv + fraction;
@@ -47,8 +47,8 @@ void _toNTP4(uint8_t *dst, Time val)
 {
 	Time intpart;
 	Time fraction = std::modf(val, &intpart);
-	_writeU64(dst, intpart);
-	_writeU64(dst + 8, fraction * _scale64);
+	_writeU64(dst, uint64_t(intpart));
+	_writeU64(dst + 8, uint64_t(fraction * _scale64));
 }
 
 } // anonymous namespace in com::zenomt::rtmfp
@@ -451,7 +451,7 @@ uintmax_t Media::timeToTicks(Time t) const
 		t = m_origin;
 
 	Time rounding = getTickDuration() / Time(2.0);
-	return (t + rounding - m_origin) / getTickDuration();
+	return uintmax_t((t + rounding - m_origin) / getTickDuration());
 }
 
 } } } // namespace com::zenomt::rtmfp
