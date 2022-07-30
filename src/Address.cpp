@@ -1,15 +1,15 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#ifdef _WIN32
+// Uses of sscanf are safe here. See comment near first use.
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+
 #include "../include/rtmfp/Address.hpp"
 
 #ifndef _WIN32
 #include <arpa/inet.h>
-#else
-
-// Uses of sscanf are safe here. See comment near first use.
-#define _CRT_SECURE_NO_WARNINGS 1
-
 #endif
 
 #include <cstdio>
