@@ -80,16 +80,17 @@ The library provides two example platform adapters that run in
 single-threaded applications, and
 [`PerformerPosixPlatformAdapter`](include/rtmfp/PerformerPosixPlatformAdapter.hpp) to
 allow for offloading CPU-intensive public-key cryptography to a worker thread.
-These platform adapters should be suitable for many applications and should
-serve as examples of how to write single-threaded and multi-threaded platform
-adapters for your host application.
+These platform adapters should be suitable for many applications on Unix-like
+operating systems and should serve as examples of how to write single-threaded
+and multi-threaded platform adapters for your host application.
 
 There is no requirement for *Platform Adapter’s* interfaces to be UDP sockets.
 For example, an *interface* could be a SOCKS or TURN proxy, tunnel, or network
 simulator.
 
 #### RunLoop and Performer
-This library provides a [simple `select()` based](include/rtmfp/SelectRunLoop.hpp)
+For Unix-like operating systems, this library provides a
+[simple `select()` based](include/rtmfp/SelectRunLoop.hpp)
 [run loop](include/rtmfp/RunLoop.hpp) suitable for many socket-based applications.
 It also includes a [simple `epoll` based run loop](include/rtmfp/EPollRunLoop.hpp)
 for Linux that scales better than `select()` for handling many sockets. Use the
@@ -99,6 +100,19 @@ best variant available at compile time for the target OS.
 A [`Performer`](include/rtmfp/Performer.hpp) can be attached to a run loop
 to enable invoking a task inside/synchronized with the run loop from any
 thread. `Performer`s are used with the `PerformerPosixPlatformAdapter`.
+
+#### Windows
+Microsoft Windows is not an *officially* supported platform. However, the
+core library (excluding the platform adapters, run loops, and `Performer`)
+should build on Windows, and maintenance of the core for that platform will
+be attempted as time and help from the community allow. Please
+[open an issue][] if there is a problem with the core library on Windows.
+
+To use this library on Windows, you will need to supply an appropriate platform
+adapter.
+
+Please contact the maintainer or [open an issue][] to request for a link to
+your Windows platform adapter to be added here in this document.
 
 ### Cryptography Adapter
 [RFC 7016][] describes a generalized framework for securing RTMFP communication
@@ -267,3 +281,4 @@ To Do
   [MODP 4096]: https://tools.ietf.org/html/rfc3526#section-5
   [RFC 7016]: https://tools.ietf.org/html/rfc7016
   [RFC 7425]: https://tools.ietf.org/html/rfc7425
+  [open an issue]: https://github.com/zenomt/rtmfp-cpp/issues

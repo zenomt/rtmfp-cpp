@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.4)
 
 project(rtmfp-cpp VERSION 1.4.0)
 
@@ -77,5 +77,16 @@ install (TARGETS rtmfp
 install (DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION include)
 install (EXPORT rtmfp-targets
 	NAMESPACE rtmfp::
+	DESTINATION lib/cmake/rtmfp
+)
+
+include (CMakePackageConfigHelpers)
+write_basic_package_version_file (rtmfp-config-version.cmake COMPATIBILITY SameMajorVersion)
+configure_package_config_file (src/config.cmake.in rtmfp-config.cmake
+	INSTALL_DESTINATION lib/cmake/rtmfp
+)
+install (FILES
+	"${CMAKE_CURRENT_BINARY_DIR}/rtmfp-config.cmake"
+	"${CMAKE_CURRENT_BINARY_DIR}/rtmfp-config-version.cmake"
 	DESTINATION lib/cmake/rtmfp
 )
