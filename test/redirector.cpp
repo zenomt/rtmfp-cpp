@@ -388,13 +388,12 @@ protected:
 
 	void onLoadFactor(const uint8_t *bytes, const uint8_t *limit)
 	{
-		uintmax_t loadFactor;
-		if(0 == VLU::parse(bytes, limit, &loadFactor))
+		if(0 == VLU::parse(bytes, limit, &m_loadFactor))
 		{
 			close(); // malformed message
 			return;
 		}
-		if(verbose) printf("Client %p load factor %lu\n", (void *)this, (unsigned long)loadFactor);
+		if(verbose) printf("Client %p load factor %ju\n", (void *)this, m_loadFactor);
 
 		// maybe do something with this someday
 
@@ -439,6 +438,7 @@ protected:
 	long m_activeClientsName { -1 };
 	bool m_includeReflexiveAddress { false };
 	bool m_isAuthenticated { false };
+	uintmax_t m_loadFactor { 0 };
 	Bytes m_fingerprint;
 	std::shared_ptr<SendFlow> m_send;
 	std::shared_ptr<RecvFlow> m_recv;

@@ -35,6 +35,9 @@ public:
 	void setLoadFactor(uintmax_t factor);
 	uintmax_t getLoadFactor() const;
 
+	void setLoadFactorUpdateInterval(Time t);
+	Time getLoadFactorUpdateInterval() const;
+
 	void addRedirectorAddress(const Address &addr);
 
 	Address getRedirectorAddress() const; // answer only valid if STATUS_CONNECTED
@@ -109,7 +112,8 @@ protected:
 	void sendAuth();
 	void sendSettingsIfActive();
 	void sendDrainingIfInactive();
-	void sendLoadFactorIfActive();
+	void scheduleSendLoadFactor();
+	void sendLoadFactor();
 
 	void onConnected();
 	void onException(uintmax_t reason);
@@ -124,6 +128,9 @@ protected:
 	FIHelloResponseMode       m_responseMode { FI_SEND_RHELLO };
 	bool                      m_advertiseReflexiveAddress { true };
 	uintmax_t                 m_loadFactor { 0 };
+	Time                      m_loadFactorUpdateInterval { 0.0 };
+	bool                      m_loadFactorChanged { false };
+	std::shared_ptr<Timer>    m_loadFactorUpdateTimer;
 	std::set<Address>         m_redirectorAddresses;
 	std::set<Address>         m_additionalAddresses;
 	Address                   m_reflexiveAddress;

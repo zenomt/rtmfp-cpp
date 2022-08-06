@@ -74,6 +74,7 @@ size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
 std::vector<Bytes> secrets;
 const char *serverInfo = nullptr;
+std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -295,6 +296,12 @@ std::map<std::string, std::shared_ptr<App>> apps;
 
 class Client : public Object {
 public:
+	static void updateRedirectorLoadFactor()
+	{
+		for(auto it = redirectors.begin(); it != redirectors.end(); it++)
+			(*it)->setLoadFactor(clients.size());
+	}
+
 	static void onUnmatchedIHello(RTMFP *rtmfp, const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const struct sockaddr *srcAddr)
 	{
 		FlashCryptoAdapter::EPDParseState epdParsed;
@@ -547,6 +554,7 @@ protected:
 	{
 		m_finished = true;
 		clients.erase(m_connectionID);
+		updateRedirectorLoadFactor();
 	}
 
 	void onMessage(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
@@ -1162,6 +1170,7 @@ public:
 			return;
 
 		clients[client->m_connectionID] = client;
+		updateRedirectorLoadFactor();
 	}
 
 	void doRedirect(RTMFP *rtmfp, const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const Address &addr) override
@@ -1456,6 +1465,7 @@ public:
 		client->m_rtmp->onerror = [client] { client->close(); };
 
 		clients[client->m_connectionID] = client;
+		updateRedirectorLoadFactor();
 	}
 
 	RTMPClient(bool simple)
@@ -1563,6 +1573,7 @@ public:
 		client->m_rtws->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 0.25; // TODO tune default
 
 		clients[client->m_connectionID] = client;
+		updateRedirectorLoadFactor();
 	}
 
 	void close() override
@@ -2109,7 +2120,6 @@ int main(int argc, char **argv)
 	std::map<std::string, std::string> redirectAuth;
 	std::map<std::string, std::vector<Address>> redirectorSpecs;
 	std::vector<Address> advertiseAddresses;
-	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
 	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dvh")) != -1)
 	{
@@ -2293,6 +2303,8 @@ int main(int argc, char **argv)
 		auto redirectorClient_ptr = redirectorClient.get();
 		config_redirector_client(redirectorClient_ptr, redirectAuth, it->second, advertiseAddresses, advertiseReflexive);
 
+		redirectorClient->setLoadFactorUpdateInterval(1);
+
 		redirectorClient->onReflexiveAddress = [hostname, redirectorClient_ptr] (const Address &addr) {
 			printf(",redirector,%s@%s,reflexive,%s\n", hostname.c_str(), redirectorClient_ptr->getRedirectorAddress().toPresentation().c_str(), addr.toPresentation().c_str());
 		};
@@ -2320,7 +2332,7 @@ int main(int argc, char **argv)
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);
 
-	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds, &redirectors] {
+	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
 		if(interrupted)
 		{
 			interrupted = false;

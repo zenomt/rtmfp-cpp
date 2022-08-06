@@ -41,6 +41,9 @@ void RedirectorClient::close()
 	if(m_reconnectTimer)
 		m_reconnectTimer->cancel();
 	m_reconnectTimer.reset();
+	if(m_loadFactorUpdateTimer)
+		m_loadFactorUpdateTimer->cancel();
+	m_loadFactorUpdateTimer.reset();
 
 	closeFlows();
 
@@ -98,12 +101,27 @@ void RedirectorClient::setLoadFactor(uintmax_t factor)
 	m_loadFactor = factor;
 
 	if(update)
-		sendLoadFactorIfActive();
+	{
+		m_loadFactorChanged = true;
+		scheduleSendLoadFactor();
+	}
 }
 
 uintmax_t RedirectorClient::getLoadFactor() const
 {
 	return m_loadFactor;
+}
+
+void RedirectorClient::setLoadFactorUpdateInterval(Time t)
+{
+	m_loadFactorUpdateInterval = std::max(t, Time(0.0));;
+	if(m_loadFactorUpdateTimer)
+		m_loadFactorUpdateTimer->setNextFireTime(m_rtmfp->getCurrentTime());
+}
+
+Time RedirectorClient::getLoadFactorUpdateInterval() const
+{
+	return m_loadFactorUpdateInterval;
 }
 
 void RedirectorClient::addRedirectorAddress(const Address &addr)
@@ -302,15 +320,30 @@ void RedirectorClient::sendDrainingIfInactive()
 	}
 }
 
-void RedirectorClient::sendLoadFactorIfActive()
+void RedirectorClient::scheduleSendLoadFactor()
 {
-	if(isConnected() and isActive())
+	if(not m_loadFactorUpdateTimer)
+	{
+		sendLoadFactor();
+		m_loadFactorUpdateTimer = scheduleTimer(m_rtmfp->getCurrentTime() + m_loadFactorUpdateInterval);
+		m_loadFactorUpdateTimer->action = [this] (const std::shared_ptr<Timer> &sender, Time now) {
+			m_loadFactorUpdateTimer.reset();
+			if(m_loadFactorChanged)
+				scheduleSendLoadFactor();
+		};
+	}
+}
+
+void RedirectorClient::sendLoadFactor()
+{
+	if(isConnected())
 	{
 		Bytes msg;
 		msg.push_back(CMD_LOAD_FACTOR);
 		VLU::append(m_loadFactor, msg);
 		m_send->write(msg);
 	}
+	m_loadFactorChanged = false;
 }
 
 void RedirectorClient::onConnected()
@@ -324,7 +357,7 @@ void RedirectorClient::onConnected()
 		sendAuth();
 		sendSettingsIfActive();
 		sendDrainingIfInactive();
-		sendLoadFactorIfActive();
+		sendLoadFactor();
 	}
 }
 
