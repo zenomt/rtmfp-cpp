@@ -36,7 +36,7 @@ named streams published in the same App at the same time.
 
 Note: The `app` designator should typically be set to the path component of
 the `tcUrl` member of the `connect` command’s argument object, without the
-leading slash (if any).
+leading slash (if any). Howerver, this is not required.
 
 ## Authentication
 

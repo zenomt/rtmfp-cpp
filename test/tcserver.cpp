@@ -1195,6 +1195,8 @@ public:
 		onShutdownComplete();
 	}
 
+	using Client::write;
+
 	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override
 	{
 		if(0 == streamID)
@@ -1411,6 +1413,11 @@ protected:
 		m_farAddress = m_controlRecv->getFarAddress();
 		m_farAddressStr = m_farAddress.toPresentation();
 		printf("%s,address-change,rtmfp,%s\n", oldAddress.toPresentation().c_str(), m_farAddressStr.c_str());
+		write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
+			AMF0::Object()
+				->putValueAtKey(AMF0::String("status"), "level")
+				->putValueAtKey(AMF0::String("NetConnection.AddressChange.Notify"), "code")
+			), INFINITY, INFINITY);
 	}
 
 	void syncAudioAndData(uint32_t streamID) override

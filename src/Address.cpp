@@ -340,7 +340,7 @@ static size_t _count_colons(const char *src)
 
 bool Address::setFromPresentation(const char *src, bool withPort)
 {
-	char ip[46]; // INET6_ADDRSTRLEN is 46, explicit here to match sscanf use below
+	char ip[45+1]; // INET6_ADDRSTRLEN is 46, explicit here to match sscanf use below
 	int port = 0;
 	int family = _count_colons(src) > 1 ? AF_INET6 : AF_INET;
 
