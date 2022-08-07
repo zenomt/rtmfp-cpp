@@ -55,10 +55,8 @@ have any same-family addresses, and so not be able to connect at all.
 */
 
 // TODO: stats
-// TODO: shuffle the activeClients for better load leveling
 // TODO: only one connection per fingerprint (?)
 // TODO: make keyid/password check async for illustration
-// TODO MAYBE: P2P introducer mode (and register with upstream load balancers)
 
 #include <algorithm>
 #include <csignal>
@@ -90,6 +88,8 @@ Time badAuthDisconnectDelay = 2.0;
 std::vector<Address> staticAddresses;
 bool crossFamilyForward = false;
 bool crossFamilyRedirect = true;
+Time lastShuffle = -INFINITY;
+Time shuffleInterval = 5.0;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -177,6 +177,12 @@ public:
 		if(not (epdParsed.ancillaryData or epdParsed.fingerprint))
 			return;
 
+		if(rtmfp->getCurrentTime() >= lastShuffle + shuffleInterval)
+		{
+			shuffleActiveClients();
+			lastShuffle = rtmfp->getCurrentTime();
+		}
+
 		Address srcAddress(srcAddr);
 		if(verbose > 1)
 			printf("IHello from %s\n", srcAddress.toPresentation().c_str());
@@ -202,7 +208,7 @@ public:
 				activeClients.rotateNameToTail(activeClients.first());
 			}
 
-			std::stable_sort(foundClients.begin(), foundClients.end(), deref_less<std::shared_ptr<Client>>());
+			std::stable_sort(foundClients.begin(), foundClients.end(), compareLoadFactors);
 		}
 
 		for(auto clientIt = foundClients.begin(); clientIt != foundClients.end(); clientIt++)
@@ -251,9 +257,23 @@ public:
 			(*it)->m_recv->forwardIHello(epd, epdLen, Address(srcAddr), tag, tagLen);
 	}
 
-	bool operator< (const Client &rhs) const
+	static bool compareLoadFactors(const std::shared_ptr<Client> &lhs, const std::shared_ptr<Client> &rhs)
 	{
-		return m_loadFactor < rhs.m_loadFactor;
+		return lhs->m_loadFactor < rhs->m_loadFactor;
+	}
+
+	static void shuffleActiveClients()
+	{
+		std::vector<long> clientNames;
+		clientNames.reserve(activeClients.size());
+
+		for(long n = activeClients.first(); n > activeClients.SENTINEL; n = activeClients.next(n))
+			clientNames.push_back(n);
+
+		std::random_shuffle(clientNames.begin(), clientNames.end());
+
+		for(auto it = clientNames.begin(); it != clientNames.end(); it++)
+			activeClients.moveNameToTail(*it);
 	}
 
 protected:
@@ -494,6 +514,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -S addr:port  -- static address:port to add to every redirect\n");
 	printf("  -f            -- filter redirects by matching family\n");
 	printf("  -F            -- don't filter forwards by matching family (unusual)\n");
+	printf("  -s #seconds   -- client shuffle interval (default %.3fs)\n", (double)shuffleInterval);
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	return rv;
@@ -511,7 +532,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:S:fF")) != -1)
+	while((ch = getopt(argc, argv, "vhp:46B:n:l:r:D:S:fFs:")) != -1)
 	{
 		switch(ch)
 		{
@@ -562,6 +583,9 @@ int main(int argc, char **argv)
 			break;
 		case 'F':
 			crossFamilyForward = true;
+			break;
+		case 's':
+			shuffleInterval = atof(optarg);
 			break;
 
 		case 'h':
