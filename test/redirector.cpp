@@ -11,7 +11,7 @@ redirectors, including asynchronous querying of an external username/password
 database, redirecting to different Clients based on aspects of the incoming
 EPD, and taking the Load Factor into account for better load leveling. With
 minor modifications it could be used as the basis for a P2P introducer (by
-fingerprint).
+fingerprint); note that `tcserver` already does this for RFC 7425 clients.
 
 Use the `-f` "filter redirects by matching family" option when balancing
 servers behind a firewall (or NAT, or VPN) that persistently bans incoming
@@ -60,6 +60,7 @@ have any same-family addresses, and so not be able to connect at all.
 // TODO: make keyid/password check async for illustration
 // TODO MAYBE: P2P introducer mode (and register with upstream load balancers)
 
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -200,6 +201,8 @@ public:
 				foundClients.push_back(activeClients.firstValue());
 				activeClients.rotateNameToTail(activeClients.first());
 			}
+
+			std::stable_sort(foundClients.begin(), foundClients.end(), deref_less<std::shared_ptr<Client>>());
 		}
 
 		for(auto clientIt = foundClients.begin(); clientIt != foundClients.end(); clientIt++)
@@ -246,6 +249,11 @@ public:
 
 		for(auto it = forwardClients.begin(); it != forwardClients.end(); it++)
 			(*it)->m_recv->forwardIHello(epd, epdLen, Address(srcAddr), tag, tagLen);
+	}
+
+	bool operator< (const Client &rhs) const
+	{
+		return m_loadFactor < rhs.m_loadFactor;
 	}
 
 protected:
@@ -395,7 +403,7 @@ protected:
 		}
 		if(verbose) printf("Client %p load factor %ju\n", (void *)this, m_loadFactor);
 
-		// maybe do something with this someday
+		// for now, redirects to multiple clients are ordered by increasing load factor
 
 		ensureReturnFlow();
 	}
