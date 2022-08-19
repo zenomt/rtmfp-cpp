@@ -120,7 +120,8 @@ StartupSession::SendItem::SendItem(const std::vector<uint8_t> &bytes, uint32_t s
 }
 
 StartupSession::StartupSession(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
-	ISession(rtmfp, cryptoKey)
+	ISession(rtmfp, cryptoKey),
+	m_seenIHelloThisPacket(false)
 {
 }
 
@@ -191,6 +192,7 @@ bool StartupSession::onInterfaceWritable(int interfaceID, int priority)
 
 bool StartupSession::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, int tos)
 {
+	m_seenIHelloThisPacket = false;
 	return HEADER_MODE_STARTUP == (flags & HEADER_FLAG_MOD_MASK);
 }
 
@@ -221,6 +223,10 @@ void StartupSession::onIHelloChunk(uint8_t mode, uint8_t chunkType, const uint8_
 	const uint8_t *epd;
 	size_t epdLen;
 	const uint8_t *cursor = chunk;
+
+	if(m_seenIHelloThisPacket)
+		return;
+	m_seenIHelloThisPacket = true;
 
 	if(0 == (rv = VLU::parseField(cursor, limit, &epd, &epdLen)))
 		return;

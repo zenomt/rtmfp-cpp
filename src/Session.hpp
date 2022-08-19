@@ -61,6 +61,7 @@ protected:
 	friend class RTMFP;
 	StartupSession(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey);
 	std::map<int, std::queue<std::shared_ptr<SendItem> > > m_sendItems;
+	bool m_seenIHelloThisPacket;
 };
 
 class Session : public ISession {
