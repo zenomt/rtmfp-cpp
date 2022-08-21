@@ -69,6 +69,7 @@ bool expirePreviousGop = true;
 bool allowMultipleConnections = false;
 bool interrupted = false;
 bool stopping = false;
+bool showStats = false;
 int dscp = 0;
 size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
@@ -84,6 +85,9 @@ FlashCryptoAdapter *flashcrypto = nullptr; // set in main()
 
 class Client;
 std::map<Bytes, std::shared_ptr<Client>> clients;
+
+size_t currentPublishCount = 0;
+size_t currentSubscribeCount = 0;
 
 std::string protocolDescription(Protocol protocol)
 {
@@ -1776,6 +1780,7 @@ void App::subscribeStream(const std::string &hashname, std::shared_ptr<NetStream
 	stream.m_subscribers.insert(netStream);
 	if(stream.m_publishing)
 		netStream->m_owner->sendPublishNotify(netStream, stream);
+	currentSubscribeCount++;
 }
 
 void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
@@ -1783,6 +1788,7 @@ void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStre
 	auto &stream = m_streams[hashname];
 	stream.m_subscribers.erase(netStream);
 	cleanupStream(hashname);
+	currentSubscribeCount--;
 }
 
 bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
@@ -1796,6 +1802,8 @@ bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> 
 	for(auto it = stream.m_subscribers.begin(); it != stream.m_subscribers.end(); it++)
 		(*it)->m_owner->sendPublishNotify(*it, stream);
 
+	currentPublishCount++;
+
 	return true;
 }
 
@@ -1808,6 +1816,7 @@ void App::unpublishStream(const std::string &hashname)
 		(*it)->m_owner->sendUnpublishNotify(*it);
 
 	cleanupStream(hashname);
+	currentPublishCount--;
 }
 
 void App::releaseStream(const std::string &hashname)
@@ -1942,6 +1951,18 @@ bool App::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 void signal_handler(int param)
 {
 	interrupted = true;
+}
+
+void stats_signal_handler(int param)
+{
+	showStats = true;
+}
+
+void printStats()
+{
+	showStats = false;
+	printf(",stats,clients,%zu,apps,%zu,publishing,%zu,playing,%zu\n", clients.size(), apps.size(), currentPublishCount, currentSubscribeCount);
+	fflush(stdout);
 }
 
 bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenFds)
@@ -2103,6 +2124,10 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -D            -- suppress redirector advertising reflexive (derived) address\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
+	printf("\n");
+	printf("signals:\n");
+	printf("  SIGINT, SIGTERM  -- shut down\n");
+	printf("  SIGINFO, SIGUSR1 -- print stats\n");
 	return rv;
 }
 
@@ -2331,6 +2356,11 @@ int main(int argc, char **argv)
 
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);
+	::signal(SIGUSR1, stats_signal_handler);
+
+#ifdef SIGINFO
+	::signal(SIGINFO, stats_signal_handler); // not POSIX, but very common
+#endif
 
 	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
 		if(interrupted)
@@ -2366,11 +2396,15 @@ int main(int argc, char **argv)
 			fflush(stdout);
 		}
 
+		if(showStats)
+			printStats();
+
 		if(stopping and clients.empty() and rtmfpShutdownComplete)
 			mainRL.stop();
 	};
 
 	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 2);
+	mainRL.scheduleRel(Timer::makeAction([] { showStats = true; }), 300, 300);
 
 	auto workerThread = std::thread([] { workerRL.run(); });
 
