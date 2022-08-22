@@ -34,7 +34,7 @@ in the server for stream names, as well as the reach of the `broadcast` command
 for a stream name at a time; however, there can be any number of distinctly
 named streams published in the same App at the same time.
 
-Note: The `app` designator should typically be set to the path component of
+Note: By convention, the `app` designator is typically set to the path component of
 the `tcUrl` member of the `connect` command’s argument object, without the
 leading slash (if any). Howerver, this is not required.
 
@@ -191,11 +191,12 @@ any.
 By default, when sending stream messages to a subscriber, the server will use
 the queue lifetimes and other treatments as specified by the corresponding
 command-line arguments or their default values. The subscriber can override
-these default settings by specifying an argument to the `play` stream command.
+these default settings by specifying an argument to the `play` stream command
+after the stream name.
 
-If the first regular argument of the `play` command is an Object, then any
-members present override their corresponding deadlines or treatments. The
-following member names are recognized:
+If the first argument after the stream name is an Object, then any members
+present override their corresponding settings. The following member names are
+recognized:
 
 - `audioLifetime`: (Number) Audio queue lifetime (seconds).
 - `videoLifetime`: (Number) Video queue lifetime.
