@@ -289,6 +289,18 @@ an `onDisconnected` command is sent to the watcher:
     NULL
     "1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637"
 
+## Server Shutdown
+
+To shut down the server gracefully, send it a `SIGTERM` signal. The server
+will unregister from any RTMFP _redirectors_ and send a
+`NetConnection.Shutdown.Notify` status event to all clients. The server will
+shut down once all clients have disconnected. The server will disconnect any
+remaining clients that have not voluntarily closed by the shutdown deadline
+(set with the `-t` option, by default 5 minutes).
+
+The server will shut down immediately on receiving a second `SIGTERM` signal,
+or on receiving a `SIGINT` signal.
+
 ## TODO
 
 * Support [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)

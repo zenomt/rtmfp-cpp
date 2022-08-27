@@ -65,11 +65,14 @@ Time checkpointLifetime = 4.5;
 Time reorderWindowPeriod = 1.0;
 Time delaycc_delay = INFINITY;
 Time shutdownTimeout = 300.0;
+Time gracefulShutdownTimeout = 300.0;
 bool expirePreviousGop = true;
 bool allowMultipleConnections = false;
 bool interrupted = false;
 bool stopping = false;
 bool showStats = false;
+bool unregister = false;
+bool shuttingDown = false;
 int dscp = 0;
 size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
@@ -271,6 +274,7 @@ public:
 	void addClient(std::shared_ptr<Client> client);
 	void removeClient(std::shared_ptr<Client> client);
 	void broadcastMessage(const Bytes &sender, const Bytes &message);
+	void sendShutdownNotify();
 
 	void subscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
 	void unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
@@ -540,6 +544,16 @@ public:
 		return Bytes();
 	}
 
+	void sendShutdownNotify()
+	{
+		write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
+			AMF0::Object()
+				->putValueAtKey(AMF0::String("status"), "level")
+				->putValueAtKey(AMF0::String("NetConnection.Shutdown.Notify"), "code") // not NetConnection.Connect.AppShutdown
+				->putValueAtKey(AMF0::String("server is shutting down, please clean up"), "description")
+			), INFINITY, INFINITY);
+	}
+
 protected:
 	void setRandomConnectionID()
 	{
@@ -779,6 +793,9 @@ protected:
 		m_app->addClient(share_ref(this));
 
 		m_connected = true;
+
+		if(shuttingDown)
+			sendShutdownNotify();
 	}
 
 	void onCreateStreamCommand(const Args &args)
@@ -1575,6 +1592,7 @@ public:
 		client->m_rtws->onRecvFlow = [client] (std::shared_ptr<rtws::RecvFlow> flow) { client->acceptControlFlow(flow); };
 		client->m_rtws->onError = [client] { client->close(); };
 		client->m_rtws->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 0.25; // TODO tune default
+		client->m_rtws->minOutstandingThresh = 16 * 1024; // default is 64KB, probably too big
 
 		clients[client->m_connectionID] = client;
 		updateRedirectorLoadFactor();
@@ -1774,6 +1792,12 @@ void App::broadcastMessage(const Bytes &sender, const Bytes &message)
 		(*it)->sendRelay(sender, message);
 }
 
+void App::sendShutdownNotify()
+{
+	for(auto it = m_clients.begin(); it != m_clients.end(); it++)
+		(*it)->sendShutdownNotify();
+}
+
 void App::subscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
 {
 	auto &stream = m_streams[hashname];
@@ -1958,6 +1982,11 @@ void stats_signal_handler(int param)
 	showStats = true;
 }
 
+void unregister_signal_handler(int param)
+{
+	unregister = true;
+}
+
 void printStats()
 {
 	showStats = false;
@@ -2122,12 +2151,17 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -l user:passw -- add redirector username:password\n");
 	printf("  -d addr:port  -- advertise addr:port at redirector\n");
 	printf("  -D            -- suppress redirector advertising reflexive (derived) address\n");
+	printf("  -t sec        -- shutdown deadline on SIGTERM (default %.3Lf)\n", gracefulShutdownTimeout);
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	printf("\n");
 	printf("signals:\n");
-	printf("  SIGINT, SIGTERM  -- shut down\n");
-	printf("  SIGINFO, SIGUSR1 -- print stats\n");
+	printf("  SIGINT  -- shut down now\n");
+	printf("  SIGTERM -- unregister from redirectors, shut down when idle or deadline\n");
+#if defined(SIGINFO) && !defined(__linux__)
+	printf("  SIGINFO -- print stats\n");
+#endif
+	printf("  SIGUSR1 -- print stats\n");
 	return rv;
 }
 
@@ -2146,7 +2180,7 @@ int main(int argc, char **argv)
 	std::map<std::string, std::vector<Address>> redirectorSpecs;
 	std::vector<Address> advertiseAddresses;
 
-	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -2246,6 +2280,9 @@ int main(int argc, char **argv)
 			break;
 		case 'D':
 			advertiseReflexive = false;
+			break;
+		case 't':
+			gracefulShutdownTimeout = atof(optarg);
 			break;
 		case 'v':
 			verbose++;
@@ -2355,14 +2392,17 @@ int main(int argc, char **argv)
 			return 1;
 
 	::signal(SIGINT, signal_handler);
-	::signal(SIGTERM, signal_handler);
-	::signal(SIGUSR1, stats_signal_handler);
+	::signal(SIGTERM, unregister_signal_handler);
 
-#ifdef SIGINFO
-	::signal(SIGINFO, stats_signal_handler); // not POSIX, but very common
+	::signal(SIGUSR1, stats_signal_handler);
+#if defined(SIGINFO) && !defined(__linux__)
+	::signal(SIGINFO, stats_signal_handler); // not POSIX, very common but not on Linux
 #endif
 
 	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
+		if(unregister and shuttingDown)
+			interrupted = true;
+
 		if(interrupted)
 		{
 			interrupted = false;
@@ -2398,6 +2438,24 @@ int main(int argc, char **argv)
 
 		if(showStats)
 			printStats();
+
+		if(unregister)
+		{
+			unregister = false;
+			if(not shuttingDown)
+			{
+				shuttingDown = true;
+				for(auto it = redirectors.begin(); it != redirectors.end(); it++)
+					(*it)->setActive(false);
+				for(auto it = apps.begin(); it != apps.end(); it++)
+					it->second->sendShutdownNotify();
+				mainRL.scheduleRel(Timer::makeAction([] { interrupted = true; }), gracefulShutdownTimeout);
+				printf(",unregister,shut down when idle or after %.3Lf\n", gracefulShutdownTimeout);
+			}
+		}
+
+		if(shuttingDown and clients.empty())
+			mainRL.doLater([] { interrupted = true; shuttingDown = false; });
 
 		if(stopping and clients.empty() and rtmfpShutdownComplete)
 			mainRL.stop();
