@@ -97,7 +97,7 @@ PreferredRunLoop workerRL;
 Performer workerPerformer(&workerRL);
 FlashCryptoAdapter_OpenSSL crypto;
 List<std::shared_ptr<Client>> activeClients;
-std::map<Bytes, std::shared_ptr<Client>> activePeers;
+std::map<Bytes, std::shared_ptr<Client>> peers;
 std::set<std::shared_ptr<Client>> clients;
 
 void signal_handler(int param)
@@ -162,7 +162,7 @@ public:
 		activeClients.remove(m_activeClientsName);
 		m_activeClientsName = -1;
 
-		activePeers.erase(m_fingerprint);
+		peers.erase(m_fingerprint);
 
 		clients.erase(share_ref(this));
 
@@ -195,8 +195,8 @@ public:
 		if(epdParsed.fingerprint)
 		{
 			// fingerprint always wins per §4.4.3 of RFC 7425
-			auto it = activePeers.find(Bytes(epdParsed.fingerprint, epdParsed.fingerprint + epdParsed.fingerprintLen));
-			if(it != activePeers.end())
+			auto it = peers.find(Bytes(epdParsed.fingerprint, epdParsed.fingerprint + epdParsed.fingerprintLen));
+			if(it != peers.end())
 				foundClients.push_back(it->second);
 		}
 		else
@@ -350,6 +350,8 @@ protected:
 
 	void onSettings(const uint8_t *bytes, const uint8_t *limit)
 	{
+		if(verbose) printf("Client %p settings\n", (void *)this);
+
 		m_includeReflexiveAddress = false;
 		m_additionalAddresses.clear();
 
@@ -400,7 +402,7 @@ protected:
 		{
 			auto myself = share_ref(this);
 			m_activeClientsName = activeClients.prepend(myself);
-			activePeers[m_fingerprint] = myself;
+			peers[m_fingerprint] = myself;
 		}
 
 		ensureReturnFlow();
@@ -408,9 +410,10 @@ protected:
 
 	void onDraining(const uint8_t *bytes, const uint8_t *limit)
 	{
+		if(verbose) printf("Client %p draining\n", (void *)this);
 		activeClients.remove(m_activeClientsName);
 		m_activeClientsName = -1;
-		activePeers.erase(m_fingerprint);
+		// client can still be addressed by fingerprint even if draining
 		ensureReturnFlow();
 	}
 
