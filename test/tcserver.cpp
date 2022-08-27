@@ -73,6 +73,7 @@ bool stopping = false;
 bool showStats = false;
 bool unregister = false;
 bool shuttingDown = false;
+bool allowConnectDuringShutdown = false;
 int dscp = 0;
 size_t maxNetStreamsPerClient = 256; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
@@ -1167,6 +1168,9 @@ class RTMFPClient : public Client {
 public:
 	static void newClient(std::shared_ptr<RecvFlow> controlRecv)
 	{
+		if(shuttingDown and not allowConnectDuringShutdown)
+			return;
+
 		uint32_t streamID = 0;
 		if((not TCMetadata::parse(controlRecv->getMetadata(), &streamID, nullptr)) or (0 != streamID))
 			return; // for now only accept TC flows.
@@ -2085,6 +2089,16 @@ bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenF
 	return true;
 }
 
+void unregisterAndCloseFds(std::vector<int> &fds)
+{
+	for(auto it = fds.begin(); it != fds.end(); it++)
+	{
+		mainRL.unregisterDescriptor(*it);
+		::close(*it);
+	}
+	fds.clear();
+}
+
 bool appendAddress(const char *presentationForm, std::vector<Address> &dst)
 {
 	Address addr;
@@ -2152,6 +2166,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -d addr:port  -- advertise addr:port at redirector\n");
 	printf("  -D            -- suppress redirector advertising reflexive (derived) address\n");
 	printf("  -t sec        -- shutdown deadline on SIGTERM (default %.3Lf)\n", gracefulShutdownTimeout);
+	printf("  -c            -- allow new connections while shutting down\n");
 	printf("  -v            -- increase verbose output\n");
 	printf("  -h            -- show this help\n");
 	printf("\n");
@@ -2180,7 +2195,7 @@ int main(int argc, char **argv)
 	std::map<std::string, std::vector<Address>> redirectorSpecs;
 	std::vector<Address> advertiseAddresses;
 
-	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:vh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:cvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -2283,6 +2298,9 @@ int main(int argc, char **argv)
 			break;
 		case 't':
 			gracefulShutdownTimeout = atof(optarg);
+			break;
+		case 'c':
+			allowConnectDuringShutdown = true;
 			break;
 		case 'v':
 			verbose++;
@@ -2422,12 +2440,7 @@ int main(int argc, char **argv)
 			for(auto it = safeClients.begin(); it != safeClients.end(); it++)
 				it->second->close();
 
-			for(auto it = listenFds.begin(); it != listenFds.end(); it++)
-			{
-				mainRL.unregisterDescriptor(*it);
-				::close(*it);
-			}
-			listenFds.clear();
+			unregisterAndCloseFds(listenFds);
 
 			for(auto it = redirectors.begin(); it != redirectors.end(); it++)
 				(*it)->close();
@@ -2449,6 +2462,8 @@ int main(int argc, char **argv)
 					(*it)->setActive(false);
 				for(auto it = apps.begin(); it != apps.end(); it++)
 					it->second->sendShutdownNotify();
+				if(not allowConnectDuringShutdown)
+					unregisterAndCloseFds(listenFds);
 				mainRL.scheduleRel(Timer::makeAction([] { interrupted = true; }), gracefulShutdownTimeout);
 				printf(",unregister,shut down when idle or after %.3Lf\n", gracefulShutdownTimeout);
 			}
