@@ -673,6 +673,10 @@ protected:
 			onWatchCommand(args);
 		else if(0 == strcmp("releaseStream", commandName))
 			onReleaseStreamCommand(args);
+		else if(0 == strcmp("FCPublish", commandName))
+			ackCommandTransaction(args); // ignore
+		else if(0 == strcmp("FCUnpublish", commandName))
+			ackCommandTransaction(args); // ignore
 		else
 			onUnknownCommand(args);
 	}
