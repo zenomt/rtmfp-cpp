@@ -535,7 +535,14 @@ void RTWebSocket::measureRTT()
 
 		size_t adjustThresh = std::max(MIN_ACK_WINDOW, outstandingThresh);
 		if(numBytes >= adjustThresh - MIN_ACK_WINDOW)
+		{
 			outstandingThresh = std::max(minOutstandingThresh, (size_t)(bandwidth * (getBaseRTT() + maxAdditionalDelay)));
+			if(outstandingThresh == minOutstandingThresh)
+			{
+				m_rttMeasurements.clear();
+				addRTT(rtt);
+			}
+		}
 	}
 }
 
