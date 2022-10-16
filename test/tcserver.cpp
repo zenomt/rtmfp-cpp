@@ -779,6 +779,7 @@ protected:
 		resultObject->putValueAtKey(AMF0::String("you connected!"), "description");
 		resultObject->putValueAtKey(AMF0::String(connectionIDStr()), "connectionID");
 		resultObject->putValueAtKey(objectEncoding, "objectEncoding");
+		resultObject->putValueAtKey(AMF0::String(Hex::encode(flashcrypto->getFingerprint())), "serverFingerprint");
 
 		if(matchedKey >= 0)
 		{

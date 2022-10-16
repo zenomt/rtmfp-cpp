@@ -25,6 +25,11 @@ at least one `setPeerInfo` command.
 RTWebSocket connections use the same message and metadata formats, and flow
 association semantics, as described in RFC 7425 for RTMFP flows.
 
+To help RTMFP clients rendezvous with RTMP and RTWebSocket clients at the
+same server, especially when using _redirectors_, the server sends its RTMFP
+fingerprint in the `serverFingerprint` member of the `connect` response _info
+object_.
+
 ## Apps (Partitions)
 
 Each client connects to a named partition (an “App”), specified by the `app`
@@ -36,7 +41,7 @@ named streams published in the same App at the same time.
 
 Note: By convention, the `app` designator is typically set to the path component of
 the `tcUrl` member of the `connect` command’s argument object, without the
-leading slash (if any). Howerver, this is not required.
+leading slash (if any). However, this is not required.
 
 ## Authentication
 
@@ -120,6 +125,7 @@ would reply to the `connect` command with
         "connectionID": "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176",
         "objectEncoding": 0.0,
         "authToken": "bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c",
+        "serverFingerprint": "4e47cbb7f2b5fdcaf9593ce1feb6d6639c639cfa8fb4691e7530c5dd5b029f8f",
         "serverInfo": "some info 12345"
     }
 
