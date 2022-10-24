@@ -837,6 +837,7 @@ protected:
 			closeStream(it->second);
 			printf("%s,deleteStream,%lu\n", m_farAddressStr.c_str(), (unsigned long)streamID);
 			m_netStreams.erase(streamID);
+			deleteStreamTransport(streamID);
 		}
 	}
 
@@ -1154,6 +1155,10 @@ protected:
 	{
 	}
 
+	virtual void deleteStreamTransport(uint32_t streamID)
+	{
+	}
+
 	uint32_t m_nextStreamID { 1 };
 	bool m_connecting { false };
 	bool m_connected { false };
@@ -1468,6 +1473,11 @@ protected:
 		}
 	}
 
+	void deleteStreamTransport(uint32_t streamID) override
+	{
+		m_netStreamTransports.erase(streamID);
+	}
+
 	uint32_t m_nextSyncID { 0 };
 	FlowSyncManager m_syncManager;
 	std::shared_ptr<SendFlow> m_controlSend;
@@ -1756,6 +1766,11 @@ protected:
 			auto &stream = m_netStreamTransports[streamID];
 			stream.syncAudioAndData(m_nextSyncID++);
 		}
+	}
+
+	void deleteStreamTransport(uint32_t streamID) override
+	{
+		m_netStreamTransports.erase(streamID);
 	}
 
 	uint32_t m_nextSyncID { 0 };
