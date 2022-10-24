@@ -116,10 +116,24 @@ int main(int argc, char **argv)
 	remove_array->remove(remove_array->size() - 2, 2);
 	_print(remove_array);
 
+	auto amf_obj_dup = amf_obj->duplicate();
+	auto amf_obj_dup_asobj = amf_obj_dup->asObject();
+	printf("duplicated ");
+	_print(amf_obj_dup);
+
 	assert(AMF0::Number(1)->isTruthy());
 	assert(AMF0::String("anything")->isTruthy());
 	assert(not AMF0::Number(0)->isTruthy());
 	assert(not AMF0::String("")->isTruthy());
+	assert(not AMF0::Undefined()->isTruthy());
+
+	assert(amf_obj_dup->isTruthy());
+	assert(amf_obj_dup_asobj != nullptr);
+	assert(3 == amf_obj_dup_asobj->size());
+	assert(amf_obj_dup->getValueAtKey("str")->isTruthy());
+	assert(amf_obj_dup->getValueAtKey("bool")->isTruthy());
+	assert(amf_obj_dup->getValueAtKey("num")->isTruthy());
+	assert(not amf_obj_dup->getValueAtKey("not found")->isTruthy());
 
 	return 0;
 }

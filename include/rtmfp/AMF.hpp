@@ -122,6 +122,8 @@ public:
 	std::string repr() const;
 	virtual void repr(std::string &dst, size_t depth) const = 0;
 
+	std::shared_ptr<AMF0> duplicate() const;
+
 protected:
 	static std::shared_ptr<AMF0> decode(const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth);
 

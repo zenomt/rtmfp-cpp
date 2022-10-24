@@ -186,6 +186,15 @@ std::string AMF0::repr() const
 	return rv;
 }
 
+std::shared_ptr<AMF0> AMF0::duplicate() const
+{
+	Bytes tmp;
+	encode(tmp);
+	const uint8_t *cursor = tmp.data();
+	const uint8_t *limit = cursor + tmp.size();
+	return decode(&cursor, limit);
+}
+
 // --- AMF0Number
 
 AMF0Number::AMF0Number() : m_value(0) { }
