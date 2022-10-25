@@ -92,17 +92,14 @@ Performer lookupPerformer(&lookupRL);
 
 std::set<std::shared_ptr<Client>> clients;
 
-void lookup(const std::function<void(struct addrinfo *results)> &onresult)
+void lookup(const std::function<void(const std::vector<Address> &results)> &onresult)
 {
 	lookupPerformer.perform([onresult] {
-		struct addrinfo *res0 = nullptr;
-		int error = getaddrinfo(desthostname, destservname, nullptr, &res0);
+		int error = 0;
+		auto results = Address::lookup(desthostname, destservname, &error);
 		if(error)
-			printf("getaddrinfo: %s\n", gai_strerror(error));
-		mainPerformer.perform([onresult, res0] {
-			onresult(res0);
-			freeaddrinfo(res0);
-		});
+			printf("address lookup: %s\n", gai_strerror(error));
+		mainPerformer.perform([onresult, results] { onresult(results); });
 	});
 }
 
@@ -405,15 +402,17 @@ public:
 	void openConnection()
 	{
 		auto myself = share_ref(this);
-		lookup([this, myself] (struct addrinfo *results) {
+		lookup([this, myself] (const std::vector<Address> &results) {
 			if(m_open)
 			{
-				if(not results)
+				if(results.empty())
 					goto error;
 
-				if(verbose) printf("connecting to %s\n", Address(results->ai_addr).toPresentation().c_str());
+				auto addr = results.front();
 
-				int fd = socket(results->ai_family, SOCK_STREAM, IPPROTO_TCP);
+				if(verbose) printf("connecting to %s\n", addr.toPresentation().c_str());
+
+				int fd = socket(addr.getFamily(), SOCK_STREAM, IPPROTO_TCP);
 				if(fd < 0)
 				{
 					::perror("socket");
@@ -424,7 +423,7 @@ public:
 					flags |= O_NONBLOCK;
 					fcntl(fd, F_SETFL, flags); // just so connect() won't block
 				}
-				if((connect(fd, results->ai_addr, results->ai_addrlen) < 0) and (EINPROGRESS != errno))
+				if((connect(fd, addr.getSockaddr(), addr.getSockaddrLen()) < 0) and (EINPROGRESS != errno))
 				{
 					::perror("connect");
 					::close(fd);
@@ -818,11 +817,11 @@ notfound:
 		m_platform.addUdpInterface(0, AF_INET6);
 
 		auto myself = share_ref(this);
-		lookup([this, myself] (struct addrinfo *results) {
+		lookup([this, myself] (const std::vector<Address> &results) {
 			if(m_open)
 			{
-				for(struct addrinfo *each = results; each; each = each->ai_next)
-					m_controlSend->addCandidateAddress(each->ai_addr);
+				for(auto it = results.begin(); it != results.end(); it++)
+					m_controlSend->addCandidateAddress(*it);
 			}
 		});
 	}

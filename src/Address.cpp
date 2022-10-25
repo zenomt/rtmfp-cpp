@@ -10,6 +10,7 @@
 
 #ifndef _WIN32
 #include <arpa/inet.h>
+#include <netdb.h>
 #endif
 
 #include <cstdio>
@@ -376,5 +377,29 @@ bool Address::setFromPresentation(const char *src, bool withPort)
 
 	return true;
 }
+
+#ifndef _WIN32
+std::vector<Address> Address::lookup(const char *hostname, const char *servname, int *err, int ai_flags, int ai_family, int ai_protocol)
+{
+	struct addrinfo *res0 = nullptr;
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = ai_flags;
+	hints.ai_family = ai_family;
+	hints.ai_protocol = ai_protocol;
+
+	int ai_error = ::getaddrinfo(hostname, servname, &hints, &res0);
+	if(err)
+		*err = ai_error;
+
+	std::vector<Address> rv;
+	for(struct addrinfo *each = res0; each; each = each->ai_next)
+		rv.emplace_back(each->ai_addr);
+
+	freeaddrinfo(res0);
+
+	return rv;
+}
+#endif
 
 } } } // namespace com::zenomt::rtmfp

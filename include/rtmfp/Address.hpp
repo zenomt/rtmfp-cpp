@@ -81,6 +81,11 @@ public:
 	void toPresentation(char *dst, bool withPort = true) const; // dst at least MAX_PRESENTATION_LENGTH bytes
 	bool setFromPresentation(const char *src, bool withPort = true);
 
+#ifndef _WIN32
+	// convenience function calls getaddrinfo(3).
+	static std::vector<Address> lookup(const char *hostname, const char *servname, int *err = nullptr, int ai_flags = 0, int ai_family = PF_UNSPEC, int ai_protocol = IPPROTO_UDP);
+#endif
+
 protected:
 	union in_sockaddr m_addr;
 	Origin            m_origin;

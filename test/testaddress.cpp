@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <netdb.h>
+
 using namespace com::zenomt::rtmfp;
 
 uint8_t v4[] = { 127, 0, 0, 1 };
@@ -167,6 +169,20 @@ int main(int argc, char *argv[])
 	_testAddress(":1234", true, false);
 	_testAddress("::1234", true, false);
 	_testAddress("::12345", true, false);
+
+	printf("Address::lookup(\"localhost\", \"1935\");\n");
+	int ai_err = 0;
+	auto gai_addresses = Address::lookup("localhost", "1935", &ai_err);
+	assert(not gai_addresses.empty());
+	assert(0 == ai_err);
+	for(auto it = gai_addresses.begin(); it != gai_addresses.end(); it++)
+		printf("  %s\n", it->toPresentation().c_str());
+
+	printf("Address::lookup(\"notfound.example.com\", \"1935\"); expect failure\n");
+	auto gai_addresses_notfound = Address::lookup("notfound.example.com", "1935", &ai_err);
+	assert(gai_addresses_notfound.empty());
+	assert(0 != ai_err);
+	printf("  returned %d %s\n", ai_err, gai_strerror(ai_err));
 
 	return 0;
 }
