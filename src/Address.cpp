@@ -388,7 +388,7 @@ std::vector<Address> Address::lookup(const char *hostname, const char *servname,
 	hints.ai_family = ai_family;
 	hints.ai_protocol = ai_protocol;
 
-	int ai_error = ::getaddrinfo(hostname, servname, &hints, &res0);
+	int ai_error = getaddrinfo(hostname, servname, &hints, &res0);
 	if(err)
 		*err = ai_error;
 

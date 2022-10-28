@@ -30,6 +30,7 @@ add_library(rtmfp STATIC
 	src/Session.cpp
 	src/TCMessage.cpp
 	src/Timer.cpp
+	src/URIParse.cpp
 	src/VLU.cpp
 	src/WriteReceipt.cpp
 )

@@ -27,3 +27,4 @@ test/testmedia
 test/redirector
 test/tcserver
 test/testwebsock
+test/testuriparse
