@@ -43,6 +43,49 @@ Bytes Message::command(const char *commandName, double transactionID, const AMF0
 	return command(commandName, transactionID, commandObject, infoObject.get());
 }
 
+Bytes Message::command(const char *commandName, double transactionID, const std::vector<std::shared_ptr<AMF0>> &args, bool ext)
+{
+	Bytes rv;
+
+	if(ext)
+		rv.push_back(0);
+
+	AMF0String(commandName).encode(rv);
+	AMF0Number(transactionID).encode(rv);
+	AMF0::encode(args, rv);
+
+	return rv;
+}
+
+bool Message::isVideoInit(const uint8_t *payload, size_t len)
+{
+	return (len > 1) and (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_AVCC == payload[1]);
+}
+
+bool Message::isVideoKeyframe(const uint8_t *payload, size_t len)
+{
+	return len and (TC_VIDEO_FRAMETYPE_IDR == (payload[0] & TC_VIDEO_FRAMETYPE_MASK));
+}
+
+bool Message::isVideoSequenceSpecial(const uint8_t *payload, size_t len)
+{
+	if(0 == len)
+		return true; // "video silence"
+	if(len < 2)
+		return false;
+	return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
+}
+
+bool Message::isAudioInit(const uint8_t *payload, size_t len)
+{
+	return (len > 1) and (TC_AUDIO_CODEC_AAC == (payload[0] & TC_AUDIO_CODEC_MASK)) and (TC_AUDIO_AACPACKET_AUDIO_SPECIFIC_CONFIG == payload[1]);
+}
+
+bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
+{
+	return (0 == len) or isAudioInit(payload, len);
+}
+
 } // namespace rtmp
 
 namespace rtmfp {
@@ -158,6 +201,11 @@ Bytes TCMessage::command(const char *commandName, double transactionID, const AM
 Bytes TCMessage::command(const char *commandName, double transactionID, const AMF0 *commandObject, const std::shared_ptr<AMF0> &infoObject)
 {
 	return command(commandName, transactionID, commandObject, infoObject.get());
+}
+
+Bytes TCMessage::command(const char *commandName, double transactionID, const std::vector<std::shared_ptr<rtmp::AMF0>> &args, bool ext)
+{
+	return message(ext ? TCMSG_COMMAND_EX : TCMSG_COMMAND, 0, Message::command(commandName, transactionID, args, ext));
 }
 
 } // namespace rtmfp

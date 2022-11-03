@@ -179,6 +179,20 @@ AMF0::Bytes AMF0::encode(const AMF0 *v)
 	return rv;
 }
 
+AMF0::Bytes AMF0::encode(const std::vector<std::shared_ptr<AMF0>> &values)
+{
+	Bytes rv;
+	encode(values, rv);
+	return rv;
+}
+
+void AMF0::encode(const std::vector<std::shared_ptr<AMF0>> &values, Bytes &dst)
+{
+	for(auto it = values.begin(); it != values.end(); it++)
+		if(*it)
+			(*it)->encode(dst);
+}
+
 std::string AMF0::repr() const
 {
 	std::string rv;

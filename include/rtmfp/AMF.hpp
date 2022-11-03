@@ -119,6 +119,9 @@ public:
 	static Bytes encode(const AMF0 *v);
 	virtual void encode(Bytes &dst) const = 0;
 
+	static Bytes encode(const std::vector<std::shared_ptr<AMF0>> &values);
+	static void encode(const std::vector<std::shared_ptr<AMF0>> &values, Bytes &dst);
+
 	std::string repr() const;
 	virtual void repr(std::string &dst, size_t depth) const = 0;
 

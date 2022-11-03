@@ -128,6 +128,14 @@ public:
 	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const Bytes &payload, bool ext = false);
 	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const AMF0 *infoObject);
 	static Bytes command(const char *commandName, double transactionID, const AMF0 *commandObject, const std::shared_ptr<AMF0> &infoObject);
+	static Bytes command(const char *commandName, double transactionID, const std::vector<std::shared_ptr<AMF0>> &args, bool ext = false);
+
+	static bool isVideoInit(const uint8_t *payload, size_t len);
+	static bool isVideoKeyframe(const uint8_t *payload, size_t len);
+	static bool isVideoSequenceSpecial(const uint8_t *payload, size_t len);
+
+	static bool isAudioInit(const uint8_t *payload, size_t len);
+	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
 };
 
 } // namespace rtmp
@@ -162,6 +170,7 @@ public:
 	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const Bytes &payload, bool ext = false);
 	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const rtmp::AMF0 *infoObject);
 	static Bytes command(const char *commandName, double transactionID, const rtmp::AMF0 *commandObject, const std::shared_ptr<rtmp::AMF0> &infoObject);
+	static Bytes command(const char *commandName, double transactionID, const std::vector<std::shared_ptr<rtmp::AMF0>> &args, bool ext = false);
 };
 
 } // namespace rtmfp

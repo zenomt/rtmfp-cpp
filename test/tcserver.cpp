@@ -286,13 +286,8 @@ public:
 
 	void onStreamMessage(const std::string &hashname, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len);
 
-	static bool isVideoInit(const uint8_t *payload, size_t len);
-	static bool isVideoKeyframe(const uint8_t *payload, size_t len);
 	static bool isVideoCheckpointCommand(const uint8_t *payload, size_t len);
 	static bool isVideoSequenceSpecial(const uint8_t *payload, size_t len);
-
-	static bool isAudioInit(const uint8_t *payload, size_t len);
-	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
 
 protected:
 	void cleanupStream(const std::string &hashname);
@@ -426,7 +421,7 @@ public:
 			break;
 
 		case TCMSG_AUDIO:
-			if(not App::isAudioSequenceSpecial(payload, len))
+			if(not Message::isAudioSequenceSpecial(payload, len))
 			{
 				if(netStream->m_paused or not netStream->m_receiveAudio)
 					return;
@@ -447,7 +442,7 @@ public:
 			if(not q.empty())
 				previous = q.lastValue();
 
-			if(App::isVideoKeyframe(payload, len))
+			if(Message::isVideoKeyframe(payload, len))
 			{
 				previous.reset();
 				if(netStream->m_expirePreviousGop)
@@ -1415,7 +1410,7 @@ protected:
 		switch(messageType)
 		{
 		case TCMSG_VIDEO: return App::isVideoSequenceSpecial(bytes + rv, len - rv);
-		case TCMSG_AUDIO: return App::isAudioSequenceSpecial(bytes + rv, len - rv);
+		case TCMSG_AUDIO: return Message::isAudioSequenceSpecial(bytes + rv, len - rv);
 		default: return true;
 		}
 	}
@@ -1928,33 +1923,23 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 	}
 	else if(TCMSG_VIDEO == messageType)
 	{
-		if(isVideoInit(payload, len))
+		if(Message::isVideoInit(payload, len))
 		{
 			stream.m_videoInit = Bytes(payload, payload + len);
 			stream.m_lastVideoKeyframe.clear();
 		}
-		else if(isVideoKeyframe(payload, len))
+		else if(Message::isVideoKeyframe(payload, len))
 			stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
 		stream.m_lastVideoTimestamp = timestamp;
 	}
 	else if(TCMSG_AUDIO == messageType)
 	{
-		if(isAudioInit(payload, len))
+		if(Message::isAudioInit(payload, len))
 			stream.m_audioInit = Bytes(payload, payload + len);
 	}
 
 	for(auto it = stream.m_subscribers.begin(); it != stream.m_subscribers.end(); it++)
 		(*it)->m_owner->relayStreamMessage(*it, messageType, timestamp, actualPayload, limit - actualPayload);
-}
-
-bool App::isVideoInit(const uint8_t *payload, size_t len)
-{
-	return (len > 1) and (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_AVCC == payload[1]);
-}
-
-bool App::isVideoKeyframe(const uint8_t *payload, size_t len)
-{
-	return len and (TC_VIDEO_FRAMETYPE_IDR == (payload[0] & TC_VIDEO_FRAMETYPE_MASK));
 }
 
 bool App::isVideoCheckpointCommand(const uint8_t *payload, size_t len)
@@ -1975,23 +1960,9 @@ bool App::isVideoCheckpointCommand(const uint8_t *payload, size_t len)
 
 bool App::isVideoSequenceSpecial(const uint8_t *payload, size_t len)
 {
-	if(0 == len)
-		return true; // "video silence"
-	if(len < 2)
-		return false;
 	if(isVideoCheckpointCommand(payload, len))
 		return false;
-	return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
-}
-
-bool App::isAudioInit(const uint8_t *payload, size_t len)
-{
-	return (len > 1) and (TC_AUDIO_CODEC_AAC == (payload[0] & TC_AUDIO_CODEC_MASK)) and (TC_AUDIO_AACPACKET_AUDIO_SPECIFIC_CONFIG == payload[1]);
-}
-
-bool App::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
-{
-	return (0 == len) or isAudioInit(payload, len);
+	return Message::isVideoSequenceSpecial(payload, len);
 }
 
 // ---
