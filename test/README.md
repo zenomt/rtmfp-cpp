@@ -62,3 +62,4 @@ These programs are run on `make ci`.
 * [`testreorder`](testreorder.cpp): Test `ReorderBuffer`.
 * [`testmedia`](testmedia.cpp): Test [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
   `Media` helper functions.
+* [`testuriparse`](testuriparse.cpp): Test URI parser.

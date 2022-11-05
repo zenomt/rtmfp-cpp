@@ -28,6 +28,9 @@ struct URIParse {
 	std::string path;
 	std::string userinfoPart;
 	std::string userinfo;
+	std::string user;
+	std::string passwordPart;
+	std::string password;
 	std::string hostinfo;
 	std::string host;
 	std::string port;

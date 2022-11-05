@@ -25,6 +25,9 @@ static void printUri(const char *msg, const com::zenomt::URIParse &p)
 	printf("path: %s\n", p.path.c_str());
 	printf("userinfoPart: %s\n", p.userinfoPart.c_str());
 	printf("userinfo: %s\n", p.userinfo.c_str());
+	printf("user: %s\n", p.user.c_str());
+	printf("passwordPart: %s\n", p.passwordPart.c_str());
+	printf("password: %s\n", p.password.c_str());
 	printf("hostinfo: %s\n", p.hostinfo.c_str());
 	printf("host: %s\n", p.host.c_str());
 	printf("port: %s\n", p.port.c_str());
@@ -85,10 +88,14 @@ int main(int argc, char *argv[])
 	assert(u5.host == "foo");
 	assert(u5.port.empty());
 	assert(u5.effectivePort == "1935");
+	assert(u5.userinfo.empty());
 
 	URIParse u6("rtmfp://user:pw@foo:1936");
 	printUri("u6", u6);
 	assert(u6.userinfo == "user:pw");
+	assert(u6.user == "user");
+	assert(u6.passwordPart == ":pw");
+	assert(u6.password == "pw");
 	assert(u6.host == "foo");
 	assert(u6.port == "1936");
 	assert(u6.effectivePort == "1936");
@@ -130,6 +137,7 @@ int main(int argc, char *argv[])
 	assert(u14.fragment == "baz");
 	assert(u14.path == "/foo");
 	assert(u14.userinfo == "user:pw");
+	assert(u14.passwordPart == ":pw");
 	assert(u14.host == "2001:db8::2");
 	assert(u14.port == "4567");
 	assert(u14.effectivePort == "4567");

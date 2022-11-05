@@ -43,10 +43,13 @@ void URIParse::parse(const std::string &uri_)
 	path = hierparts[3];
 
 	std::smatch authparts;
-	std::regex_match(authority, authparts, std::regex("^(([^@]*)@)?(.*)"));
+	std::regex_match(authority, authparts, std::regex("^((([^:@]*)(:([^@]*))?)@)?(.*)"));
 	userinfoPart = authparts[1];
 	userinfo = authparts[2];
-	hostinfo = authparts[3];
+	user = authparts[3];
+	passwordPart = authparts[4];
+	password = authparts[5];
+	hostinfo = authparts[6];
 
 	std::smatch hostparts;
 	std::regex_match(hostinfo, hostparts, std::regex("^((\\[([0-9a-fA-Fv:]*)?\\]))?([^:]*)?(:([0-9]+))?"));
