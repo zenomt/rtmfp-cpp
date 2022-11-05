@@ -10,8 +10,11 @@ namespace com { namespace zenomt {
 
 class PosixStreamPlatformAdapter : public IStreamPlatformAdapter, public Object {
 public:
-	PosixStreamPlatformAdapter(RunLoop *runloop, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
+	PosixStreamPlatformAdapter(RunLoop *runloop = nullptr, int unsent_lowat = 4096, size_t writeSizePerSelect = 2048);
 	~PosixStreamPlatformAdapter();
+
+	void attachToRunLoop(RunLoop *runloop);
+	void detachFromRunLoop();
 
 	void close();
 
@@ -32,6 +35,8 @@ protected:
 	void onInterfaceReadable();
 	void onInterfaceWritable();
 	void closeIfDone();
+	void tryRegisterReadable();
+	void tryRegisterWritable();
 
 	bool m_clientOpen;
 	bool m_shutdown;

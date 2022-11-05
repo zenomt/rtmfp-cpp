@@ -1,6 +1,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include <cassert>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -38,13 +39,29 @@ PosixStreamPlatformAdapter::~PosixStreamPlatformAdapter()
 	m_inputBuffer = nullptr;
 }
 
+void PosixStreamPlatformAdapter::attachToRunLoop(RunLoop *runloop)
+{
+	assert(not m_runloop);
+	m_runloop = runloop;
+	tryRegisterReadable();
+	tryRegisterWritable();
+}
+
+void PosixStreamPlatformAdapter::detachFromRunLoop()
+{
+	if(m_runloop)
+		m_runloop->unregisterDescriptor(m_fd);
+	m_runloop = nullptr;
+}
+
 void PosixStreamPlatformAdapter::close()
 {
 	*m_doLaterAllowed = false;
 
 	if(m_fd >= 0)
 	{
-		m_runloop->unregisterDescriptor(m_fd);
+		if(m_runloop)
+			m_runloop->unregisterDescriptor(m_fd);
 		::close(m_fd);
 		m_fd = -1;
 	}
@@ -76,12 +93,8 @@ bool PosixStreamPlatformAdapter::setSocketFd(int fd)
 	fcntl(m_fd, F_SETNOSIGPIPE, 1);
 #endif
 
-	auto myself = share_ref(this);
-
-	if(m_onreceivebytes)
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
-	if(m_onwritable)
-		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
+	tryRegisterReadable();
+	tryRegisterWritable();
 
 	return true;
 }
@@ -93,23 +106,20 @@ int PosixStreamPlatformAdapter::getSocketFd() const
 
 Time PosixStreamPlatformAdapter::getCurrentTime()
 {
+	assert(m_runloop);
 	return m_runloop->getCurrentTime();
 }
 
 void PosixStreamPlatformAdapter::notifyWhenWritable(const onwritable_f &onwritable)
 {
-	auto myself = share_ref(this);
 	m_onwritable = onwritable;
-	if(m_fd >= 0)
-		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
+	tryRegisterWritable();
 }
 
 void PosixStreamPlatformAdapter::setOnReceiveBytesCallback(const onreceivebytes_f &onreceivebytes)
 {
-	auto myself = share_ref(this);
 	m_onreceivebytes = onreceivebytes;
-	if(m_fd >= 0)
-		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
+	tryRegisterReadable();
 }
 
 void PosixStreamPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstreamdidclose)
@@ -119,6 +129,7 @@ void PosixStreamPlatformAdapter::setOnStreamDidCloseCallback(const Task &onstrea
 
 void PosixStreamPlatformAdapter::doLater(const Task &task)
 {
+	assert(m_runloop);
 	std::shared_ptr<bool> allowed = m_doLaterAllowed;
 	m_runloop->doLater([allowed, task] {
 		if(*allowed)
@@ -224,7 +235,7 @@ void PosixStreamPlatformAdapter::onInterfaceWritable()
 			m_outputBuffer.clear();
 	}
 
-	if(m_outputBuffer.empty() and not m_onwritable)
+	if(m_outputBuffer.empty() and m_runloop and not m_onwritable)
 		m_runloop->unregisterDescriptor(m_fd, RunLoop::WRITABLE);
 
 	closeIfDone();
@@ -236,6 +247,24 @@ void PosixStreamPlatformAdapter::closeIfDone()
 	{
 		m_shutdown = true;
 		shutdown(m_fd, SHUT_WR);
+	}
+}
+
+void PosixStreamPlatformAdapter::tryRegisterReadable()
+{
+	if(m_runloop and (m_fd >= 0) and m_onreceivebytes)
+	{
+		auto myself = share_ref(this);
+		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
+	}
+}
+
+void PosixStreamPlatformAdapter::tryRegisterWritable()
+{
+	if(m_runloop and (m_fd >= 0) and m_onwritable)
+	{
+		auto myself = share_ref(this);
+		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
 	}
 }
 
