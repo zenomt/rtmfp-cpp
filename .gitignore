@@ -28,3 +28,4 @@ test/redirector
 test/tcserver
 test/testwebsock
 test/testuriparse
+test/tcconn
