@@ -28,6 +28,7 @@ add_library(rtmfp STATIC
 	src/RunLoop.cpp
 	src/SendFlow.cpp
 	src/Session.cpp
+	src/TCConnection.cpp
 	src/TCMessage.cpp
 	src/Timer.cpp
 	src/URIParse.cpp
