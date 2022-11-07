@@ -3,7 +3,7 @@
 // Copyright © 2022 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-// Tin-Can (RTMFP/RTMP) client-side session layer (traditional NetConnection & NetStream)
+// Tin-Can client-side session layer (traditional NetConnection & NetStream)
 
 #include "FlowSyncManager.hpp"
 #include "ReorderBuffer.hpp"
