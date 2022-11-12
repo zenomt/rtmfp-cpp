@@ -57,5 +57,19 @@ int main(int argc, char **argv)
 		printf("parse TCMessage got type %u timestamp %lu read %lu\n", t, (unsigned long)ts, (unsigned long)rv);
 	}
 
+	assert(Message::timestamp_lt(1, 2));
+	assert(Message::timestamp_lt(UINT32_C(0x90000000), UINT32_C(0xa0000000)));
+	assert(Message::timestamp_lt(UINT32_C(0xF0000000), 0));
+	assert(Message::timestamp_lt(UINT32_C(0xF0000000), 1));
+	assert(Message::timestamp_lt(UINT32_C(0xF0000000), UINT32_C(0x60000000)));
+	assert(not Message::timestamp_lt(2, 1));
+	assert(Message::timestamp_gt(2, 1));
+
+	assert(1 == Message::timestamp_diff(2, 1));
+	assert(-1 == Message::timestamp_diff(1, 2));
+	assert(-101 == Message::timestamp_diff(uint32_t(0) - uint32_t(100), 1));
+	assert(1 == Message::timestamp_diff(UINT32_C(0xF0000005), UINT32_C(0xF0000004)));
+	assert(-1 == Message::timestamp_diff(UINT32_C(0xF0000004), UINT32_C(0xF0000005)));
+
 	return 0;
 }

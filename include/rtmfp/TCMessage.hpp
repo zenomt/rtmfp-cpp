@@ -136,6 +136,15 @@ public:
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
+
+	// answer true if l is before r with wrap-around.
+	static bool timestamp_lt(uint32_t l, uint32_t r);
+
+	// answer true if l is after r with wrap-around.
+	static bool timestamp_gt(uint32_t l, uint32_t r);
+
+	// answer l - r. timestamps are considered to be within 2^31-1 of each other.
+	static int32_t timestamp_diff(uint32_t l, uint32_t r);
 };
 
 } // namespace rtmp

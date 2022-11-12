@@ -112,16 +112,6 @@ std::string hexHMACSHA256(const Bytes &key, const std::string &app)
 	return Hex::encode(md, sizeof(md));
 }
 
-bool timestamp_lt(uint32_t l, uint32_t r)
-{
-	return (l - r) >= UINT32_C(0x80000000);
-}
-
-bool timestamp_gt(uint32_t l, uint32_t r)
-{
-	return timestamp_lt(r, l);
-}
-
 std::string logEscape(std::string s)
 {
 	static char xdigits[] = "0123456789abcdef";
@@ -374,8 +364,8 @@ public:
 		if(netStream->m_adjustTimestamps)
 		{
 			if( (netStream->m_restarted)
-			 or (timestamp_lt(adjustedTimestamp, netStream->m_highestTimestamp - timestampAdjustmentMargin))
-			 or (timestamp_gt(adjustedTimestamp, netStream->m_highestTimestamp + timestampAdjustmentMargin))
+			 or (Message::timestamp_lt(adjustedTimestamp, netStream->m_highestTimestamp - timestampAdjustmentMargin))
+			 or (Message::timestamp_gt(adjustedTimestamp, netStream->m_highestTimestamp + timestampAdjustmentMargin))
 			)
 			{
 				adjustedTimestamp = netStream->m_highestTimestamp;
@@ -383,19 +373,19 @@ public:
 				netStream->m_minTimestamp = adjustedTimestamp;
 			}
 
-			if(timestamp_lt(adjustedTimestamp, netStream->m_minTimestamp))
+			if(Message::timestamp_lt(adjustedTimestamp, netStream->m_minTimestamp))
 				adjustedTimestamp = netStream->m_minTimestamp;
 		}
-		else if((0 == netStream->m_minTimestamp) and (0 == netStream->m_highestTimestamp) and (timestamp_lt(timestamp, 0)))
+		else if((0 == netStream->m_minTimestamp) and (0 == netStream->m_highestTimestamp) and (Message::timestamp_lt(timestamp, 0)))
 		{
 			// this only happens if we're tuning in to a stream with current timestamps > 2^31.
 			netStream->m_highestTimestamp = timestamp;
 			netStream->m_minTimestamp = timestamp - 3600000;
 		}
 
-		if(timestamp and timestamp_gt(adjustedTimestamp, netStream->m_highestTimestamp))
+		if(timestamp and Message::timestamp_gt(adjustedTimestamp, netStream->m_highestTimestamp))
 			netStream->m_highestTimestamp = adjustedTimestamp;
-		if(timestamp_lt(netStream->m_minTimestamp, netStream->m_highestTimestamp - 3600000))
+		if(Message::timestamp_lt(netStream->m_minTimestamp, netStream->m_highestTimestamp - 3600000))
 			netStream->m_minTimestamp = netStream->m_highestTimestamp - 3600000; // one hour
 
 		netStream->m_restarted = false;

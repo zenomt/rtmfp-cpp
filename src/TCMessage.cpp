@@ -86,6 +86,23 @@ bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 	return (0 == len) or isAudioInit(payload, len);
 }
 
+bool Message::timestamp_lt(uint32_t l, uint32_t r)
+{
+	return timestamp_gt(r, l);
+}
+
+bool Message::timestamp_gt(uint32_t l, uint32_t r)
+{
+	return (l - r) < UINT32_C(0x80000000);
+}
+
+int32_t Message::timestamp_diff(uint32_t l, uint32_t r)
+{
+	if(timestamp_gt(l, r))
+		return int32_t(l - r);
+	return 0 - int32_t(r - l);
+}
+
 } // namespace rtmp
 
 namespace rtmfp {

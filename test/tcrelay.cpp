@@ -103,16 +103,6 @@ void lookup(const std::function<void(const std::vector<Address> &results)> &onre
 	});
 }
 
-bool timestamp_lt(uint32_t l, uint32_t r)
-{
-	return (l - r) >= UINT32_C(0x80000000);
-}
-
-bool timestamp_gt(uint32_t l, uint32_t r)
-{
-	return timestamp_lt(r, l);
-}
-
 class Connection : public Object {
 public:
 	~Connection()
@@ -147,7 +137,7 @@ public:
 			if(TCMSG_AUDIO == messageType)
 			{
 				uint32_t lastTS = streamState.m_lastAudioTimestamp;
-				if(adjustedTimestamp and lastTS and timestamp_gt(adjustedTimestamp, lastTS + 1536/48)) // XXX 48kHz AAC only
+				if(adjustedTimestamp and lastTS and Message::timestamp_gt(adjustedTimestamp, lastTS + 1536/48)) // XXX 48kHz AAC only
 				{
 					streamState.m_timestampShift = (timestamp - lastTS) - 1024/48; // XXX need real audio frame duration
 					adjustedTimestamp = timestamp - streamState.m_timestampShift;
@@ -160,14 +150,14 @@ public:
 		switch(messageType)
 		{
 		case TCMSG_VIDEO:
-			if(collapseAudioGaps and timestamp_lt(timestamp, streamState.m_lastVideoTimestamp))
+			if(collapseAudioGaps and Message::timestamp_lt(timestamp, streamState.m_lastVideoTimestamp))
 				timestamp = streamState.m_lastVideoTimestamp + 5;
 			streamState.m_lastVideoTimestamp = timestamp;
 			if(isVideoCheckpointCommand(data, len))
 			{
 				if(replayCheckpointFrame)
 				{
-					if(timestamp_gt(timestamp, streamState.m_lastKeyframeTimestamp) and streamState.m_lastKeyframe.size())
+					if(Message::timestamp_gt(timestamp, streamState.m_lastKeyframeTimestamp) and streamState.m_lastKeyframe.size())
 					{
 						write(streamID, TCMSG_VIDEO, timestamp, streamState.m_lastKeyframe.data(), streamState.m_lastKeyframe.size());
 						if(verbose) printf("Connection %p stream %lu replay keyframe at %lu\n", (void *)this, (unsigned long)streamID, (unsigned long)timestamp);
