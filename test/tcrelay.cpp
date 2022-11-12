@@ -197,24 +197,9 @@ public:
 
 		if(rv and isVideoCodingLayer)
 		{
-			auto &q = streamState.m_receipts;
-			std::shared_ptr<WriteReceipt> previous;
-			if(not q.empty())
-				previous = q.lastValue();
-
-			if(len and (TC_VIDEO_FRAMETYPE_IDR == (data[0] & TC_VIDEO_FRAMETYPE_MASK)))
+			if(Message::isVideoKeyframe(data, len))
 			{
-				previous.reset();
-				if(expirePreviousGop)
-				{
-					Time deadline = mainRL.getCurrentTime() + previousGopLifetime;
-					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
-						each->startBy = std::min(each->startBy, deadline);
-						each->finishBy = std::min(each->finishBy, deadline + finishByMargin);
-						return true;
-					});
-				}
-				q.clear();
+				streamState.m_chain.expire(expirePreviousGop ? mainRL.getCurrentTime() + previousGopLifetime : INFINITY);
 
 				if(replayCheckpointFrame)
 				{
@@ -230,10 +215,7 @@ public:
 			}
 
 			if(startWithin < INFINITY)
-			{
-				rv->parent = previous;
-				q.append(rv);
-			}
+				streamState.m_chain.append(rv);
 		}
 
 		if(rv and verbose)
@@ -327,7 +309,7 @@ protected:
 	}
 
 	struct StreamState {
-		List<std::shared_ptr<WriteReceipt>> m_receipts;
+		WriteReceiptChain m_chain;
 		Bytes    m_lastKeyframe;
 		uint32_t m_lastKeyframeTimestamp { 0 };
 

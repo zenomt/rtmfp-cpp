@@ -53,11 +53,11 @@ bool TCConnection::connect(const Handler &onResult, const std::string &tcUrl, co
 
 	URIParse uri(tcUrl);
 
-	if(not argPtr->has("tcUrl"))
+	if(not argPtr->getValueAtKey("tcUrl")->isString())
 		argPtr->putValueAtKey(AMF0::String(uri.publicUri), "tcUrl");
-	if(not argPtr->has("app"))
+	if(not argPtr->getValueAtKey("app")->isString())
 		argPtr->putValueAtKey(AMF0::String(uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path), "app");
-	if(not argPtr->has("objectEncoding"))
+	if(not argPtr->getValueAtKey("objectEncoding")->isNumber())
 		argPtr->putValueAtKey(AMF0::Number(0), "objectEncoding");
 
 	Args args;
@@ -378,11 +378,23 @@ void TCStream::deleteStream()
 	if(m_streamID)
 		m_owner->deleteStream(m_streamID);
 	m_streamID = 0;
+
+	expireChain(INFINITY);
 }
 
 void TCStream::closeStream()
 {
 	queueCommand("closeStream", nullptr, {});
+}
+
+void TCStream::chain(std::shared_ptr<WriteReceipt> receipt)
+{
+	m_chain.append(receipt);
+}
+
+void TCStream::expireChain(Time deadline)
+{
+	m_chain.expire(deadline);
 }
 
 void TCStream::publish(const std::string &name, const Args &args)

@@ -217,7 +217,7 @@ struct NetStream : public Object {
 	Time m_videoLifetime;
 	Time m_finishByMargin;
 	bool m_expirePreviousGop;
-	List<std::shared_ptr<WriteReceipt>> m_gopReceipts;
+	WriteReceiptChain m_chain;
 };
 
 struct Stream {
@@ -437,28 +437,9 @@ public:
 
 		if(isVideoCodingLayer and rv)
 		{
-			auto &q = netStream->m_gopReceipts;
-			std::shared_ptr<WriteReceipt> previous;
-			if(not q.empty())
-				previous = q.lastValue();
-
 			if(Message::isVideoKeyframe(payload, len))
-			{
-				previous.reset();
-				if(netStream->m_expirePreviousGop)
-				{
-					Time deadline = mainRL.getCurrentTime() + netStream->m_finishByMargin;
-					q.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
-						each->startBy = std::min(each->startBy, deadline);
-						each->finishBy = std::min(each->finishBy, deadline);
-						return true;
-					});
-				}
-				q.clear();
-			}
-
-			rv->parent = previous;
-			q.append(rv);
+				netStream->m_chain.expire(netStream->m_expirePreviousGop ? mainRL.getCurrentTime() + netStream->m_finishByMargin : INFINITY);
+			netStream->m_chain.append(rv);
 		}
 
 		if(verbose and rv)

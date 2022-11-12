@@ -75,8 +75,8 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -6        -- only bind to [::]\n");
 	printf("  -s stream -- play stream (default %s)\n", streamName);
 	printf("  -f finger -- set required fingerprint in endpoint discriminator\n");
-	printf("  -a        -- hash auth token (tcserver)\n");
-	printf("  -A        -- require hashed auth token in connect response (tcserver)\n");
+	printf("  -m        -- hash auth token (tcserver)\n");
+	printf("  -M        -- require hashed auth token in connect response (tcserver)\n");
 	printf("  -x        -- set DSCP AF41 on outgoing packets\n");
 	printf("  -X secs   -- set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -v        -- increase verboseness\n");
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 	const char *fingerprint = nullptr;
 	int ch;
 
-	while((ch = getopt(argc, argv, "h46HSs:f:aAxX:v")) != -1)
+	while((ch = getopt(argc, argv, "h46HSs:f:mMxX:v")) != -1)
 	{
 		switch(ch)
 		{
@@ -121,10 +121,10 @@ int main(int argc, char **argv)
 		case 'f':
 			fingerprint = optarg;
 			break;
-		case 'a':
+		case 'm':
 			hashAuthToken = true;
 			break;
-		case 'A':
+		case 'M':
 			requireHashAuthToken = true;
 			break;
 		case 'x':
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 			break;
 		case 'h':
 		default:
-			return usage(argv[0], 'h' == ch);
+			return usage(argv[0], 'h' != ch);
 		}
 	}
 
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
 		tcconn->connect(
 			[tcconn, username, requireHashAuthToken, &crypto] (bool success, std::shared_ptr<AMF0> result) {
 				printf("onConnect %s %s\n\n", success ? "success" : "failure", result ? result->repr().c_str() : "nullptr");
-				if((not success) or (not result))
+				if(not success)
 					return;
 
 				if(username and requireHashAuthToken)

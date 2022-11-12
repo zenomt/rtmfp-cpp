@@ -110,6 +110,15 @@ public:
 
 	void closeStream(); // Send a closeStream command to stop a publish or play (does not delete the stream).
 
+	// Set receipt's parent to the previously chained receipt, if any, and append to the chain.
+	// See WriteReceiptChain::append() for more information.
+	void chain(std::shared_ptr<WriteReceipt> receipt);
+
+	// Update each chained receipt to startBy/finishBy the earlier of deadline or its current
+	// value, then clear the chain. A deadline of INFINITY clears the chain but doesn't
+	// change any startBy or finishBy times. Calls WriteReceiptChain::expire().
+	void expireChain(Time deadline);
+
 	// Queue a publish command to the server to request publishing. Watch
 	// for code `NetStream.Publish.Start` or `NetStream.Publish.BadName` in
 	// onStatus() to know if the publish succeeded or failed.
@@ -164,6 +173,7 @@ protected:
 	bool m_userOpen { true };
 	uint32_t m_streamID { 0 };
 	std::queue<Bytes> m_pendingCommands;
+	WriteReceiptChain m_chain;
 };
 
 } // namespace rtmp

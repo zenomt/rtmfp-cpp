@@ -1,6 +1,8 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include <algorithm>
+
 #include "../include/rtmfp/WriteReceipt.hpp"
 
 namespace com { namespace zenomt {
@@ -96,6 +98,36 @@ void IssuerWriteReceipt::useCountDown()
 void IssuerWriteReceipt::start()
 {
 	m_started = true;
+}
+
+// --- WriteReceiptChain
+
+void WriteReceiptChain::append(std::shared_ptr<WriteReceipt> receipt)
+{
+	if(receipt)
+	{
+		if(not m_receipts.empty())
+			receipt->parent = m_receipts.lastValue();
+		m_receipts.append(receipt);
+	}
+
+	while(m_receipts.size() > 1)
+	{
+		if(m_receipts.firstValue()->isFinished())
+			m_receipts.removeFirst();
+		else
+			break;
+	}
+}
+
+void WriteReceiptChain::expire(Time deadline)
+{
+	m_receipts.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
+		each->startBy = std::min(each->startBy, deadline);
+		each->finishBy = std::min(each->finishBy, deadline);
+		return true;
+	});
+	m_receipts.clear();
 }
 
 } } // namespace com::zenomt

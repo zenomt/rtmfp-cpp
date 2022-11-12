@@ -3,6 +3,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include "List.hpp"
 #include "Timer.hpp"
 
 namespace com { namespace zenomt {
@@ -57,6 +58,23 @@ public:
 	void useCountUp();
 	void useCountDown();
 	void start();
+};
+
+class WriteReceiptChain : public Object {
+public:
+	// Helper for the common pattern of chaining together a sequence of writes where
+	// each message depends on the previous (for example, an AVC Group of Pictures).
+
+	// Set receipt's parent to the previously chained receipt, if any, and append to the chain.
+	void append(std::shared_ptr<WriteReceipt> receipt);
+
+	// Update each chained receipt to startBy/finishBy the earlier of deadline or its current
+	// values, then clear the chain. A deadline of INFINITY clears the chain but doesn't
+	// change any startBy or finishBy times.
+	void expire(Time deadline);
+
+protected:
+	List<std::shared_ptr<WriteReceipt>> m_receipts;
 };
 
 } } // namespace com::zenomt
