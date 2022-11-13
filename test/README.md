@@ -19,6 +19,7 @@ what's going on in each, check the source.
   Usable as-is or as an example starting point for more sophisticated applications.
 * [`tcconn`](tcconn.cpp): An example of using [`TCConnection`](../include/rtmfp/TCConnection.hpp)
   to connect to an RTMFP server and play a stream.
+* [`tcpublish`](tcpublish.cpp): An example using `TCConnection` to publish an FLV to an RTMFP server.
 * [`echoserver`](echoserver.cpp): A sink and echo server using `FlashCryptoAdapter_OpenSSL`
   (but not RTMP-over-RTMFP messages or metadata). Attempts to open a return flow for any
   incoming flow and echo received messages, and otherwise is a message sink. Multithreaded.
