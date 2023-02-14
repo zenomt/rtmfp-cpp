@@ -172,10 +172,15 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 
 		bool ipv6 = dstAddr.getFamily() == AF_INET6;
 
-		struct cmsghdr cmsg[2]; // big enough and aligned
-		cmsg[0].cmsg_len = CMSG_LEN(sizeof(int));
-		cmsg[0].cmsg_level = ipv6 ? IPPROTO_IPV6 : IPPROTO_IP;
-		cmsg[0].cmsg_type = ipv6 ? IPV6_TCLASS : IP_TOS;
+		union {
+			struct cmsghdr cmsg_aligned;
+			uint8_t buf[(sizeof(struct cmsghdr) + sizeof(int)) * 2]; // big enough, CMSG_SPACE isn't constexpr everywhere
+		} cmsg_u;
+
+		struct cmsghdr *cmsg = &cmsg_u.cmsg_aligned;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		cmsg->cmsg_level = ipv6 ? IPPROTO_IPV6 : IPPROTO_IP;
+		cmsg->cmsg_type = ipv6 ? IPV6_TCLASS : IP_TOS;
 		memcpy(CMSG_DATA(cmsg), &tos, sizeof(tos));
 
 		struct iovec vec;
@@ -188,7 +193,7 @@ bool PosixPlatformAdapter::writePacket(const void *bytes, size_t len, int interf
 		msg.msg_iov = &vec;
 		msg.msg_iovlen = 1;
 		msg.msg_control = tos ? cmsg : nullptr;
-		msg.msg_controllen = tos ? CMSG_LEN(sizeof(int)) : 0;
+		msg.msg_controllen = tos ? CMSG_SPACE(sizeof(int)) : 0;
 		msg.msg_flags = 0;
 
 		ssize_t rv = ::sendmsg(uif.m_fd, &msg, 0);
@@ -232,7 +237,10 @@ long PosixPlatformAdapter::receiveOnePacket(int fd, int interfaceID)
 {
 	union Address::in_sockaddr addr_u;
 	uint8_t buf[8192];
-	struct cmsghdr cmsg_buf[8]; // big enough to receive at least a few command messages, we should only need one
+	union {
+		struct cmsghdr cmsg_aligned; // force alignment
+		uint8_t buf[((sizeof(struct cmsghdr) + 32) * 8)]; // should be big enough
+	} cmsg_u;
 
 	struct iovec vec;
 	vec.iov_base = buf;
@@ -243,8 +251,8 @@ long PosixPlatformAdapter::receiveOnePacket(int fd, int interfaceID)
 	msg.msg_namelen = sizeof(addr_u);
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
-	msg.msg_control = cmsg_buf;
-	msg.msg_controllen = sizeof(cmsg_buf);
+	msg.msg_control = cmsg_u.buf;
+	msg.msg_controllen = sizeof(cmsg_u.buf);
 	msg.msg_flags = 0;
 
 	ssize_t rv = recvmsg(fd, &msg, 0);
