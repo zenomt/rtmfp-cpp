@@ -20,6 +20,8 @@
 
 #endif
 
+#include <cstring>
+
 #include "../include/rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 
 namespace com { namespace zenomt { namespace rtmfp {

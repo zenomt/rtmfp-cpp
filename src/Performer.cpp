@@ -105,7 +105,7 @@ void Performer::perform(const Task &task, bool wait)
 	{
 		uint8_t buf[1];
 		m_signaled = true;
-		write(m_pipe[WRITE_PIPE_IDX], buf, sizeof(buf));
+		(void)write(m_pipe[WRITE_PIPE_IDX], buf, sizeof(buf));
 	}
 
 	if(wait)
@@ -120,7 +120,7 @@ void Performer::onSignaled()
 {
 	m_signaled = false;
 	uint8_t buf[1];
-	read(m_pipe[READ_PIPE_IDX], buf, sizeof(buf)); // shouldn't block because we were woken up for this
+	(void)read(m_pipe[READ_PIPE_IDX], buf, sizeof(buf)); // shouldn't block because we were woken up for this
 	fireItems();
 }
 
