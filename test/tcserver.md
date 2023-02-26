@@ -357,4 +357,4 @@ or on receiving a `SIGINT` signal.
   - not-before date/time
   - relay and broadcast rate limits
 * User-specific constraints
-* Log user name
+* Better logging

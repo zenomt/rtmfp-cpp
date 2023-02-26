@@ -321,7 +321,7 @@ public:
 
 	virtual void close()
 	{
-		printf("%s,close,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
+		printf("%s,close,%s,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str(), logEscape(m_username).c_str());
 		m_open = false;
 
 		for(auto it = m_netStreams.begin(); it != m_netStreams.end(); it++)
@@ -754,6 +754,9 @@ protected:
 				close();
 				return;
 			}
+
+			if((args.size() > 4) and args[3]->isString() and args[4]->isString()) // username & password & authenticated
+				m_username = args[3]->stringValue();
 		}
 
 		auto objectEncoding = args[2]->getValueAtKey("objectEncoding");
@@ -778,7 +781,7 @@ protected:
 		if(serverInfo)
 			resultObject->putValueAtKey(AMF0::String(serverInfo), "serverInfo");
 
-		printf("%s,connect,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str());
+		printf("%s,connect,%s,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str(), logEscape(m_username).c_str());
 
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, resultObject), INFINITY, INFINITY);
 
@@ -1151,6 +1154,7 @@ protected:
 	bool m_connected { false };
 	bool m_open { true };
 	bool m_finished { false };
+	std::string m_username;
 	std::string m_appName;
 	Bytes m_connectionID;
 	Address m_farAddress;
