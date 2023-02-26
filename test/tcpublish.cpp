@@ -162,6 +162,8 @@ public:
 	{
 		if(verbose) printf("new Publisher %p\n", (void *)this);
 		m_username = m_uri.userinfoPart.empty() ? nullptr : AMF0::String(uri.user);
+		m_password = m_uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password);
+		m_authToken = m_password ? m_password : m_username;
 		m_flvReader = share_ref(new FLVReader(flvFile), false);
 	}
 
@@ -219,14 +221,14 @@ public:
 		m_tcconn->sessionOpt()->setSessionTrafficClass(dscp << 2);
 		m_tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 
-		std::shared_ptr<AMF0> authToken = m_username;
+		std::shared_ptr<AMF0> authToken = m_authToken;
 		if(authToken and hashAuthToken)
 			authToken = AMF0::String(hexHMACSHA256(m_tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
-		std::shared_ptr<AMF0> password = m_uri.passwordPart.empty() ? nullptr : AMF0::String(m_uri.password);
 
 		m_tcconn->connect(
 			[this] (bool success, std::shared_ptr<AMF0> result) { onConnectResult(success, result); },
-			m_uri.publicUri, nullptr, { authToken, password }
+			m_uri.publicUri, nullptr,
+			{ m_password ? m_username : authToken, m_password ? authToken : nullptr }
 		);
 	}
 
@@ -236,11 +238,11 @@ public:
 		if(not success)
 			return;
 
-		if(m_username and requireHashAuthToken)
+		if(m_authToken and requireHashAuthToken)
 		{
 			auto serverAuthToken = result->getValueAtKey("authToken");
 			if( (not serverAuthToken->isString())
-			 or (hexHMACSHA256(m_tcconn->sessionOpt()->getNearNonce(), m_username->stringValue()) != serverAuthToken->stringValue())
+			 or (hexHMACSHA256(m_tcconn->sessionOpt()->getNearNonce(), m_authToken->stringValue()) != serverAuthToken->stringValue())
 			)
 			{
 				printf("!!! server didn't authenticate. closing...\n\n");
@@ -427,6 +429,8 @@ protected:
 	std::shared_ptr<RTMFPTCConnection> m_tcconn;
 	std::shared_ptr<TCStream> m_publishStream;
 	std::shared_ptr<AMF0> m_username;
+	std::shared_ptr<AMF0> m_password;
+	std::shared_ptr<AMF0> m_authToken;
 	bool m_publishing { false };
 	std::shared_ptr<FLVReader> m_flvReader;
 	Time m_origin { 0 };

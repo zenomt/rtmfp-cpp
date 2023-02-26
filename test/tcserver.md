@@ -39,29 +39,53 @@ in the server for stream names, as well as the reach of the `broadcast` command
 for a stream name at a time; however, there can be any number of distinctly
 named streams published in the same App at the same time.
 
-Note: By convention, the `app` designator is typically set to the path component of
-the `tcUrl` member of the `connect` command’s argument object, without the
+Note: By convention, the `app` designator is typically set to the path component
+of the `tcUrl` member of the `connect` command’s argument object, without the
 leading slash (if any). However, this is not required.
+
+If the `app` member is not present in the `connect` command's argument object,
+the App name will be derived from the `tcUrl` member in the conventional way.
+If neither the `app` nor `tcUrl` members are present, the connection will be
+rejected.
 
 ## Authentication
 
 One or more _authentication master keys_ can be set with the `-k` and `-K`
 command-line options. If at least one key is set, then an _authentication
-token_ is required to connect. An authentication token is the HMAC-SHA-256
-keyed hash (expressed in lower-case hexadecimal) of the App name with an
-authentication master key. For example, for the App named `live/12345` and
-authentication master key `supersecret`, the authentication token would be
+token_ is required to connect.
+
+The `connect` command can take up to two additional string arguments after
+the required command argument object. If one string argument is given, it is
+interpreted as an _App-wide authentication token_. If two string arguments
+are given, the first is interpreted as a _user name_, and the second is
+interpreted as a _user-specific authentication token_ (or password).
+
+The App-wide authentication token is the HMAC-SHA-256 keyed hash (expressed
+in lower-case hexadecimal) of the App name with an authentication master key.
+For example, for the App named `live/12345` and authentication master key
+`supersecret`, the App-wide authentication token would be
 
     HMAC-SHA-256(k="supersecret", m="live/12345")
     df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
 
-For convenience, the `tcserver` command can calculate this for you:
+The user-specific authentication token is the HMAC-SHA-256 with an authentication
+master key of the concatenation of the user name, an `@` (`COMMERCIAL AT`)
+character, and the App name. For example, for a user name of `mike`, an App
+named `live/12345`, and authentication master key `supersecret`, the user-specific
+authentication token would be
 
-    $ ./tcserver -k supersecret live/12345
+    HMAC-SHA-256(k="supersecret", m="mike@live/12345")
+    8bddf00ca7e31862fe17872c463df61eafde6518f565cb3def0e82a3b2d639d7
+
+For convenience, the `tcserver` command can calculate these for you:
+
+    $ ./tcserver -k supersecret live/12345 mike@live/12345
     ,auth,df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786,live/12345
+    ,auth,8bddf00ca7e31862fe17872c463df61eafde6518f565cb3def0e82a3b2d639d7,mike@live/12345
 
-The authentication token is given as the first normal argument to the `connect`
-command, where the user name would go in a traditional `NetConnection.connect()`:
+Give the App-wide authentication token as the first and only argument to the
+`connect` command after the command argument object, where the user name would
+go in a traditional `NetConnection.connect()`:
 
     "connect"
     1.0
@@ -72,7 +96,22 @@ command, where the user name would go in a traditional `NetConnection.connect()`
     }
     "df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786"
 
-Note that this token would be in the clear in RTMP and RTWebSocket connections,
+Give the user name and user-specific authentication token as the first and
+second arguments to the `connect` command after the command argument object,
+where the user name and password would go in a traditional
+`NetConnection.connect()`:
+
+    "connect"
+    1.0
+    {
+        "app": "live/12345",
+        "objectEncoding": 0.0,
+        "tcUrl": "rtmp://localhost/live/12345"
+    }
+    "mike"
+    "8bddf00ca7e31862fe17872c463df61eafde6518f565cb3def0e82a3b2d639d7"
+
+Note that the token would be in the clear in RTMP and RTWebSocket connections,
 so RTMPS or WSS are recommended to protect the token from disclosure.
 
 Note that RFC 7425 RTMFP connections are not authenticated with a public key
@@ -317,4 +356,5 @@ or on receiving a `SIGINT` signal.
   - max published streams
   - not-before date/time
   - relay and broadcast rate limits
-* Stats
+* User-specific constraints
+* Log user name

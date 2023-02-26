@@ -32,6 +32,7 @@ extern "C" {
 #include "rtmfp/ReorderBuffer.hpp"
 #include "rtmfp/RedirectorClient.hpp"
 #include "rtmfp/Hex.hpp"
+#include "rtmfp/URIParse.hpp"
 
 #include "RTMP.hpp"
 #include "PosixStreamPlatformAdapter.hpp"
@@ -673,17 +674,26 @@ protected:
 			onReceiveAudioCommand(netStream, args);
 	}
 
+	std::string authChallengeForArgs(const Args &args)
+	{
+		if((args.size() > 4) and args[3]->isString() and args[4]->isString())
+			return std::string(args[3]->stringValue()) + "@" + m_appName;
+		return m_appName;
+	}
+
 	int validateAuth(const Args &args)
 	{
 		if((args.size() < 4) or not args[3]->isString())
 			return -1;
-		std::string authToken = args[3]->stringValue();
+
+		std::string authChallenge = authChallengeForArgs(args);
+		std::string authToken = args[((args.size() > 4) and args[4]->isString()) ? 4 : 3]->stringValue();;
 
 		Bytes nearNonce = getNearNonce();
 
 		for(size_t x = 0; x < secrets.size(); x++)
 		{
-			std::string expectedAuth = hexHMACSHA256(secrets[x], m_appName);
+			std::string expectedAuth = hexHMACSHA256(secrets[x], authChallenge);
 			if(expectedAuth == authToken)
 				return x;
 
@@ -712,7 +722,18 @@ protected:
 
 		auto app = args[2]->getValueAtKey("app");
 		if(not app->isString())
-			app = AMF0::String("");
+		{
+			auto tcUrl = args[2]->getValueAtKey("tcUrl");
+			if(not tcUrl->isString())
+			{
+				printf("%s,error,connect-missing-app-and-tcUrl\n", m_farAddressStr.c_str());
+				close();
+				return;
+			}
+
+			URIParse uri(tcUrl->stringValue());
+			app = AMF0::String(uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path);
+		}
 		m_appName = app->stringValue();
 
 		int matchedKey = -1;
@@ -751,7 +772,7 @@ protected:
 		{
 			Bytes farNonce = getFarNonce();
 			if(not farNonce.empty())
-				resultObject->putValueAtKey(AMF0::String(hexHMACSHA256(farNonce, hexHMACSHA256(secrets[matchedKey], m_appName))), "authToken");
+				resultObject->putValueAtKey(AMF0::String(hexHMACSHA256(farNonce, hexHMACSHA256(secrets[matchedKey], authChallengeForArgs(args)))), "authToken");
 		}
 
 		if(serverInfo)

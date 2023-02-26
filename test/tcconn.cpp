@@ -199,21 +199,23 @@ int main(int argc, char **argv)
 		tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 
 		std::shared_ptr<AMF0> username = uri.userinfoPart.empty() ? nullptr : AMF0::String(uri.user);
-		std::shared_ptr<AMF0> authToken = username;
+		std::shared_ptr<AMF0> password = uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password);
+		std::shared_ptr<AMF0> plainAuthToken = password ? password : username;
+		std::shared_ptr<AMF0> authToken = plainAuthToken;
 		if(authToken and hashAuthToken)
 			authToken = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
 
 		tcconn->connect(
-			[tcconn, username, requireHashAuthToken, &crypto] (bool success, std::shared_ptr<AMF0> result) {
+			[tcconn, plainAuthToken, requireHashAuthToken, &crypto] (bool success, std::shared_ptr<AMF0> result) {
 				printf("onConnect %s %s\n\n", success ? "success" : "failure", result ? result->repr().c_str() : "nullptr");
 				if(not success)
 					return;
 
-				if(username and requireHashAuthToken)
+				if(plainAuthToken and requireHashAuthToken)
 				{
 					auto serverAuthToken = result->getValueAtKey("authToken");
 					if( (not serverAuthToken->isString())
-					 or (hexHMACSHA256(&crypto, tcconn->sessionOpt()->getNearNonce(), username->stringValue()) != serverAuthToken->stringValue())
+					 or (hexHMACSHA256(&crypto, tcconn->sessionOpt()->getNearNonce(), plainAuthToken->stringValue()) != serverAuthToken->stringValue())
 					)
 					{
 						printf("!!! server didn't authenticate. closing...\n\n");
@@ -247,8 +249,8 @@ int main(int argc, char **argv)
 				->putValueAtKey(AMF0::Number(0xffff), "videoCodecs") // wildcard
 				->putValueAtKey(AMF0::Number(0xffff), "audioCodecs") // wildcard
 			, {
-				authToken, // might just be uri.user or nullptr
-				uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password)
+				password ? username : authToken, // might just be uri.user or nullptr
+				password ? authToken : nullptr
 			}
 		);
 	};
