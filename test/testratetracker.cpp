@@ -14,7 +14,7 @@ static void testRate(const RateTracker &tracker, Time t, double expected, double
 
 int main(int argc, char **argv)
 {
-	RateTracker tracker(1.0);
+	RateTracker tracker;
 
 	tracker.update(1, 0);
 	tracker.update(1, 0);
@@ -50,6 +50,29 @@ int main(int argc, char **argv)
 	testRate(tracker, 3, 1);
 	testRate(tracker, 3.5, 0.5);
 	testRate(tracker, 4, 0);
+
+	tracker.reset();
+
+	tracker.update(1, 0);
+	tracker.update(1, 1.5);
+	testRate(tracker, 1.5, 0.5);
+	testRate(tracker, 2.0, 0.75);
+	testRate(tracker, 2.5, 1.0);
+
+	tracker.reset();
+
+	tracker.update(1, 0.0);
+	tracker.update(1, 0.5);
+	testRate(tracker, 1.0, 2);
+	tracker.update(1, 1.0);
+	testRate(tracker, 1.0, 2);
+	tracker.update(1, 1.5);
+	testRate(tracker, 1.5, 2);
+	tracker.update(1, 2.0);
+	testRate(tracker, 2.0, 2);
+	tracker.update(1, 2.5);
+	testRate(tracker, 2.5, 2);
+	testRate(tracker, 2.75, 2);
 
 	return 0;
 }
