@@ -43,7 +43,7 @@ Note: By convention, the `app` designator is typically set to the path component
 of the `tcUrl` member of the `connect` command’s argument object, without the
 leading slash (if any). However, this is not required.
 
-If the `app` member is not present in the `connect` command's argument object,
+If the `app` member is not present in the `connect` command’s argument object,
 the App name will be derived from the `tcUrl` member in the conventional way.
 If neither the `app` nor `tcUrl` members are present, the connection will be
 rejected.
@@ -132,7 +132,7 @@ two mitigations are available:
 
 2. RTMFP clients can prove possession of the authentication token to the server
    without disclosing it by further hashing it with HMAC-SHA-256 using the
-   [server's (binary) session nonce](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.6.5)
+   [server’s (binary) session nonce](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.6.5)
    as the HMAC key. For example, for a plain authentication token string of
    `df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786` and
    binary server nonce (that is, the “far nonce” at the client on its RTMFP
@@ -263,9 +263,9 @@ member.
 A client can send a message directly to another client connected to the same
 server (in the same or a different App) using the `relay` command. The first
 normal argument (after the unused command argument object, which should be
-AMF0 `NULL`) is the recipient's connection ID. Relayed messages are sent as
+AMF0 `NULL`) is the recipient’s connection ID. Relayed messages are sent as
 an `onRelay` command to the target client on stream ID 0. The `onRelay` command
-includes the sender's connection ID. For example, to relay a message to
+includes the sender’s connection ID. For example, to relay a message to
 Connection ID `1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637`, the client
 would send an AMF0 Command Message on stream ID 0:
 
@@ -277,7 +277,7 @@ would send an AMF0 Command Message on stream ID 0:
     5.0
 
 The target client, if it is connected, would receive the following AMF0 Command
-Message on stream ID 0 (assuming the sender's connection ID is
+Message on stream ID 0 (assuming the sender’s connection ID is
 `6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176`):
 
     "onRelay"

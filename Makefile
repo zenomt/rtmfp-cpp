@@ -8,7 +8,7 @@ OPENSSL_LIBDIR = -L/usr/local/openssl/lib
 # CXXFLAGS = -Os -Wall -pedantic -std=c++11 -fno-exceptions
 CXXFLAGS = -Os -Wall -pedantic -std=c++11
 
-UTILS = src/Checksums.o src/Hex.o src/IndexSet.o src/Object.o src/Timer.o
+UTILS = src/Checksums.o src/Hex.o src/IndexSet.o src/Object.o src/RateTracker.o src/Timer.o
 
 PROTOCOL = src/Address.o src/Flow.o src/Interface.o src/PacketAssembler.o \
 	src/RecvFlow.o src/RTMFP.o src/SendFlow.o src/Session.o src/VLU.o src/WriteReceipt.o

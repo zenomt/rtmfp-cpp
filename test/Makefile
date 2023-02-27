@@ -15,7 +15,7 @@ RTWS += SimpleWebSocket_OpenSSL.o
 RTWS_EXAMPLES = testwebsock
 endif
 
-TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia testuriparse
+TESTS = tis testperform testchecksums testlist testvlu testaddress testhex testamf testtcmsg testflowsync testreorder testmedia testuriparse testratetracker
 EXAMPLES = server testclient t2 $(FC_OPENSSL_EXAMPLES) $(RTWS_EXAMPLES)
 
 default: all
@@ -81,6 +81,10 @@ testuriparse: testuriparse.o $(LIBRARY)
 
 testclient.o: addrlist.hpp
 testclient: testclient.o $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+
+
+testratetracker: testratetracker.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+
 
@@ -154,6 +158,7 @@ ci: all
 	./testreorder
 	./testmedia
 	./testuriparse
+	./testratetracker
 
 clean:
 	rm -f *.o $(TESTS) $(EXAMPLES)

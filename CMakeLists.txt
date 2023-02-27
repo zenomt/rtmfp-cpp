@@ -21,6 +21,7 @@ add_library(rtmfp STATIC
 	src/Object.cpp
 	src/PacketAssembler.cpp
 	src/PlainCryptoAdapter.cpp
+	src/RateTracker.cpp
 	src/RecvFlow.cpp
 	src/RedirectorClient.cpp
 	src/ReorderBuffer.cpp

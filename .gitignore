@@ -30,3 +30,4 @@ test/testwebsock
 test/testuriparse
 test/tcconn
 test/tcpublish
+test/testratetracker
