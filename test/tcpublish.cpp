@@ -405,11 +405,9 @@ public:
 			m_publishStream->send(tag->timestamp, "@setDataFrame", args);
 		else
 		{
-			TCConnection::Args otherArgs;
-			auto it = args.begin();
-			it++;
-			otherArgs.insert(otherArgs.end(), it, args.end());
-			m_publishStream->send(tag->timestamp, args[0]->stringValue(), otherArgs);
+			std::string command = args[0]->stringValue();
+			args.erase(args.begin());
+			m_publishStream->send(tag->timestamp, command, args);
 		}
 	}
 
