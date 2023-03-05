@@ -68,6 +68,6 @@ const uint8_t ECN_CE_DELTA_REORDER     = 0xe0; // allow reordering of up to 32 p
 const Time   RTT_HISTORY_THRESH        = 30.0;
 const size_t RTT_HISTORY_CAPACITY      = 6;
 const Time   DELAYCC_RTT_THRESH        = 0.032;
-const size_t RTT_PROBE_RTTS            = 16;
+const size_t RTT_PROBE_RTTS            = 60;
 
 } } } // namespace com::zenomt::rtmfp

@@ -1153,13 +1153,13 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 			}
 			else
 			{
-				size_t aithresh = MIN(MAX(m_cwnd / 16, 64), 4800);
+				size_t aithresh = MIN(MAX(m_cwnd / 16, 64), 9600);
 				m_acked_bytes_accumulator += acked_bytes_this_packet;
 
 				while(m_acked_bytes_accumulator >= aithresh)
 				{
 					m_acked_bytes_accumulator -= aithresh;
-					increase += 48;
+					increase += 96;
 				}
 			}
 		}
