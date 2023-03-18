@@ -135,5 +135,9 @@ int main(int argc, char **argv)
 	assert(amf_obj_dup->getValueAtKey("num")->isTruthy());
 	assert(not amf_obj_dup->getValueAtKey("not found")->isTruthy());
 
+	auto amf_ecmaarray_dup = amf_ecmaarray->duplicate();
+	assert(amf_ecmaarray_dup->isECMAArray());
+	assert(3 == amf_ecmaarray_dup->asECMAArray()->size());
+
 	return 0;
 }

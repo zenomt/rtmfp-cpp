@@ -559,8 +559,10 @@ AMF0ECMAArray *AMF0ECMAArray::asECMAArray() { return this; }
 void AMF0ECMAArray::encode(Bytes &dst) const
 {
 	size_t numElements = size();
-	if(numElements > (size_t)UINT32_MAX)
-		numElements = UINT32_MAX;
+	if(numElements >= size_t(UINT32_MAX) - 1)
+		numElements = UINT32_MAX - 1;
+
+	numElements++; // for end marker that some parsers (FFmpeg) require :(
 
 	dst.push_back(AMF0_ECMAARRAY_MARKER);
 	dst.push_back((numElements >> 24) & 0xff);
@@ -570,8 +572,8 @@ void AMF0ECMAArray::encode(Bytes &dst) const
 
 	for(auto it = begin(); it != end(); it++)
 	{
-		if(0 == numElements--)
-			break; // that's all we could fit
+		if(1 == numElements--)
+			break; // that's all we could fit, leaving room for end marker
 
 		size_t keyLength = it->first.size(); // safe, no long keys are ever inserted
 		dst.push_back((keyLength >> 8) & 0xff);
@@ -583,6 +585,10 @@ void AMF0ECMAArray::encode(Bytes &dst) const
 		else
 			dst.push_back(AMF0_UNDEFINED_MARKER);
 	}
+
+	dst.push_back(0);
+	dst.push_back(0);
+	dst.push_back(AMF0_OBJECT_END_MARKER);
 }
 
 bool AMF0ECMAArray::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth)
