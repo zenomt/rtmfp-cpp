@@ -158,5 +158,11 @@ int main(int argc, char *argv[])
 	assert(u16.hostinfo.empty());
 	assert(u16.path == u16.uri);
 
+	URIParse u17("rtmfp://[2001:db8::10.0.1.2]:1234");
+	printUri("u17", u17);
+	assert(u17.host == "2001:db8::10.0.1.2");
+	assert(u17.port == "1234");
+	assert(u17.hostinfo == "[2001:db8::10.0.1.2]:1234");
+
 	return 0;
 }
