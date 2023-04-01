@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 #include <cctype>
+#include <cstring>
+
 #include <regex>
+#include <vector>
 
 #include "../include/rtmfp/URIParse.hpp"
 
@@ -73,6 +76,108 @@ void URIParse::parse(const std::string &uri_)
 	}
 
 	publicUri = schemePart + (authorityPart.empty() ? std::string("") : std::string("//") + hostinfo) + path + queryPart;
+}
+
+std::string URIParse::transformRelativeReference(const std::string &relativeUri) const
+{
+	URIParse rel(relativeUri);
+	std::string targetSchemePart;
+	std::string targetAuthorityPart;
+	std::string targetPath;
+	std::string targetQueryPart;
+
+	if(not rel.schemePart.empty())
+	{
+		targetSchemePart = rel.schemePart;
+		targetAuthorityPart = rel.authorityPart;
+		targetPath = removeDotSegments(rel.path);
+		targetQueryPart = rel.queryPart;
+	}
+	else
+	{
+		targetSchemePart = schemePart;
+		if(not rel.authorityPart.empty())
+		{
+			targetAuthorityPart = rel.authorityPart;
+			targetPath = removeDotSegments(rel.path);
+			targetQueryPart = rel.queryPart;
+		}
+		else
+		{
+			targetAuthorityPart = authorityPart;
+			if(rel.path.empty())
+			{
+				targetPath = path;
+				targetQueryPart = rel.queryPart.empty() ? queryPart : rel.queryPart;
+			}
+			else
+			{
+				targetQueryPart = rel.queryPart;
+				if('/' == rel.path[0])
+					targetPath = removeDotSegments(rel.path);
+				else
+					targetPath = removeDotSegments(mergedRelativePath(rel.path));
+			}
+		}
+	}
+
+	return targetSchemePart + targetAuthorityPart + targetPath + targetQueryPart + rel.fragmentPart;
+}
+
+std::string URIParse::mergedRelativePath(const std::string &relativePath) const
+{
+	if(relativePath.empty() or (relativePath[0] == '/'))
+		return relativePath;
+
+	if((not authorityPart.empty()) and path.empty())
+		return std::string("/") + relativePath;
+
+	size_t lastSlash = path.rfind('/');
+	if(std::string::npos == lastSlash)
+		lastSlash = 0;
+	else
+		lastSlash++;
+
+	return path.substr(0, lastSlash) + relativePath;
+}
+
+std::string URIParse::removeDotSegments(const std::string &path_)
+{
+	// a transliteration of RFC 3986 §5.2.4, not the most efficient way to do this
+
+	std::string inputBuffer(path_);
+	std::vector<std::string> outputBuffer;
+
+	while(not inputBuffer.empty())
+	{
+		if(0 == strncmp("../", inputBuffer.c_str(), 3))
+			inputBuffer.erase(0, 3);
+		else if(0 == strncmp("./", inputBuffer.c_str(), 2))
+			inputBuffer.erase(0, 2);
+		else if((0 == strncmp("/./", inputBuffer.c_str(), 3)) or (inputBuffer == "/."))
+			inputBuffer.replace(0, 3, "/");
+		else if((0 == strncmp("/../", inputBuffer.c_str(), 4)) or (inputBuffer == "/.."))
+		{
+			inputBuffer.replace(0, 4, "/");
+			if(not outputBuffer.empty())
+				outputBuffer.pop_back();
+		}
+		else if((inputBuffer == "..") or (inputBuffer == "."))
+			inputBuffer.clear();
+		else
+		{
+			size_t rpos = inputBuffer.find('/', 1);
+			outputBuffer.push_back(inputBuffer.substr(0, rpos));
+			inputBuffer.erase(0, rpos);
+		}
+	}
+
+	std::string rv;
+	rv.reserve(path_.size());
+	for(auto it = outputBuffer.begin(); it != outputBuffer.end(); it++)
+		rv += *it;
+
+	return rv;
 }
 
 } } // namespace com::zenomt

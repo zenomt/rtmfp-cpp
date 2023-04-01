@@ -36,12 +36,22 @@ static void printUri(const char *msg, const com::zenomt::URIParse &p)
 	printf("\n");
 }
 
+static void checkRel(const com::zenomt::URIParse &baseUri, const char *rel, const char *expected)
+{
+	std::string target = baseUri.transformRelativeReference(rel);
+	printf("base: %s rel: %s target: %s expected: %s\n", baseUri.uri.c_str(), rel, target.c_str(), expected);
+	assert(target == expected);
+}
+
 int main(int argc, char *argv[])
 {
 	if(argc > 1)
 	{
-		for(int x = 1; x < argc; x++)
-			printUri(nullptr, URIParse(argv[x]));
+		URIParse baseUri(argv[1]);
+		printUri("baseUri", baseUri);
+
+		for(int x = 2; x < argc; x++)
+			printUri(argv[x], URIParse(baseUri.transformRelativeReference(argv[x])));
 
 		return 0;
 	}
@@ -163,6 +173,53 @@ int main(int argc, char *argv[])
 	assert(u17.host == "2001:db8::10.0.1.2");
 	assert(u17.port == "1234");
 	assert(u17.hostinfo == "[2001:db8::10.0.1.2]:1234");
+
+	// test cases from RFC 3986 §5.4.1
+	URIParse baseUri("http://a/b/c/d;p?q");
+	checkRel(baseUri, "g:h",        "g:h");
+	checkRel(baseUri, "g",          "http://a/b/c/g");
+	checkRel(baseUri, "./g",        "http://a/b/c/g");
+	checkRel(baseUri, "g/",         "http://a/b/c/g/");
+	checkRel(baseUri, "/g",         "http://a/g");
+	checkRel(baseUri, "//g",        "http://g");
+	checkRel(baseUri, "?y",         "http://a/b/c/d;p?y");
+	checkRel(baseUri, "g?y",        "http://a/b/c/g?y");
+	checkRel(baseUri, "#s",         "http://a/b/c/d;p?q#s");
+	checkRel(baseUri, "g#s",        "http://a/b/c/g#s");
+	checkRel(baseUri, "g?y#s",      "http://a/b/c/g?y#s");
+	checkRel(baseUri, ";x",         "http://a/b/c/;x");
+	checkRel(baseUri, "g;x",        "http://a/b/c/g;x");
+	checkRel(baseUri, "g;x?y#s",    "http://a/b/c/g;x?y#s");
+	checkRel(baseUri, "",           "http://a/b/c/d;p?q");
+	checkRel(baseUri, ".",          "http://a/b/c/");
+	checkRel(baseUri, "./",         "http://a/b/c/");
+	checkRel(baseUri, "..",         "http://a/b/");
+	checkRel(baseUri, "../",        "http://a/b/");
+	checkRel(baseUri, "../g",       "http://a/b/g");
+	checkRel(baseUri, "../..",      "http://a/");
+	checkRel(baseUri, "../../",     "http://a/");
+	checkRel(baseUri, "../../g",    "http://a/g");
+
+	// test cases from RFC 3986 §5.4.2
+	checkRel(baseUri, "../../../g", "http://a/g");
+	checkRel(baseUri, "../../../../g", "http://a/g");
+	checkRel(baseUri, "/./g",       "http://a/g");
+	checkRel(baseUri, "/../g",      "http://a/g");
+	checkRel(baseUri, "g.",         "http://a/b/c/g.");
+	checkRel(baseUri, ".g",         "http://a/b/c/.g");
+	checkRel(baseUri, "g..",        "http://a/b/c/g..");
+	checkRel(baseUri, "..g",        "http://a/b/c/..g");
+	checkRel(baseUri, "./../g",     "http://a/b/g");
+	checkRel(baseUri, "./g/.",      "http://a/b/c/g/");
+	checkRel(baseUri, "g/./h",      "http://a/b/c/g/h");
+	checkRel(baseUri, "g/../h",     "http://a/b/c/h");
+	checkRel(baseUri, "g;x=1/./y",  "http://a/b/c/g;x=1/y");
+	checkRel(baseUri, "g;x=1/../y", "http://a/b/c/y");
+	checkRel(baseUri, "g?y/./x",    "http://a/b/c/g?y/./x");
+	checkRel(baseUri, "g?y/../x",   "http://a/b/c/g?y/../x");
+	checkRel(baseUri, "g#s/./x",    "http://a/b/c/g#s/./x");
+	checkRel(baseUri, "g#s/../x",   "http://a/b/c/g#s/../x");
+	checkRel(baseUri, "http:g",     "http:g"); // we're strict
 
 	return 0;
 }

@@ -13,6 +13,15 @@ struct URIParse {
 	URIParse() = default;
 	void parse(const std::string &uri_);
 
+	// RFC 3986 §5.2.1
+	std::string transformRelativeReference(const std::string &relativeUri) const;
+
+	// RFC 3986 §5.2.3
+	std::string mergedRelativePath(const std::string &relativePath) const;
+
+	// RFC 3986 §5.2.4
+	static std::string removeDotSegments(const std::string &path);
+
 	std::string uri;
 	std::string publicUri;
 	std::string schemePart;
