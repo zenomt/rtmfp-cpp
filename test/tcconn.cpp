@@ -197,6 +197,7 @@ int main(int argc, char **argv)
 
 		tcconn->sessionOpt()->setSessionTrafficClass(tos);
 		tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
+		tcconn->sessionOpt()->setSessionFIHelloMode(FI_SEND_RHELLO);
 
 		std::shared_ptr<AMF0> username = uri.userinfoPart.empty() ? nullptr : AMF0::String(uri.user);
 		std::shared_ptr<AMF0> password = uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password);
@@ -223,6 +224,8 @@ int main(int argc, char **argv)
 						return;
 					}
 				}
+
+				tcconn->command("setPeerInfo", { AMF0::Null() });
 
 				// Adobe Media Server rejects connections if you send a createStream before connect is complete.
 				// This could be pipelined with connect for tcserver, rather than here in the connect Handler.
