@@ -166,7 +166,6 @@ public:
 	Bytes    m_rikeying;
 	Bytes    m_epd;
 	Bytes    m_tag;
-	Bytes    m_ihello;
 	int      m_destInterfaceID;
 	Address  m_destAddr;
 	std::shared_ptr<CryptoCert> m_cryptoCert;

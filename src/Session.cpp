@@ -423,16 +423,6 @@ void Session::initiateToEPD(std::shared_ptr<Session> myself, const Bytes &epd)
 		if(myself->m_state < S_OPEN)
 			myself->abort();
 	});
-
-	uint8_t tmp[MAX_STARTUP_PACKET_LENGTH];
-	PacketAssembler ihello;
-	ihello.init(tmp, 0, sizeof(tmp));
-	ihello.startChunk(CHUNK_IHELLO);
-	ihello.pushField(myself->m_epd);
-	ihello.push(tag, sizeof(tag));
-	ihello.commitChunk();
-
-	myself->m_ihello = ihello.toVector();
 }
 
 bool Session::isOpeningToAddress(const Address &addr) const
@@ -768,18 +758,20 @@ void Session::addCandidateAddress(const Address &addr, Time delay, bool fromRedi
 	m_openingAddresses.insert(addr);
 
 	auto myself = share_ref(this);
-	m_rtmfp->scheduleRel(delay)->action = [myself, addr] (const std::shared_ptr<Timer> &sender, Time now) {
-		if(S_IHELLO_SENT != myself->m_state)
+	m_rtmfp->scheduleRel(delay)->action = [this, myself, addr] (const std::shared_ptr<Timer> &sender, Time now) {
+		if(S_IHELLO_SENT != m_state)
 		{
 			sender->cancel();
 			return;
 		}
 
-		myself->m_rtmfp->m_startupSession->sendPacket(myself->m_ihello, 0, -1, addr.getSockaddr());
+		m_rtmfp->sendIHello(m_epd.data(), m_epd.size(), m_tag.data(), m_tag.size(), INTERFACE_ID_ALL, addr.getSockaddr());
 
 		Time interval = sender->getRecurInterval();
 		interval = (interval < IHELLO_INITIAL_RTX) ? IHELLO_INITIAL_RTX : interval + IHELLO_BACKOFF_INTERVAL;
 		sender->setRecurInterval(interval);
+
+		(void)myself;
 	};
 }
 

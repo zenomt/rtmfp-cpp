@@ -62,6 +62,16 @@ public:
 	// use INTERFACE_ID_ALL to send the Redirect on all interfaces.
 	void sendResponderRedirect(const void *tag, size_t tagLen, const std::vector<Address> &addrs, int interfaceID, const struct sockaddr *dstAddr);
 
+	// Called when an RHello (§2.3.4) is received having a tag echo that does not match
+	// the tag for any opening session. Used by connectivity checkers or other applications
+	// that send synthetic IHellos outside of normal session startup.
+	std::function<void(const uint8_t *tag, size_t tagLen, const uint8_t *cookie, size_t cookieLen, const uint8_t *cert, size_t certLen, int interfaceID, const struct sockaddr *srcAddr)> onUnmatchedRHello;
+
+	// Manually send an IHello outside of a normal session startup. Used by connectivity
+	// checkers or other applications to probe far endpoints to elicit an RHello. Use
+	// INTERFACE_ID_ALL to send the IHello on all interfaces.
+	void sendIHello(const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const struct sockaddr *dstAddr);
+
 	// New sessions inherit these values when transitioning to S_OPEN.
 	void setDefaultSessionKeepalivePeriod(Time keepalive);
 	Time getDefaultSessionKeepalivePeriod() const;

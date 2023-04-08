@@ -175,6 +175,19 @@ int main(int argc, char * const argv[])
 	if(ipv6 and not addInterface(&platform, port, AF_INET6))
 		return 1;
 
+	if(verbose)
+	{
+		instance->onUnmatchedRHello = [] (const uint8_t *tag, size_t tagLen, const uint8_t *cookie, size_t cookieLen, const uint8_t *cert, size_t certLen, int interfaceID, const struct sockaddr *srcAddr) {
+			printf("onUmatchedRHello from int: %d addr: %s\n", interfaceID, Address(srcAddr).toPresentation().c_str());
+			if(verbose > 1)
+			{
+				Hex::print("tag", tag, tagLen);
+				Hex::print("cookie", cookie, cookieLen);
+				Hex::print("cert", cert, certLen);
+			}
+		};
+	}
+
 	auto flow = openFlow(instance, epd, PRI_ROUTINE);
 	add_candidates(flow, dstAddrs);
 

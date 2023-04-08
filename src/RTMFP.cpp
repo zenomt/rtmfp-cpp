@@ -136,6 +136,19 @@ void RTMFP::sendResponderRedirect(const void *tag, size_t tagLen, const std::vec
 	m_startupSession->sendPacket(packet.toVector(), 0, interfaceID, dstAddr);
 }
 
+void RTMFP::sendIHello(const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const struct sockaddr *dstAddr)
+{
+	PacketAssembler packet;
+	uint8_t tmp[MAX_STARTUP_PACKET_LENGTH];
+	packet.init(tmp, 0, sizeof(tmp));
+
+	if(packet.startChunk(CHUNK_IHELLO) and packet.pushField(epd, epdLen) and packet.push(tag, tagLen))
+	{
+		packet.commitChunk();
+		m_startupSession->sendPacket(packet.toVector(), 0, interfaceID, dstAddr);
+	}
+}
+
 void RTMFP::setDefaultSessionKeepalivePeriod(Time keepalive)
 {
 	m_default_session_keepalive_period = keepalive;
@@ -529,7 +542,12 @@ void RTMFP::onRHello(const uint8_t *tag, size_t tagLen, const uint8_t *cookie, s
 {
 	auto session = findOpeningSessionByTag(Bytes(tag, tag + tagLen));
 	if(not session)
+	{
+		if(onUnmatchedRHello)
+			onUnmatchedRHello(tag, tagLen, cookie, cookieLen, cert, certLen, interfaceID, addr);
+
 		return;
+	}
 
 	session->onRHello(session, cookie, cookieLen, cert, certLen, interfaceID, addr);
 }
