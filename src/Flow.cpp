@@ -97,6 +97,16 @@ size_t Flow::getCongestionWindow() const
 	return m_session ? m_session->m_cwnd : 0;
 }
 
+Time Flow::getERTO() const
+{
+	return m_session ? m_session->m_erto : INFINITY;
+}
+
+Time Flow::getMRTO() const
+{
+	return m_session ? m_session->m_mrto : INFINITY;
+}
+
 void Flow::setSessionKeepalivePeriod(Time keepalive)
 {
 	if(m_session)

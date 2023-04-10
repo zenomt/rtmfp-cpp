@@ -19,8 +19,8 @@ public:
 
 	RunLoop *getRunLoop() const;
 
-	std::shared_ptr<Address> addUdpInterface(int port = 0, int family = AF_INET);
-	std::shared_ptr<Address> addUdpInterface(const struct sockaddr *bindAddr);
+	std::shared_ptr<Address> addUdpInterface(int port = 0, int family = AF_INET, int *outInterfaceID = nullptr);
+	std::shared_ptr<Address> addUdpInterface(const struct sockaddr *bindAddr, int *outInterfaceID = nullptr);
 
 	Task onShutdownCompleteCallback;
 

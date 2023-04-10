@@ -194,6 +194,8 @@ public:
 	Time    getLastRTT()          const; // Most recent RTT measurement.
 	Time    getBaseRTT()          const; // Baseline (minimum recently observed) RTT.
 	size_t  getCongestionWindow() const;
+	Time    getERTO()             const; // Effective Retransmission Timeout §3.5.2.2
+	Time    getMRTO()             const; // Measured Retransmission Timeout §3.5.2.2
 
 	void    setSessionKeepalivePeriod(Time keepalive); // Idle time before a keepalive check is performed.
 	Time    getSessionKeepalivePeriod() const;

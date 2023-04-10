@@ -47,17 +47,17 @@ RunLoop * PosixPlatformAdapter::getRunLoop() const
 	return m_runloop;
 }
 
-std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(int port, int family)
+std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(int port, int family, int *outInterfaceID)
 {
 	Address addr;
 	if(not addr.setFamily(family))
 		return std::shared_ptr<Address>();
 	addr.setPort(port);
 
-	return addUdpInterface(addr.getSockaddr());
+	return addUdpInterface(addr.getSockaddr(), outInterfaceID);
 }
 
-std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sockaddr *addr)
+std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sockaddr *addr, int *outInterfaceID)
 {
 	Address tmpAddr;
 	struct UdpInterface uif;
@@ -106,6 +106,9 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 	m_runloop->registerDescriptor(uif.m_fd, RunLoop::READABLE,
 		[interfaceID, uif, this] { this->onInterfaceReadable(uif.m_fd, interfaceID); });
 	m_rtmfp->addInterface(interfaceID);
+
+	if(outInterfaceID)
+		*outInterfaceID = interfaceID;
 
 	return rv;
 }
