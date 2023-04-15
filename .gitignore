@@ -31,3 +31,4 @@ test/testuriparse
 test/tcconn
 test/tcpublish
 test/testratetracker
+test/conncheck

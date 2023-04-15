@@ -10,7 +10,7 @@ RTMP = RTMP.o PosixStreamPlatformAdapter.o
 RTWS = RTWebSocket.o SimpleWebSocketMessagePlatformAdapter.o SimpleWebSocket.o
 
 ifndef WITHOUT_OPENSSL
-FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay tcserver tcconn tcpublish
+FC_OPENSSL_EXAMPLES = fcclient echoserver redirector rtclient static-redirector tcrelay tcserver tcconn tcpublish conncheck
 RTWS += SimpleWebSocket_OpenSSL.o
 RTWS_EXAMPLES = testwebsock
 endif
@@ -137,6 +137,10 @@ tcconn: tcconn.o $(LIBRARY)
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
 tcpublish: tcpublish.o $(LIBRARY)
+	rm -f $@
+	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
+
+conncheck: conncheck.o $(LIBRARY)
 	rm -f $@
 	$(CXX) -o $@ $+ $(OPENSSL_LIBDIR) -lcrypto -lpthread
 
