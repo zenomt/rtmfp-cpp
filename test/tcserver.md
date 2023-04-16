@@ -195,6 +195,12 @@ master key `supersecret` and app `live/12345`:
     $ ./tcserver -k supersecret '12345;n=mike;P=5@live/12345'
     ,auth,ee441e76d143e1a629cd5e545c30c2b8657f5410b4a9e72c4168fafb98ccccee,12345;n=mike;P=5@live/12345
 
+Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
+`localhost` with these authentication setting and credentials and publishing
+priority 3:
+
+    $ ./tcpublish -P 3 'rtmfp://12345;n=mike;P=5:ee441e76d143e1a629cd5e545c30c2b8657f5410b4a9e72c4168fafb98ccccee@localhost/live/12345' BigBuckBunny.flv
+
 ## Streaming
 
 Subscribers can request a stream by the name under which it is originally
