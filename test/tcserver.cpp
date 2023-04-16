@@ -220,6 +220,7 @@ struct Stream {
 	Bytes m_audioInit;
 	Bytes m_lastVideoKeyframe;
 	uint32_t m_lastVideoTimestamp { 0 };
+	double m_priority { 0 };
 
 	void unpublishClear()
 	{
@@ -271,9 +272,9 @@ public:
 	void subscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
 	void unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
 
-	bool publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream); // false means stream was already being published
+	bool publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream, double publishPriority); // false means stream was already being published and wasn't preempted
 	void unpublishStream(const std::string &hashname);
-	void releaseStream(const std::string &hashname);
+	void releaseStream(const std::string &hashname, double publishPriority);
 
 	void onStreamMessage(const std::string &hashname, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len);
 
@@ -454,6 +455,7 @@ public:
 				->putValueAtKey(AMF0::String(netStream->m_name), "detail")
 				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
 				->putValueAtKey(AMF0::String("being published"), "description")
+				->putValueAtKey(AMF0::Number(stream.m_priority), "priority")
 			);
 		relayStreamMessage(netStream, TCMSG_COMMAND, 0, onStatusMessage.data(), onStatusMessage.size());
 
@@ -927,7 +929,7 @@ protected:
 		if((App::isHashName(publishName)) or (0 == publishName.compare(0, 5, "asis:")))
 			return;
 
-		m_app->releaseStream(hashname);
+		m_app->releaseStream(hashname, m_maxPublishPriority);
 	}
 
 	void ackCommandTransaction(const Args &args)
@@ -962,12 +964,16 @@ protected:
 		if((args.size() < 4) or not args[3]->isString())
 			return; // empty or non-string publish is unpublish so we're done
 
+		double publishPriority = -INFINITY;
+		if((args.size() > 4) and args[4]->getValueAtKey("priority")->isNumber())
+			publishPriority = std::min(m_maxPublishPriority, args[4]->getValueAtKey("priority")->doubleValue());
+
 		std::string publishName = args[3]->stringValue();
 		std::string hashname = App::asHashName(publishName);
 
 		if( (App::isHashName(publishName))
 		 or (0 == publishName.compare(0, 5, "asis:"))
-		 or (not m_app->publishStream(hashname, netStream))
+		 or (not m_app->publishStream(hashname, netStream, publishPriority))
 		)
 		{
 			printf("%s,publish-reject,%lu,%s\n", m_farAddressStr.c_str(), (unsigned long)netStream->m_streamID, logEscape(publishName).c_str());
@@ -1154,6 +1160,7 @@ protected:
 	bool m_connected { false };
 	bool m_open { true };
 	bool m_finished { false };
+	double m_maxPublishPriority { 0 };
 	std::string m_username;
 	std::string m_appName;
 	Bytes m_connectionID;
@@ -1830,13 +1837,22 @@ void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStre
 	currentSubscribeCount--;
 }
 
-bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
+bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> netStream, double publishPriority)
 {
 	auto &stream = m_streams[hashname];
 	if(stream.m_publishing)
+	{
+		if(publishPriority > stream.m_priority)
+		{
+			releaseStream(hashname, publishPriority);
+			return publishStream(hashname, netStream, publishPriority);
+		}
+
 		return false;
+	}
 	stream.m_publishing = true;
 	stream.m_publisher = netStream;
+	stream.m_priority = publishPriority;
 
 	for(auto it = stream.m_subscribers.begin(); it != stream.m_subscribers.end(); it++)
 		(*it)->m_owner->sendPublishNotify(*it, stream);
@@ -1858,14 +1874,14 @@ void App::unpublishStream(const std::string &hashname)
 	currentPublishCount--;
 }
 
-void App::releaseStream(const std::string &hashname)
+void App::releaseStream(const std::string &hashname, double publishPriority)
 {
 	auto it = m_streams.find(hashname);
 	if(it == m_streams.end())
 		return;
 
 	auto &stream = it->second;
-	if(stream.m_publisher)
+	if(stream.m_publisher and (publishPriority > stream.m_priority))
 		stream.m_publisher->m_owner->releaseStream(stream.m_publisher);
 }
 

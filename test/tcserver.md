@@ -192,7 +192,8 @@ the plain name shared (or generated) only with (or by) clients authorized to
 publish it. For convenience, the hashed name is sent to the publisher in the
 `NetStream.Publish.Start` status event’s _info object_ as the `hashname`
 member. A `NetStream.Publish.BadName` status event is sent if the stream name
-is unacceptable or if a stream by that name is already being published.
+is unacceptable or if a stream by that name is already being published and
+it was not preempted.
 
 By default, to match the expected behavior of traditional TC servers such as
 Adobe Media Server, timestamps on stream messages are translated so that
@@ -217,6 +218,8 @@ Note: some clients (such as Videolan Client “VLC”) have trouble if there are
 discontinuities in a TC stream, which can happen if video or audio frames
 expire and are abandoned before they can be transmitted.
 
+### Terminating Another Client’s Publish
+
 Use the `releaseStream` control command to terminate the publish of a stream
 by another client. You must use the plain (non-hashed) name of the stream,
 just like when publishing. This is usually used when a publisher is stuck or
@@ -227,9 +230,11 @@ has crashed, to allow a new publish to replace the stuck one.
     NULL
     "foo"
 
-This command has no effect if the stream is not currently being published. A
-`NetStream.Publish.BadName` stream status event is sent to the publisher, if
-any.
+This command has no effect if a stream by that name is not currently being
+published, or if it is being published with the same or higher priority than
+the caller’s maximum publish priority (default 0, see below). If a publish
+is terminated, a `NetStream.Publish.BadName` stream status event is sent to
+the publisher.
 
 ### Adjusting Real-Time Treatment For Stream Playback
 
@@ -250,6 +255,27 @@ recognized:
 
 For safety, the server caps each parameter above at 10 seconds or twice the
 default value, whichever is greater.
+
+### Publish Priority and Preemption
+
+Streams are published with a _publish priority_, used for preempting or
+overriding publishes to the same stream name. If unspecified in the `publish`
+stream command, the publish priority defaults to negative infinity. A higher
+numeric priority overrides a lower priority value.
+
+If the first argument to the `publish` command after the stream name is an
+Object, then any members present override their corresponding default settings.
+The following member name is recognized:
+
+- `priority`: (Number) Publish priority. The publish priority is capped to
+  the maximum for the user (default 0; there’s no way to change this value yet).
+
+If a publisher is preempted, it will receive a `NetStream.Publish.BadName`
+event. Otherwise the new publisher will receive a `NetStream.Publish.BadName`
+event if the stream is already being published.
+
+The priority of the stream is sent to subscribers as the `priority` member
+of the `NetStream.Play.PublishNotify` status event.
 
 ## Relaying and Broadcasting Messages
 
@@ -357,4 +383,5 @@ or on receiving a `SIGINT` signal.
   - not-before date/time
   - relay and broadcast rate limits
 * User-specific constraints
+  - maximum publish priority
 * Better logging
