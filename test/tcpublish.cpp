@@ -260,12 +260,11 @@ public:
 		if(m_publishPriority > -INFINITY)
 			tcserverPublishParams->putValueAtKey(AMF0::Number(m_publishPriority), "priority");
 
-		if(0 == tcserverPublishParams->size())
-			tcserverPublishParams = nullptr; // don't send at all if we're not setting tcserver-specific parameters
-
 		m_publishStream = m_tcconn->createStream();
 		m_publishStream->onStatus = [this] (std::shared_ptr<AMF0> info) { onStreamStatus(info); };
-		m_publishStream->publish(m_publishName, { tcserverPublishParams }); // wait for NetStream.Publish.Start in onStatus
+		m_publishStream->publish(m_publishName, { tcserverPublishParams->size() ? tcserverPublishParams : nullptr });
+
+		// wait for NetStream.Publish.Start in onStatus
 	}
 
 	void onClose()
