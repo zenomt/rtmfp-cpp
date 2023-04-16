@@ -43,6 +43,7 @@ Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
 bool expirePreviousGop = true;
 const char *streamNameOverride = nullptr;
+double publishPriority = -INFINITY;
 bool hashAuthToken = false;
 bool requireHashAuthToken = false;
 bool releaseStream = false;
@@ -153,11 +154,12 @@ protected:
 
 class Publisher : public Object {
 public:
-	Publisher(RTMFP *rtmfp, FlashCryptoAdapter *crypto, const URIParse &uri, const char *fingerprint, const std::string &publishName, FILE *flvFile) :
+	Publisher(RTMFP *rtmfp, FlashCryptoAdapter *crypto, const URIParse &uri, const char *fingerprint, const std::string &publishName, double priority, FILE *flvFile) :
 		m_rtmfp(rtmfp),
 		m_crypto(crypto),
 		m_destFingerprint(fingerprint ? fingerprint : ""),
 		m_publishName(publishName),
+		m_publishPriority(priority),
 		m_uri(uri)
 	{
 		if(verbose) printf("new Publisher %p\n", (void *)this);
@@ -254,9 +256,16 @@ public:
 		if(releaseStream)
 			m_tcconn->command("releaseStream", { AMF0::Null(), AMF0::String(m_publishName) });
 
+		auto tcserverPublishParams = AMF0::Object();
+		if(m_publishPriority > -INFINITY)
+			tcserverPublishParams->putValueAtKey(AMF0::Number(m_publishPriority), "priority");
+
+		if(0 == tcserverPublishParams->size())
+			tcserverPublishParams = nullptr; // don't send at all if we're not setting tcserver-specific parameters
+
 		m_publishStream = m_tcconn->createStream();
 		m_publishStream->onStatus = [this] (std::shared_ptr<AMF0> info) { onStreamStatus(info); };
-		m_publishStream->publish(m_publishName); // wait for NetStream.Publish.Start in onStatus
+		m_publishStream->publish(m_publishName, { tcserverPublishParams }); // wait for NetStream.Publish.Start in onStatus
 	}
 
 	void onClose()
@@ -423,6 +432,7 @@ protected:
 	FlashCryptoAdapter *m_crypto;
 	std::string m_destFingerprint;
 	std::string m_publishName;
+	double m_publishPriority;
 	URIParse m_uri;
 	std::shared_ptr<RTMFPTCConnection> m_tcconn;
 	std::shared_ptr<TCStream> m_publishStream;
@@ -479,6 +489,7 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -F secs      -- finish-by margin (default %.3Lf)\n", finishByMargin);
 	printf("  -E           -- don't expire previous GOP\n");
 	printf("  -p name      -- publish stream name (default %s)\n", streamNameOverride ? streamNameOverride : "basename of flv-file minus \".flv\"");
+	printf("  -P priority  -- publish priority (tcserver) (default %.3f)\n", publishPriority);
 	printf("  -L           -- loop stream forever\n");
 	printf("  -R           -- send releaseStream before publish\n");
 	printf("  -f finger    -- set required server fingerprint in endpoint discriminator\n");
@@ -529,7 +540,7 @@ int main(int argc, char **argv)
 	const char *fingerprint = nullptr;
 	int ch;
 
-	while((ch = getopt(argc, argv, "V:A:F:Ep:LRf:mMT:X:HS46vh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:Ep:P:LRf:mMT:X:HS46vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -551,6 +562,10 @@ int main(int argc, char **argv)
 
 		case 'p':
 			streamNameOverride = optarg;
+			break;
+
+		case 'P':
+			publishPriority = atof(optarg);
 			break;
 
 		case 'L':
@@ -666,7 +681,7 @@ int main(int argc, char **argv)
 	if(ipv6 and not addInterface(&platform, 0, AF_INET6))
 		return 1;
 
-	auto publisher = share_ref(new Publisher(&rtmfp, &crypto, uri, fingerprint, publishName, flvFile), false);
+	auto publisher = share_ref(new Publisher(&rtmfp, &crypto, uri, fingerprint, publishName, publishPriority, flvFile), false);
 	if(not publisher->start())
 		return 1;
 
