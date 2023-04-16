@@ -137,6 +137,27 @@ std::string logEscape(std::string s)
 	return rv;
 }
 
+std::vector<std::string> split(const std::string &s, char sep, size_t maxParts = 0)
+{
+	std::vector<std::string> rv;
+
+	size_t cursor = 0;
+	while((--maxParts) and (cursor < s.size()))
+	{
+		size_t found = s.find(sep, cursor);
+		if(std::string::npos == found)
+			break;
+
+		rv.push_back(s.substr(cursor, found - cursor));
+		cursor = found + 1;
+	}
+
+	if(cursor <= s.size())
+		rv.push_back(s.substr(cursor));
+
+	return rv;
+}
+
 struct NetStream : public Object {
 	enum State { NS_IDLE, NS_PUBLISHING, NS_PLAYING };
 
@@ -448,15 +469,18 @@ public:
 			netStream->m_timestampOffset = 0;
 		}
 
-		auto onStatusMessage = Message::command("onStatus", 0, nullptr,
-			AMF0::Object()
+		auto infoObject = AMF0::Object();
+		infoObject
 				->putValueAtKey(AMF0::String("status"), "level")
 				->putValueAtKey(AMF0::String("NetStream.Play.PublishNotify"), "code")
 				->putValueAtKey(AMF0::String(netStream->m_name), "detail")
 				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
 				->putValueAtKey(AMF0::String("being published"), "description")
-				->putValueAtKey(AMF0::Number(stream.m_priority), "priority")
-			);
+				->putValueAtKey(AMF0::Number(stream.m_priority), "priority");
+		if(not stream.m_publisher->m_owner->m_publishUsername.empty())
+			infoObject->putValueAtKey(AMF0::String(stream.m_publisher->m_owner->m_publishUsername), "publisher");
+
+		auto onStatusMessage = Message::command("onStatus", 0, nullptr, infoObject);
 		relayStreamMessage(netStream, TCMSG_COMMAND, 0, onStatusMessage.data(), onStatusMessage.size());
 
 		for(auto it = stream.m_dataFrames.begin(); it != stream.m_dataFrames.end(); it++)
@@ -758,7 +782,10 @@ protected:
 			}
 
 			if((args.size() > 4) and args[3]->isString() and args[4]->isString()) // username & password & authenticated
+			{
 				m_username = args[3]->stringValue();
+				configureUser(m_username);
+			}
 		}
 
 		auto objectEncoding = args[2]->getValueAtKey("objectEncoding");
@@ -1155,12 +1182,27 @@ protected:
 	{
 	}
 
+	void configureUser(const std::string &configSpec)
+	{
+		auto params = split(configSpec, ';');
+		for(auto param = params.begin(); param != params.end(); param++)
+		{
+			auto parts = split(*param, '=', 2);
+			bool hasValue = parts.size() == 2;
+			if(parts[0] == "P")
+				m_maxPublishPriority = hasValue ? atof(parts[1].c_str()) : 0;
+			else if(parts[0] == "n")
+				m_publishUsername = hasValue ? parts[1] : "";
+		}
+	}
+
 	uint32_t m_nextStreamID { 1 };
 	bool m_connecting { false };
 	bool m_connected { false };
 	bool m_open { true };
 	bool m_finished { false };
 	double m_maxPublishPriority { 0 };
+	std::string m_publishUsername;
 	std::string m_username;
 	std::string m_appName;
 	Bytes m_connectionID;

@@ -175,6 +175,26 @@ the values above including the client’s nonce:
     $ ./tcserver -K cbc290212a52dad978da93870e6929a5050d838a18723620b92df9a530535442 df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
     ,auth,bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c,df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
 
+### User-Specific Properties
+
+When authentication is enabled, user-specific properties and connection
+settings can be encoded into the authenticated user name. The user name is
+considered to be a list of settings of the form `<name>=<value>` separated
+by `;` (`SEMICOLON`) characters. Unrecognized setting names are ignored.  The
+following setting names are currently recognized:
+
+* `n`: (String) Publisher name, if not empty will appear as the `publisher`
+  member of `NetStream.Play.PublishNotify` stream status events (default empty).
+* `P`: (Number) Maximum publish priority (default 0).
+
+Example: user name `12345;n=mike;P=5` encodes an ignored portion `12345`, a
+publisher name of `mike`, and a maximum publishing priority of 5. To calculate
+the user-specific authentication token for this user name assuming authentication
+master key `supersecret` and app `live/12345`:
+
+    $ ./tcserver -k supersecret '12345;n=mike;P=5@live/12345'
+    ,auth,ee441e76d143e1a629cd5e545c30c2b8657f5410b4a9e72c4168fafb98ccccee,12345;n=mike;P=5@live/12345
+
 ## Streaming
 
 Subscribers can request a stream by the name under which it is originally
@@ -268,7 +288,8 @@ Object, then any members present override their corresponding default settings.
 The following member name is recognized:
 
 - `priority`: (Number) Publish priority. The publish priority is capped to
-  the maximum for the user (default 0; there’s no way to change this value yet).
+  the maximum for the user (default 0; override with the `P` user-specific
+  property).
 
 If a publisher is preempted, it will receive a `NetStream.Publish.BadName`
 event. Otherwise the new publisher will receive a `NetStream.Publish.BadName`
@@ -383,5 +404,4 @@ or on receiving a `SIGINT` signal.
   - not-before date/time
   - relay and broadcast rate limits
 * User-specific constraints
-  - maximum publish priority
 * Better logging
