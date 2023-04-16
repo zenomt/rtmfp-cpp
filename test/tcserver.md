@@ -187,19 +187,19 @@ following setting names are currently recognized:
   member of `NetStream.Play.PublishNotify` stream status events (default empty).
 * `P`: (Number) Maximum publish priority (default 0).
 
-Example: user name `12345;n=mike;P=5` encodes an ignored portion `12345`, a
+Example: user name `67890;n=mike;P=5` encodes an ignored portion `67890`, a
 publisher name of `mike`, and a maximum publishing priority of 5. To calculate
 the user-specific authentication token for this user name assuming authentication
 master key `supersecret` and app `live/12345`:
 
-    $ ./tcserver -k supersecret '12345;n=mike;P=5@live/12345'
-    ,auth,ee441e76d143e1a629cd5e545c30c2b8657f5410b4a9e72c4168fafb98ccccee,12345;n=mike;P=5@live/12345
+    $ ./tcserver -k supersecret '67890;n=mike;P=5@live/12345'
+    ,auth,81dc712da582190a47e0390a0cb2eccb3fbb318498dacf113ceb2d7205fbe2ad,67890;n=mike;P=5@live/12345
 
 Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
-`localhost` with these authentication setting and credentials and publishing
-priority 3:
+`localhost` with these authentication settings and credentials, using and
+requiring hashed authentication tokens, and publishing at priority 3:
 
-    $ ./tcpublish -P 3 'rtmfp://12345;n=mike;P=5:ee441e76d143e1a629cd5e545c30c2b8657f5410b4a9e72c4168fafb98ccccee@localhost/live/12345' /path/to/BigBuckBunny.flv
+    $ ./tcpublish -mM -P 3 'rtmfp://67890;n=mike;P=5:81dc712da582190a47e0390a0cb2eccb3fbb318498dacf113ceb2d7205fbe2ad@localhost/live/12345' /path/to/BigBuckBunny.flv
 
 ## Streaming
 
