@@ -183,9 +183,10 @@ considered to be a list of settings of the form `<name>=<value>` separated
 by `;` (`SEMICOLON`) characters. Unrecognized setting names are ignored.  The
 following setting names are currently recognized:
 
-* `n`: (String) Publisher name, if not empty will appear as the `publisher`
-  member of `NetStream.Play.PublishNotify` stream status events (default empty).
-* `P`: (Number) Maximum publish priority (default 0).
+* `n`: (String) Publisher name. If not empty, it will appear as the `publisherName`
+  member of `NetStream.Play.PublishNotify` stream status events, and as the
+  `senderName` member of `onRelay` headers. The default publisher name is empty.
+* `P`: (Number) Maximum publish priority. The default publish priority is 0.
 
 Example: user name `67890;n=mike;P=5` encodes an ignored portion `67890`, a
 publisher name of `mike`, and a maximum publishing priority of 5. To calculate
@@ -318,9 +319,10 @@ server (in the same or a different App) using the `relay` command. The first
 normal argument (after the unused command argument object, which should be
 AMF0 `NULL`) is the recipient’s connection ID. Relayed messages are sent as
 an `onRelay` command to the target client on stream ID 0. The `onRelay` command
-includes the sender’s connection ID. For example, to relay a message to
-Connection ID `1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637`, the client
-would send an AMF0 Command Message on stream ID 0:
+includes a header object with the sender’s connection ID in `sender` and, if
+not empty, the sender’s publisher name in `senderName`. For example, to relay
+a message to Connection ID `1f9a5f4769fef5884d321e969b6ef7b64fe8db5f11c12637`,
+the client would send an AMF0 Command Message on stream ID 0:
 
     "relay"
     0.0
@@ -336,7 +338,7 @@ Message on stream ID 0 (assuming the sender’s connection ID is
     "onRelay"
     0.0
     NULL
-    "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176"
+    { "sender": "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176" }
     "this is a relay message"
     5.0
 
@@ -357,12 +359,16 @@ though it was a relay. For example, sending:
 
 results in an `onRelay` command being sent to each client in the App on stream
 ID 0, that looks like (assuming the sender’s connection ID is
-`6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176`):
+`6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176` and its
+publisher name is `mike`):
 
     "onRelay"
     0.0
     NULL
-    "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176"
+    {
+        "sender": "6965c14b8964ee016451bc44140504f1a67178cfca3a64b2df16683dd263c176",
+        "senderName": "mike"
+    }
     "this is a broadcast"
     "foo"
 

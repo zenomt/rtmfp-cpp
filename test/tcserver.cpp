@@ -287,7 +287,7 @@ public:
 	static std::shared_ptr<App> getApp(const std::string &name);
 	void addClient(std::shared_ptr<Client> client);
 	void removeClient(std::shared_ptr<Client> client);
-	void broadcastMessage(const Bytes &sender, const Bytes &message);
+	void broadcastMessage(Client *sender, const Bytes &message);
 	void sendShutdownNotify();
 
 	void subscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream);
@@ -370,10 +370,15 @@ public:
 		return write(streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 	}
 
-	void sendRelay(const Bytes &sender, const Bytes &message)
+	void sendRelay(Client *sender, const Bytes &message)
 	{
+		auto envelope = AMF0::Object();
+		envelope->putValueAtKey(AMF0::String(sender->connectionIDStr()), "sender");
+		if(not sender->m_publishUsername.empty())
+			envelope->putValueAtKey(AMF0::String(sender->m_publishUsername), "senderName");
+
 		Bytes payload;
-		AMF0::String(Hex::encode(sender))->encode(payload);
+		envelope->encode(payload);
 		payload.insert(payload.end(), message.begin(), message.end());
 		write(0, TCMSG_COMMAND, 0, Message::command("onRelay", 0, nullptr, payload), INFINITY, INFINITY);
 	}
@@ -476,9 +481,10 @@ public:
 				->putValueAtKey(AMF0::String(netStream->m_name), "detail")
 				->putValueAtKey(AMF0::String(netStream->m_hashname), "hashname")
 				->putValueAtKey(AMF0::String("being published"), "description")
-				->putValueAtKey(AMF0::Number(stream.m_priority), "priority");
+				->putValueAtKey(AMF0::Number(stream.m_priority), "priority")
+				->putValueAtKey(AMF0::String(stream.m_publisher->m_owner->connectionIDStr()), "publisher");
 		if(not stream.m_publisher->m_owner->m_publishUsername.empty())
-			infoObject->putValueAtKey(AMF0::String(stream.m_publisher->m_owner->m_publishUsername), "publisher");
+			infoObject->putValueAtKey(AMF0::String(stream.m_publisher->m_owner->m_publishUsername), "publisherName");
 
 		auto onStatusMessage = Message::command("onStatus", 0, nullptr, infoObject);
 		relayStreamMessage(netStream, TCMSG_COMMAND, 0, onStatusMessage.data(), onStatusMessage.size());
@@ -883,7 +889,7 @@ protected:
 
 		printf("%s,relay,found,%s\n", m_farAddressStr.c_str(), it->second->m_farAddressStr.c_str());
 
-		it->second->sendRelay(m_connectionID, msg);
+		it->second->sendRelay(this, msg);
 	}
 
 	void onBroadcastCommand(const Args &args)
@@ -898,7 +904,7 @@ protected:
 
 		printf("%s,broadcast,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str());
 
-		m_app->broadcastMessage(m_connectionID, msg);
+		m_app->broadcastMessage(this, msg);
 	}
 
 	virtual void onSetPeerInfoCommand(const Args &args)
@@ -1850,7 +1856,7 @@ void App::removeClient(std::shared_ptr<Client> client)
 		apps.erase(m_name);
 }
 
-void App::broadcastMessage(const Bytes &sender, const Bytes &message)
+void App::broadcastMessage(Client *sender, const Bytes &message)
 {
 	for(auto it = m_clients.begin(); it != m_clients.end(); it++)
 		(*it)->sendRelay(sender, message);
