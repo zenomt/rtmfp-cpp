@@ -372,13 +372,13 @@ public:
 
 	void sendRelay(Client *sender, const Bytes &message)
 	{
-		auto envelope = AMF0::Object();
-		envelope->putValueAtKey(AMF0::String(sender->connectionIDStr()), "sender");
+		auto header = AMF0::Object();
+		header->putValueAtKey(AMF0::String(sender->connectionIDStr()), "sender");
 		if(not sender->m_publishUsername.empty())
-			envelope->putValueAtKey(AMF0::String(sender->m_publishUsername), "senderName");
+			header->putValueAtKey(AMF0::String(sender->m_publishUsername), "senderName");
 
 		Bytes payload;
-		envelope->encode(payload);
+		header->encode(payload);
 		payload.insert(payload.end(), message.begin(), message.end());
 		write(0, TCMSG_COMMAND, 0, Message::command("onRelay", 0, nullptr, payload), INFINITY, INFINITY);
 	}
