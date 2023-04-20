@@ -186,7 +186,7 @@ following setting names are currently recognized:
 * `n`: (String) Publisher name. If not empty, it will appear as the `publisherName`
   member of `NetStream.Play.PublishNotify` stream status events, and as the
   `senderName` member of `onRelay` headers. The default publisher name is empty.
-* `P`: (Number) Maximum publish priority. The default publish priority is 0.
+* `P`: (Number) Maximum publishing priority. The default maximum publishing priority is 0.
 
 Example: user name `67890;n=mike;P=5` encodes an ignored portion `67890`, a
 publisher name of `mike`, and a maximum publishing priority of 5. To calculate
@@ -259,7 +259,7 @@ has crashed, to allow a new publish to replace the stuck one.
 
 This command has no effect if a stream by that name is not currently being
 published, or if it is being published with the same or higher priority than
-the caller’s maximum publish priority (default 0, see below). If a publish
+the caller’s maximum publishing priority (default 0, see below). If a publish
 is terminated, a `NetStream.Publish.BadName` stream status event is sent to
 the publisher.
 
