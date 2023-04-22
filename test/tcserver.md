@@ -179,28 +179,36 @@ the values above including the client’s nonce:
 
 When authentication is enabled, user-specific properties and connection
 settings can be encoded into the authenticated user name. The user name is
-considered to be a list of settings of the form `<name>=<value>` separated
-by `;` (`SEMICOLON`) characters. Unrecognized setting names are ignored.  The
-following setting names are currently recognized:
+considered to be a list of settings of the form `<name>=<value>` (or just
+`<name>` for flags) separated by `;` (`SEMICOLON`) characters. Unrecognized
+setting names are ignored. The following setting names are currently recognized:
 
-* `n`: (String) Publisher name. If not empty, it will appear as the `publisherName`
+* `name`: (String) Publisher name. If not empty, it will appear as the `publisherName`
   member of `NetStream.Play.PublishNotify` stream status events, and as the
   `senderName` member of `onRelay` headers. The default publisher name is empty.
-* `P`: (Number) Maximum publishing priority. The default maximum publishing priority is 0.
+* `pri`: (Number) Maximum publishing priority. The default maximum publishing priority is 0.
+* `xcl`: (Flag) “Exclusive”. If present, only one connection is allowed at a time for this
+  authenticated user name. An existing connection in the same App with the same user name will be disconnected.
+* `nbf`: (Number) “Not Before”; connections aren’t allowed before this Unix time (default negative infinity).
+* `exp`: (Number) “Expires At”; disconnect by this Unix time (default infinity).
+* `use_by`: (Number) Connect no later than this Unix time (default infinity).
+* `exi`: (Number) “Expires In”; disconnect after this many seconds (default infinity).
+* `pub`: (Number) Maximum number of simultaneous publishes allowed in this connection (default unlimited).
 
-Example: user name `67890;n=mike;P=5` encodes an ignored portion `67890`, a
-publisher name of `mike`, and a maximum publishing priority of 5. To calculate
-the user-specific authentication token for this user name assuming authentication
+Example: user name `67890;name=mike;pri=5;exp=1682190000` encodes an ignored
+portion `67890`, a publisher name of `mike`, a maximum publishing priority
+of 5, and an expiration time of April 22 2023 19:00:00 UTC. To calculate the
+user-specific authentication token for this user name assuming authentication
 master key `supersecret` and app `live/12345`:
 
-    $ ./tcserver -k supersecret '67890;n=mike;P=5@live/12345'
-    ,auth,81dc712da582190a47e0390a0cb2eccb3fbb318498dacf113ceb2d7205fbe2ad,67890;n=mike;P=5@live/12345
+    $ ./tcserver -k supersecret '67890;name=mike;pri=5;exp=1682190000@live/12345'
+    ,auth,46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3,67890;name=mike;pri=5;exp=1682190000@live/12345
 
 Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
 `localhost` with these authentication settings and credentials, using and
 requiring hashed authentication tokens, and publishing at priority 3:
 
-    $ ./tcpublish -mM -P 3 'rtmfp://67890;n=mike;P=5:81dc712da582190a47e0390a0cb2eccb3fbb318498dacf113ceb2d7205fbe2ad@localhost/live/12345' /path/to/BigBuckBunny.flv
+    $ ./tcpublish -mM -P 3 'rtmfp://67890;name=mike;pri=5;exp=1682190000:46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3@localhost/live/12345' /path/to/BigBuckBunny.flv
 
 ## Streaming
 
@@ -408,12 +416,6 @@ or on receiving a `SIGINT` signal.
 ## TODO
 
 * Support [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
-* App constraints
-  - lifetime
-  - expiration date/time
-  - max clients
-  - max published streams
-  - not-before date/time
-  - relay and broadcast rate limits
 * User-specific constraints
+  - relay and broadcast rate limits
 * Better logging

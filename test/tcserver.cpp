@@ -11,9 +11,11 @@
 #include <cassert>
 #include <cerrno>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 extern "C" {
 #include <fcntl.h>
@@ -76,7 +78,7 @@ bool unregister = false;
 bool shuttingDown = false;
 bool allowConnectDuringShutdown = false;
 int dscp = 0;
-size_t maxNetStreamsPerClient = 256; // arbitrary
+size_t maxNetStreamsPerClient = 1024; // arbitrary
 uint32_t timestampAdjustmentMargin = 4000;
 std::vector<Bytes> secrets;
 const char *serverInfo = nullptr;
@@ -285,8 +287,8 @@ public:
 
 	// implementations below in "--- App" section
 	static std::shared_ptr<App> getApp(const std::string &name);
-	void addClient(std::shared_ptr<Client> client);
-	void removeClient(std::shared_ptr<Client> client);
+	void addClient(std::shared_ptr<Client> client, const std::string &username, bool isExclusive);
+	void removeClient(std::shared_ptr<Client> client, const std::string &username);
 	void broadcastMessage(Client *sender, const Bytes &message);
 	void sendShutdownNotify();
 
@@ -308,6 +310,7 @@ protected:
 	std::set<std::shared_ptr<Client>> m_clients;
 	std::string m_name;
 	std::map<std::string, Stream> m_streams; // by hashname
+	std::map<std::string, std::shared_ptr<Client>> m_exclusiveClients; // by username
 };
 std::map<std::string, std::shared_ptr<App>> apps;
 
@@ -346,6 +349,10 @@ public:
 		printf("%s,close,%s,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str(), logEscape(m_username).c_str());
 		m_open = false;
 
+		if(m_disconnectTimer)
+			m_disconnectTimer->cancel();
+		m_disconnectTimer.reset();
+
 		for(auto it = m_netStreams.begin(); it != m_netStreams.end(); it++)
 			closeStream(it->second);
 		m_netStreams.clear();
@@ -359,7 +366,7 @@ public:
 		m_watching.clear();
 
 		if(m_app)
-			m_app->removeClient(share_ref(this));
+			m_app->removeClient(myself, m_username);
 		m_app.reset();
 	}
 
@@ -794,17 +801,26 @@ protected:
 			}
 		}
 
+		if(m_disconnectAfter <= 0)
+		{
+			close();
+			return;
+		}
+		else if(m_disconnectAfter < INFINITY)
+			m_disconnectTimer = mainRL.scheduleRel(Timer::makeAction([this] { close(); }), m_disconnectAfter);
+
 		auto objectEncoding = args[2]->getValueAtKey("objectEncoding");
 		if(not objectEncoding->isNumber())
 			objectEncoding = AMF0::Number(0);
 
 		auto resultObject = AMF0::Object();
-		resultObject->putValueAtKey(AMF0::String("status"), "level");
-		resultObject->putValueAtKey(AMF0::String("NetConnection.Connect.Success"), "code");
-		resultObject->putValueAtKey(AMF0::String("you connected!"), "description");
-		resultObject->putValueAtKey(AMF0::String(connectionIDStr()), "connectionID");
-		resultObject->putValueAtKey(objectEncoding, "objectEncoding");
-		resultObject->putValueAtKey(AMF0::String(Hex::encode(flashcrypto->getFingerprint())), "serverFingerprint");
+		resultObject
+			->putValueAtKey(AMF0::String("status"), "level")
+			->putValueAtKey(AMF0::String("NetConnection.Connect.Success"), "code")
+			->putValueAtKey(AMF0::String("you connected!"), "description")
+			->putValueAtKey(AMF0::String(connectionIDStr()), "connectionID")
+			->putValueAtKey(objectEncoding, "objectEncoding")
+			->putValueAtKey(AMF0::String(Hex::encode(flashcrypto->getFingerprint())), "serverFingerprint");
 
 		if(matchedKey >= 0)
 		{
@@ -821,7 +837,7 @@ protected:
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, resultObject), INFINITY, INFINITY);
 
 		m_app = App::getApp(m_appName);
-		m_app->addClient(share_ref(this));
+		m_app->addClient(share_ref(this), m_username, m_exclusiveConnection);
 
 		m_connected = true;
 
@@ -1004,7 +1020,8 @@ protected:
 		std::string publishName = args[3]->stringValue();
 		std::string hashname = App::asHashName(publishName);
 
-		if( (App::isHashName(publishName))
+		if( (m_publishCount >= m_maxPublishCount)
+		 or (App::isHashName(publishName))
 		 or (0 == publishName.compare(0, 5, "asis:"))
 		 or (not m_app->publishStream(hashname, netStream, publishPriority))
 		)
@@ -1022,6 +1039,8 @@ protected:
 		netStream->m_state = NetStream::NS_PUBLISHING;
 		netStream->m_name = publishName;
 		netStream->m_hashname = hashname;
+
+		m_publishCount++;
 
 		logStreamEvent("publish", netStream);
 		write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
@@ -1106,6 +1125,8 @@ protected:
 	{
 		if(NetStream::NS_PUBLISHING == netStream->m_state)
 		{
+			assert(m_publishCount > 0);
+			m_publishCount--;
 			logStreamEvent("unpublish", netStream);
 			m_app->unpublishStream(netStream->m_hashname);
 		}
@@ -1190,16 +1211,39 @@ protected:
 
 	void configureUser(const std::string &configSpec)
 	{
+		long double unixNow = ::time(nullptr);
+		long double notBeforeTime = -INFINITY;
+		Time expiresIn = INFINITY;
+		long double expiration = INFINITY;
+		long double useBy = INFINITY;
+
 		auto params = split(configSpec, ';');
 		for(auto param = params.begin(); param != params.end(); param++)
 		{
 			auto parts = split(*param, '=', 2);
 			bool hasValue = parts.size() == 2;
-			if(parts[0] == "P")
+			if(parts[0] == "pri")
 				m_maxPublishPriority = hasValue ? atof(parts[1].c_str()) : 0;
-			else if(parts[0] == "n")
+			else if(parts[0] == "name")
 				m_publishUsername = hasValue ? parts[1] : "";
+			else if(parts[0] == "xcl")
+				m_exclusiveConnection = true;
+			else if(parts[0] == "nbf")
+				notBeforeTime = hasValue ? atof(parts[1].c_str()) : 0;
+			else if(parts[0] == "exi")
+				expiresIn = hasValue ? atof(parts[1].c_str()) : 0;
+			else if(parts[0] == "exp")
+				expiration = hasValue ? atof(parts[1].c_str()) : 0;
+			else if(parts[0] == "use_by")
+				useBy = hasValue ? atof(parts[1].c_str()) : 0;
+			else if(parts[0] == "pub")
+				m_maxPublishCount = hasValue ? (size_t)atoi(parts[1].c_str()) : 0;
 		}
+
+		if((unixNow < notBeforeTime) or (unixNow > useBy))
+			m_disconnectAfter = -1;
+		else
+			m_disconnectAfter = std::min(expiration - unixNow, expiresIn);
 	}
 
 	uint32_t m_nextStreamID { 1 };
@@ -1207,7 +1251,11 @@ protected:
 	bool m_connected { false };
 	bool m_open { true };
 	bool m_finished { false };
+	bool m_exclusiveConnection { false };
 	double m_maxPublishPriority { 0 };
+	size_t m_maxPublishCount { SIZE_MAX };
+	size_t m_publishCount { 0 };
+	Time m_disconnectAfter { INFINITY };
 	std::string m_publishUsername;
 	std::string m_username;
 	std::string m_appName;
@@ -1218,6 +1266,7 @@ protected:
 	std::map<uint32_t, std::shared_ptr<NetStream>> m_netStreams;
 	std::set<std::shared_ptr<Client>> m_watching;
 	std::set<std::shared_ptr<Client>> m_watchedBy;
+	std::shared_ptr<Timer> m_disconnectTimer;
 };
 
 class RTMFPClient : public Client {
@@ -1844,13 +1893,25 @@ std::shared_ptr<App> App::getApp(const std::string &name)
 	return rv;
 }
 
-void App::addClient(std::shared_ptr<Client> client)
+void App::addClient(std::shared_ptr<Client> client, const std::string &username, bool isExclusive)
 {
+	// insert new client first so we don't destroy the app when closing
+	// a duplicate exclusive username
 	m_clients.insert(client);
+
+	if(isExclusive)
+	{
+		auto it = m_exclusiveClients.find(username);
+		if(it != m_exclusiveClients.end())
+			it->second->close();
+
+		m_exclusiveClients[username] = client;
+	}
 }
 
-void App::removeClient(std::shared_ptr<Client> client)
+void App::removeClient(std::shared_ptr<Client> client, const std::string &username)
 {
+	m_exclusiveClients.erase(username);
 	m_clients.erase(client);
 	if(m_clients.empty())
 		apps.erase(m_name);
