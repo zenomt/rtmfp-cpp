@@ -152,6 +152,9 @@ int main(int argc, char **argv)
 		return usage(argv[0], 1, "can't parse uri hostinfo: ", argv[optind]);
 	printf("connecting to %s\n", uri.publicUri.c_str());
 
+	if(not uri.userinfoPart.empty())
+		memset(argv[optind], '#', strlen(argv[optind]));
+
 	Bytes epd = FlashCryptoAdapter::makeEPD(fingerprint, uri.publicUri.c_str(), nullptr);
 	if(epd.empty())
 		return errormsg(argv[0], 1, "couldn't construct EPD");

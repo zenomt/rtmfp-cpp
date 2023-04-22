@@ -645,6 +645,9 @@ int main(int argc, char **argv)
 	if(uri.host.empty() or uri.effectivePort.empty())
 		return usage(argv[0], 1, "can't parse uri hostinfo: ", argv[optind]);
 
+	if(not uri.userinfoPart.empty())
+		memset(argv[optind], '#', strlen(argv[optind]));
+
 	if(hashAuthToken and uri.userinfoPart.empty())
 		printf("warning: auth-token hashing requested but no auth-token in uri userinfo\n");
 
