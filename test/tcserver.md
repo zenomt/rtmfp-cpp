@@ -303,7 +303,7 @@ Object, then any members present override their corresponding default settings.
 The following member name is recognized:
 
 - `priority`: (Number) Publish priority. The publish priority is capped to
-  the maximum for the user (default 0; override with the `P` user-specific
+  the maximum for the user (default 0; override with the `pri` user-specific
   property).
 
 If a publisher is preempted, it will receive a `NetStream.Publish.BadName`
