@@ -381,7 +381,7 @@ public:
 	{
 		auto header = AMF0::Object();
 		header->putValueAtKey(AMF0::String(sender->connectionIDStr()), "sender");
-		if(not sender->m_publishUsername.empty())
+		if((not sender->m_publishUsername.empty()) and (sender->m_appName == m_appName))
 			header->putValueAtKey(AMF0::String(sender->m_publishUsername), "senderName");
 
 		Bytes payload;
