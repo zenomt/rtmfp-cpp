@@ -1014,7 +1014,7 @@ protected:
 			return; // empty or non-string publish is unpublish so we're done
 
 		double publishPriority = -INFINITY;
-		if((args.size() > 4) and not isnan(args[4]->getValueAtKey("priority")->doubleValue()))
+		if((args.size() > 4) and not std::isnan(args[4]->getValueAtKey("priority")->doubleValue()))
 			publishPriority = std::min(m_maxPublishPriority, args[4]->getValueAtKey("priority")->doubleValue());
 
 		std::string publishName = args[3]->stringValue();
@@ -1216,7 +1216,7 @@ protected:
 			const char *valueStr = parts[1].c_str();
 			char *endptr = nullptr;
 			long double rv = strtold(valueStr, &endptr);
-			return ((endptr == valueStr) or isnan(rv)) ? defaultValue : rv;
+			return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
 		}
 		return defaultValue;
 	}
