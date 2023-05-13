@@ -1014,7 +1014,7 @@ protected:
 			return; // empty or non-string publish is unpublish so we're done
 
 		double publishPriority = -INFINITY;
-		if((args.size() > 4) and args[4]->getValueAtKey("priority")->isNumber())
+		if((args.size() > 4) and not isnan(args[4]->getValueAtKey("priority")->doubleValue()))
 			publishPriority = std::min(m_maxPublishPriority, args[4]->getValueAtKey("priority")->doubleValue());
 
 		std::string publishName = args[3]->stringValue();
@@ -1209,6 +1209,18 @@ protected:
 	{
 	}
 
+	static long double configValueToFloat(const std::vector<std::string> &parts, long double defaultValue)
+	{
+		if(2 == parts.size())
+		{
+			const char *valueStr = parts[1].c_str();
+			char *endptr = nullptr;
+			long double rv = strtold(valueStr, &endptr);
+			return ((endptr == valueStr) or isnan(rv)) ? defaultValue : rv;
+		}
+		return defaultValue;
+	}
+
 	void configureUser(const std::string &configSpec)
 	{
 		long double unixNow = ::time(nullptr);
@@ -1221,23 +1233,22 @@ protected:
 		for(auto param = params.begin(); param != params.end(); param++)
 		{
 			auto parts = split(*param, '=', 2);
-			bool hasValue = parts.size() == 2;
 			if(parts[0] == "pri")
-				m_maxPublishPriority = hasValue ? atof(parts[1].c_str()) : 0;
+				m_maxPublishPriority = configValueToFloat(parts, m_maxPublishPriority);
 			else if(parts[0] == "name")
-				m_publishUsername = hasValue ? parts[1] : "";
+				m_publishUsername = (2 == parts.size()) ? parts[1] : "";
 			else if(parts[0] == "xcl")
 				m_exclusiveConnection = true;
 			else if(parts[0] == "nbf")
-				notBeforeTime = hasValue ? atof(parts[1].c_str()) : 0;
+				notBeforeTime = configValueToFloat(parts, notBeforeTime);
 			else if(parts[0] == "exi")
-				expiresIn = hasValue ? atof(parts[1].c_str()) : 0;
+				expiresIn = configValueToFloat(parts, expiresIn);
 			else if(parts[0] == "exp")
-				expiration = hasValue ? atof(parts[1].c_str()) : 0;
+				expiration = configValueToFloat(parts, expiration);
 			else if(parts[0] == "use_by")
-				useBy = hasValue ? atof(parts[1].c_str()) : 0;
+				useBy = configValueToFloat(parts, useBy);
 			else if(parts[0] == "pub")
-				m_maxPublishCount = hasValue ? (size_t)atoi(parts[1].c_str()) : 0;
+				m_maxPublishCount = (2 == parts.size()) ? (size_t)atoi(parts[1].c_str()) : 0;
 		}
 
 		if((unixNow < notBeforeTime) or (unixNow > useBy))
