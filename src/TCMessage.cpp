@@ -59,6 +59,9 @@ Bytes Message::command(const char *commandName, double transactionID, const std:
 
 bool Message::isVideoInit(const uint8_t *payload, size_t len)
 {
+	if(isVideoEnhanced(payload, len))
+		return TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_START == (payload[0] & TC_VIDEO_ENH_PACKETTYPE_MASK);
+
 	return (len > 1) and (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_AVCC == payload[1]);
 }
 
@@ -73,7 +76,29 @@ bool Message::isVideoSequenceSpecial(const uint8_t *payload, size_t len)
 		return true; // "video silence"
 	if(len < 2)
 		return false;
+
+	if(isVideoEnhanced(payload, len))
+		return (TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES != (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK)) and (TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES_X != (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
+
 	return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
+}
+
+bool Message::isVideoEnhanced(const uint8_t *payload, size_t len)
+{
+	// Enhanced RTMP is at least 5 bytes long with FrameType+PacketType and FourCC
+	return (len >= 5) and (TC_VIDEO_ENHANCED_MASK == (*payload & TC_VIDEO_ENHANCED_MASK));
+}
+
+bool Message::isVideoEnhancedMetadata(const uint8_t *payload, size_t len)
+{
+	return isVideoEnhanced(payload, len) and (TC_VIDEO_ENH_PACKETTYPE_METADATA == (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
+}
+
+bool Message::isVideoEnhancedM2TSInit(const uint8_t *payload, size_t len)
+{
+	// TODO: is this mutually exclusive with TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_START?
+	// if so, this method is redundant and should be subsumed by isVideoInit().
+	return isVideoEnhanced(payload, len) and (TC_VIDEO_ENH_PACKETTYPE_MPEG2TS_SEQUENCE_START == (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
 }
 
 bool Message::isAudioInit(const uint8_t *payload, size_t len)

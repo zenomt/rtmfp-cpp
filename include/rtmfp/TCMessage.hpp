@@ -54,7 +54,11 @@ enum {
 	TC_VIDEO_FRAMETYPE_DISPOSABLE    = 3 << 4,
 	TC_VIDEO_FRAMETYPE_GENERATED_IDR = 4 << 4,
 	TC_VIDEO_FRAMETYPE_COMMAND       = 5 << 4,
-	TC_VIDEO_FRAMETYPE_MASK          = 0xf0
+	TC_VIDEO_FRAMETYPE_MASK          = 0x70
+};
+
+enum {
+	TC_VIDEO_ENHANCED_MASK = 8 << 4
 };
 
 enum {
@@ -77,6 +81,16 @@ enum {
 enum {
 	TC_VIDEO_COMMAND_SEEK_START = 1,
 	TC_VIDEO_COMMAND_SEEK_END   = 2
+};
+
+enum {
+	TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_START         = 0,
+	TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES           = 1,
+	TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_END           = 2,
+	TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES_X         = 3,
+	TC_VIDEO_ENH_PACKETTYPE_METADATA               = 4,
+	TC_VIDEO_ENH_PACKETTYPE_MPEG2TS_SEQUENCE_START = 5,
+	TC_VIDEO_ENH_PACKETTYPE_MASK                   = 0x0f
 };
 
 enum {
@@ -133,6 +147,11 @@ public:
 	static bool isVideoInit(const uint8_t *payload, size_t len);
 	static bool isVideoKeyframe(const uint8_t *payload, size_t len);
 	static bool isVideoSequenceSpecial(const uint8_t *payload, size_t len);
+
+	// "Enhanced RTMP" see https://github.com/veovera/enhanced-rtmp
+	static bool isVideoEnhanced(const uint8_t *payload, size_t len);
+	static bool isVideoEnhancedMetadata(const uint8_t *payload, size_t len);
+	static bool isVideoEnhancedM2TSInit(const uint8_t *payload, size_t len);
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
