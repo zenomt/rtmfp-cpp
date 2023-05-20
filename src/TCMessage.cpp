@@ -86,7 +86,7 @@ bool Message::isVideoSequenceSpecial(const uint8_t *payload, size_t len)
 bool Message::isVideoEnhanced(const uint8_t *payload, size_t len)
 {
 	// Enhanced RTMP is at least 5 bytes long with FrameType+PacketType and FourCC
-	return (len >= 5) and (TC_VIDEO_ENHANCED_MASK == (*payload & TC_VIDEO_ENHANCED_MASK));
+	return (len >= 5) and (*payload & TC_VIDEO_ENHANCED_FLAG_ISEXHEADER);
 }
 
 bool Message::isVideoEnhancedMetadata(const uint8_t *payload, size_t len)

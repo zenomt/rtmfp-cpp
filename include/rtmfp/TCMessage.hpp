@@ -49,16 +49,16 @@ enum {
 };
 
 enum {
+	TC_VIDEO_ENHANCED_FLAG_ISEXHEADER = 8 << 4
+};
+
+enum {
 	TC_VIDEO_FRAMETYPE_IDR           = 1 << 4,
 	TC_VIDEO_FRAMETYPE_INTER         = 2 << 4,
 	TC_VIDEO_FRAMETYPE_DISPOSABLE    = 3 << 4,
 	TC_VIDEO_FRAMETYPE_GENERATED_IDR = 4 << 4,
 	TC_VIDEO_FRAMETYPE_COMMAND       = 5 << 4,
 	TC_VIDEO_FRAMETYPE_MASK          = 0x70
-};
-
-enum {
-	TC_VIDEO_ENHANCED_MASK = 8 << 4
 };
 
 enum {
