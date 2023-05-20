@@ -264,13 +264,9 @@ protected:
 
 	bool isVideoSequenceSpecial(const uint8_t *payload, size_t len) const
 	{
-		if(0 == len)
-			return true;
-		if(len < 2)
-			return false;
 		if(isVideoCheckpointCommand(payload, len))
 			return false;
-		return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
+		return Message::isVideoSequenceSpecial(payload, len);
 	}
 
 	bool isVideoCheckpointCommand(const uint8_t *payload, size_t len) const
@@ -279,7 +275,7 @@ protected:
 			return false;
 		if(TC_VIDEO_FRAMETYPE_COMMAND != (payload[0] & TC_VIDEO_FRAMETYPE_MASK))
 			return false;
-		if(TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK))
+		if(Message::isVideoEnhanced(payload, len) or (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)))
 		{
 			if(len < 6)
 				return false;
