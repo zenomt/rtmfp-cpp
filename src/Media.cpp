@@ -55,6 +55,7 @@ void _toNTP4(uint8_t *dst, Time val)
 
 Media::Media(const Media &other) :
 	streamID(other.streamID),
+	trackID(other.trackID),
 	codec(other.codec),
 	mediaType(other.mediaType),
 	trackName(other.trackName),
@@ -62,9 +63,7 @@ Media::Media(const Media &other) :
 	m_origin(other.m_origin),
 	m_timescale_ticks(other.m_timescale_ticks),
 	m_timescale_perSeconds(other.m_timescale_perSeconds),
-	m_receiveIntent(other.m_receiveIntent),
-	m_trackID(other.m_trackID),
-	m_hasTrackID(other.m_hasTrackID)
+	m_receiveIntent(other.m_receiveIntent)
 {
 }
 
@@ -159,9 +158,8 @@ size_t Media::setFromMetadata(const Bytes &metadata)
 			break;
 
 		case OPTION_TRACK_ID:
-			if(0 == VLU::parse(value, value + valueLen, &m_trackID))
+			if(0 == VLU::parse(value, value + valueLen, &trackID))
 				return 0;
-			m_hasTrackID = true;
 			break;
 
 		default:
@@ -212,32 +210,30 @@ Bytes Media::toMetadata() const
 	if(trackName.size())
 		Option::append(OPTION_TRACK_NAME, trackName.data(), trackName.size(), rv);
 
-	if(hasTrackID())
-		Option::append(OPTION_TRACK_ID, getTrackID(), rv);
+	if(trackID)
+		Option::append(OPTION_TRACK_ID, trackID, rv);
 
 	return rv;
 }
 
-void Media::setTrackID(uintmax_t trackID)
+void Media::setTrackID(uintmax_t trackID_)
 {
-	m_trackID = trackID;
-	m_hasTrackID = true;
+	trackID = trackID_;
 }
 
 uintmax_t Media::getTrackID() const
 {
-	return m_trackID;
+	return trackID;
 }
 
 void Media::clearTrackID()
 {
-	m_trackID = 0;
-	m_hasTrackID = false;
+	trackID = 0;
 }
 
 bool Media::hasTrackID() const
 {
-	return m_hasTrackID;
+	return true;
 }
 
 bool Media::setOrigin(Time origin)

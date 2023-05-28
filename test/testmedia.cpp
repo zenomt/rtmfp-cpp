@@ -67,10 +67,12 @@ int main(int argc, char **argv)
 	assert(m4->getOrigin() < 5000.5001);
 	assert(m4->getOrigin() > 5000.4999);
 	assert(RO_SEQUENCE == m4->getReceiveIntent());
+	assert(0 == m4->trackID);
+	assert(m4->hasTrackID());
 
 	m4->trackName = "Front";
 	m4->reorderSuggestion = 5.3;
-	m4->setTrackID(13);
+	m4->trackID = 13;
 	m4->setReceiveIntent(RO_NETWORK);
 
 	auto m5 = Media::fromMetadata(m4->toMetadata());
@@ -81,7 +83,7 @@ int main(int argc, char **argv)
 	printf("m5 trackID %lu\n", (unsigned long)m5->getTrackID());
 	printf("m5 receiveIntent: %s\n", m5->getReceiveIntent() == RO_NETWORK ? "RO_NETWORK" : "RO_SEQUENCE");
 	assert(0 == m5->trackName.compare("Front"));
-	assert(13 == m5->getTrackID());
+	assert(13 == m5->trackID);
 	assert(m5->reorderSuggestion < 5.301);
 	assert(m5->reorderSuggestion > 5.299);
 	assert(RO_NETWORK == m5->getReceiveIntent());

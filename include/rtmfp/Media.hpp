@@ -26,15 +26,16 @@ public:
 	Bytes  toMetadata() const;
 
 	uintmax_t   streamID { 0 };
+	uintmax_t   trackID { 0 };
 	std::string codec;
 	std::string mediaType; // "audio", "video", "text", "application", "message", "image", ...
 	std::string trackName;
 	Time        reorderSuggestion { -1.0 }; // < 0 means no suggestion
 
-	void      setTrackID(uintmax_t trackID);
-	uintmax_t getTrackID() const;
-	void      clearTrackID();
-	bool      hasTrackID() const;
+	/* [[deprecated]] */ void      setTrackID(uintmax_t trackID);
+	/* [[deprecated]] */ uintmax_t getTrackID() const;
+	/* [[deprecated]] */ void      clearTrackID();
+	/* [[deprecated]] */ bool      hasTrackID() const;
 
 	bool setOrigin(Time origin); // origin must be non-negative and finite
 	Time getOrigin() const;
@@ -101,8 +102,6 @@ protected:
 	uintmax_t    m_timescale_ticks { DEFAULT_TIMESCALE_TICKS };
 	uintmax_t    m_timescale_perSeconds { DEFAULT_TIMESCALE_PER_SECONDS };
 	ReceiveOrder m_receiveIntent { RO_SEQUENCE };
-	uintmax_t    m_trackID { 0 };
-	bool         m_hasTrackID { false };
 };
 
 } } } // namespace com::zenomt::rtmfp
