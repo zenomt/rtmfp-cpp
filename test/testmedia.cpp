@@ -76,10 +76,13 @@ int main(int argc, char **argv)
 	assert(*m3 == *m4);
 
 	m4->trackName = "Front";
-	m4->reorderSuggestion = 5.3;
 	m4->trackID = 13;
+	assert(*m3 != *m4);
+	assert(m3->encodingParametersEqual(*m4));
+	m4->reorderSuggestion = 5.3;
 	m4->setReceiveIntent(RO_NETWORK);
 	assert(*m3 != *m4);
+	assert(not m3->encodingParametersEqual(*m4));
 
 	auto m5 = Media::fromMetadata(m4->toMetadata());
 	auto m5md = m5->toMetadata();

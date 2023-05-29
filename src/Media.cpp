@@ -450,28 +450,43 @@ uintmax_t Media::timeToTicks(Time t) const
 	return uintmax_t((t + rounding - m_origin) / getTickDuration());
 }
 
-bool Media::operator== (const Media &rhs) const
+bool Media::encodingParametersEqual(const Media &other) const
 {
-	return (m_timescale_ticks == rhs.m_timescale_ticks)
-	   and (m_timescale_perSeconds == rhs.m_timescale_perSeconds)
-	   and (m_receiveIntent == rhs.m_receiveIntent)
-	   and (streamID == rhs.streamID)
-	   and (trackID == rhs.trackID)
-	   and (codec == rhs.codec)
-	   and (mediaType == rhs.mediaType)
-	   and (trackName == rhs.trackName)
+	return (m_timescale_ticks == other.m_timescale_ticks)
+	   and (m_timescale_perSeconds == other.m_timescale_perSeconds)
+	   and (m_receiveIntent == other.m_receiveIntent)
+	   and (codec == other.codec)
+	   and (mediaType == other.mediaType)
 
 	   // this is a tricky case since there's rounding going to/from metadata
-	   and (((reorderSuggestion < 0) and (rhs.reorderSuggestion < 0)) or (std::fabs(reorderSuggestion - rhs.reorderSuggestion) < 2.0 * getTickDuration()))
+	   and (((reorderSuggestion < 0) and (other.reorderSuggestion < 0)) or (std::fabs(reorderSuggestion - other.reorderSuggestion) < 2.0 * getTickDuration()))
 
 	   // this is also tricky but probably close enough
-	   and (std::fabs(m_origin - rhs.m_origin) < getTickDuration() / 2.0)
+	   and (std::fabs(m_origin - other.m_origin) < getTickDuration() / 2.0)
 	;
+}
+
+bool Media::encodingAndTrackParametersEqual(const Media &other) const
+{
+	return (encodingParametersEqual(other))
+	   and (trackID == other.trackID)
+	   and (trackName == other.trackName)
+	;
+}
+
+bool Media::parametersEqual(const Media &other) const
+{
+	return encodingAndTrackParametersEqual(other) and (streamID == other.streamID);
+}
+
+bool Media::operator== (const Media &rhs) const
+{
+	return parametersEqual(rhs);
 }
 
 bool Media::operator!= (const Media &rhs) const
 {
-	return not (*this == rhs);
+	return not parametersEqual(rhs);
 }
 
 } } } // namespace com::zenomt::rtmfp

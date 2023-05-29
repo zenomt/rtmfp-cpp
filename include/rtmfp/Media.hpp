@@ -62,6 +62,16 @@ public:
 	Time      ticksToTime(uintmax_t ticks) const;
 	uintmax_t timeToTicks(Time t) const;
 
+	// Answer true if other has the same timescale & origin, receive intent, media type, and codec.
+	bool encodingParametersEqual(const Media &other) const;
+
+	// Answer true if encodingParametersEqual and the trackID & trackName are equal in other.
+	bool encodingAndTrackParametersEqual(const Media &other) const;
+
+	// Answer whether encodingAndTrackParametersEqual and streamID is equal in other.
+	bool parametersEqual(const Media &other) const;
+
+	// Answer whether parametersEqual(rhs) or not.
 	bool operator== (const Media &rhs) const;
 	bool operator!= (const Media &rhs) const;
 
