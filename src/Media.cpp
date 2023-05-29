@@ -450,4 +450,28 @@ uintmax_t Media::timeToTicks(Time t) const
 	return uintmax_t((t + rounding - m_origin) / getTickDuration());
 }
 
+bool Media::operator== (const Media &rhs) const
+{
+	return (m_timescale_ticks == rhs.m_timescale_ticks)
+	   and (m_timescale_perSeconds == rhs.m_timescale_perSeconds)
+	   and (m_receiveIntent == rhs.m_receiveIntent)
+	   and (streamID == rhs.streamID)
+	   and (trackID == rhs.trackID)
+	   and (codec == rhs.codec)
+	   and (mediaType == rhs.mediaType)
+	   and (trackName == rhs.trackName)
+
+	   // this is a tricky case since there's rounding going to/from metadata
+	   and (((reorderSuggestion < 0) and (rhs.reorderSuggestion < 0)) or (std::fabs(reorderSuggestion - rhs.reorderSuggestion) < 2.0 * getTickDuration()))
+
+	   // this is also tricky but probably close enough
+	   and (std::fabs(m_origin - rhs.m_origin) < getTickDuration() / 2.0)
+	;
+}
+
+bool Media::operator!= (const Media &rhs) const
+{
+	return not (*this == rhs);
+}
+
 } } } // namespace com::zenomt::rtmfp

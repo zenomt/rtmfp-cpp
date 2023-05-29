@@ -62,6 +62,9 @@ public:
 	Time      ticksToTime(uintmax_t ticks) const;
 	uintmax_t timeToTicks(Time t) const;
 
+	bool operator== (const Media &rhs) const;
+	bool operator!= (const Media &rhs) const;
+
 	static constexpr uint8_t FLAG_RAI = 0x80;
 	static constexpr uint8_t FLAG_OPT = 0x40;
 
