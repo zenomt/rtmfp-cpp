@@ -184,8 +184,8 @@ following circumstances:
     which might happen after persistent inferred congestion that isn't actually
     our fault (such as from a change to the path or from competing traffic);
   * If the far end’s address changes;
-  * If our address might have changed (inferred from receipt of a non-empty Ping,
-    which might be an
+  * If our address might have changed (inferred from receipt of a non-empty Ping
+    that might be an
     [address change validation probe](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.4.2)
     from the far end).
 

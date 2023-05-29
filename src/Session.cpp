@@ -1971,8 +1971,8 @@ void Session::onPingChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk,
 	sendPacket(pingReply.toVector());
 	m_last_keepalive_tx_time = m_rtmfp->getCurrentTime();
 
-	if(limit > chunk)
-		resetBaseRTT(); // non-empty, might've been a mobility check
+	if((limit > chunk) and (PING_MARKING_MOBILITY == *chunk))
+		resetBaseRTT();
 }
 
 void Session::onPingReplyChunk(uint8_t mode, uint8_t chunkType, const uint8_t *chunk, const uint8_t *limit, int interfaceID, const struct sockaddr *addr)
