@@ -176,6 +176,7 @@ struct NetStream : public Object {
 		m_videoLifetime = videoLifetime;
 		m_finishByMargin = finishByMargin;
 		m_expirePreviousGop = expirePreviousGop;
+		m_seenKeyframe = false;
 	}
 
 	static void trySetTimeParam(Time *dst, const AMF0Object *params, const char *key, Time defaultSetting)
@@ -223,6 +224,7 @@ struct NetStream : public Object {
 	uint32_t m_highestTimestamp { 0 };
 	uint32_t m_minTimestamp { 0 };
 	bool m_restarted { false };
+	bool m_seenKeyframe { false };
 	bool m_adjustTimestamps { true };
 	bool m_paused { false };
 	bool m_receiveVideo { true };
@@ -445,6 +447,14 @@ public:
 				{
 					startWithin = netStream->m_videoLifetime;
 					isVideoCodingLayer = true;
+
+					if(not netStream->m_seenKeyframe)
+					{
+						if(Message::isVideoKeyframe(payload, len))
+							netStream->m_seenKeyframe = true;
+						else
+							return; // drop VCL messages until first keyframe
+					}
 				}
 			}
 			break;
@@ -2073,7 +2083,10 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 		else if(Message::isVideoEnhanced(payload, len))
 		{
 			if(Message::isVideoEnhancedMetadata(payload, len))
+			{
 				stream.m_videoMetadata = Bytes(payload, payload + len);
+				stream.m_lastVideoKeyframe.clear();
+			}
 			// TODO: waiting for clarification on Enhanced RTMP and what this message really means
 			// else if(Message::isVideoEnhancedM2TSInit(payload, len))
 			// {
