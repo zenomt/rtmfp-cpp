@@ -9,8 +9,9 @@ protocol implementation is intended to be adaptable to any host program
 environment.
 
 The library is intended for clients, servers, and P2P applications. It includes
-the necessary helpers and callback hooks to support P2P introduction and load
-balancing.
+the necessary helpers and callback hooks to support
+[P2P introduction](https://www.rfc-editor.org/rfc/rfc7016#section-3.5.1.6)
+and [load balancing](https://www.rfc-editor.org/rfc/rfc7016#section-3.5.1.7).
 
 The [`test`](test/) directory includes unit tests and examples. Of special
 note are [`tcserver`](test/tcserver.md), a simple RTMFP and RTMP live media
@@ -48,7 +49,7 @@ abandoned.
 
 `SendFlow`s set to [priority](include/rtmfp/Priority.hpp) `PRI_PRIORITY` (`PRI_4`)
 or higher (`PRI_IMMEDIATE`, `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
-[time critical](https://tools.ietf.org/html/rfc7016#section-3.1). Sending
+[time critical](https://www.rfc-editor.org/rfc/rfc7016#section-3.1). Sending
 messages on time critical flows affects congestion control.
 
 When it’s done, the application can shut down the `RTMFP` in an orderly manner
@@ -144,7 +145,7 @@ The OpenSSL implementation of the `FlashCryptoAdapter` implements
 [2048-bit IKE Group 14][MODP 2048], and [1024-bit IKE Group 2][MODP 1024] for
 Diffie-Hellman key agreement. All implementations of the
 Flash Communication cryptography profile
-[**MUST** implement at least Group 2](https://tools.ietf.org/html/rfc7425#section-4.2);
+[**MUST** implement at least Group 2](https://www.rfc-editor.org/rfc/rfc7425#section-4.2);
 some also implement Group 14. This implementation prefers the strongest
 common group.
 
@@ -178,7 +179,7 @@ minutes. The baseline RTT observation window is cleared and reset in the
 following circumstances:
 
   * On a
-    [timeout](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.2.2)
+    [timeout](https://www.rfc-editor.org/rfc/rfc7016#section-3.5.2.2)
     (either from total loss or no data to send);
   * If the congestion window falls to the minimum value,
     which might happen after persistent inferred congestion that isn't actually
@@ -186,7 +187,7 @@ following circumstances:
   * If the far end’s address changes;
   * If our address might have changed (inferred from receipt of a non-empty Ping
     that might be an
-    [address change validation probe](https://datatracker.ietf.org/doc/html/rfc7016#section-3.5.4.2)
+    [address change validation probe](https://www.rfc-editor.org/rfc/rfc7016#section-3.5.4.2)
     from the far end).
 
 From time-to-time, if a significant portion of the congestion window is being
@@ -276,9 +277,9 @@ To Do
 * Performance counters
 * Persistent no-acks on buffer probes should be a timeout (eventually kill session)
 
-  [MODP 1024]: https://tools.ietf.org/html/rfc7296#appendix-B.2
-  [MODP 2048]: https://tools.ietf.org/html/rfc3526#section-3
-  [MODP 4096]: https://tools.ietf.org/html/rfc3526#section-5
-  [RFC 7016]: https://tools.ietf.org/html/rfc7016
-  [RFC 7425]: https://tools.ietf.org/html/rfc7425
+  [MODP 1024]: https://www.rfc-editor.org/rfc/rfc7296#appendix-B.2
+  [MODP 2048]: https://www.rfc-editor.org/rfc/rfc3526#section-3
+  [MODP 4096]: https://www.rfc-editor.org/rfc/rfc3526#section-5
+  [RFC 7016]: https://www.rfc-editor.org/rfc/rfc7016
+  [RFC 7425]: https://www.rfc-editor.org/rfc/rfc7425
   [open an issue]: https://github.com/zenomt/rtmfp-cpp/issues
