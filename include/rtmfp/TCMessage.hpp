@@ -151,7 +151,6 @@ public:
 	// "Enhanced RTMP" see https://github.com/veovera/enhanced-rtmp
 	static bool isVideoEnhanced(const uint8_t *payload, size_t len);
 	static bool isVideoEnhancedMetadata(const uint8_t *payload, size_t len);
-	static bool isVideoEnhancedM2TSInit(const uint8_t *payload, size_t len);
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);

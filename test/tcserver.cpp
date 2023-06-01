@@ -245,7 +245,6 @@ struct Stream {
 	Bytes m_audioInit;
 	Bytes m_lastVideoKeyframe;
 	Bytes m_videoMetadata; // Enhanced RTMP https://github.com/veovera/enhanced-rtmp
-	Bytes m_videoM2TSSequenceStart; // Enhanced RTMP
 	uint32_t m_lastVideoTimestamp { 0 };
 	double m_priority { 0 };
 
@@ -258,7 +257,6 @@ struct Stream {
 		m_audioInit.clear();
 		m_lastVideoKeyframe.clear();
 		m_videoMetadata.clear();
-		m_videoM2TSSequenceStart.clear();
 		m_lastVideoTimestamp = 0;
 	}
 };
@@ -517,8 +515,6 @@ public:
 			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioInit.data(), stream.m_audioInit.size());
 		if(not stream.m_videoMetadata.empty()) // RTMP Enhanced Video Metadata goes before Sequence Start/Init
 			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadata.data(), stream.m_videoMetadata.size());
-		if(not stream.m_videoM2TSSequenceStart.empty())
-			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoM2TSSequenceStart.data(), stream.m_videoM2TSSequenceStart.size());
 		if(not stream.m_videoInit.empty())
 			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoInit.data(), stream.m_videoInit.size());
 
@@ -2078,22 +2074,14 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 			stream.m_videoInit = Bytes(payload, payload + len);
 			stream.m_lastVideoKeyframe.clear();
 		}
+		else if(Message::isVideoEnhancedMetadata(payload, len))
+		{
+			stream.m_videoMetadata = Bytes(payload, payload + len);
+			stream.m_lastVideoKeyframe.clear();
+		}
 		else if(Message::isVideoKeyframe(payload, len))
 			stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
-		else if(Message::isVideoEnhanced(payload, len))
-		{
-			if(Message::isVideoEnhancedMetadata(payload, len))
-			{
-				stream.m_videoMetadata = Bytes(payload, payload + len);
-				stream.m_lastVideoKeyframe.clear();
-			}
-			// TODO: waiting for clarification on Enhanced RTMP and what this message really means
-			// else if(Message::isVideoEnhancedM2TSInit(payload, len))
-			// {
-			// 	stream.m_videoM2TSSequenceStart = Bytes(payload, payload + len);
-			//	stream.m_lastVideoKeyframe.clear();
-			// }
-		}
+
 		stream.m_lastVideoTimestamp = timestamp;
 	}
 	else if(TCMSG_AUDIO == messageType)
