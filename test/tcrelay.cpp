@@ -275,7 +275,7 @@ protected:
 			return false;
 		if(TC_VIDEO_FRAMETYPE_COMMAND != (payload[0] & TC_VIDEO_FRAMETYPE_MASK))
 			return false;
-		if(Message::isVideoEnhanced(payload, len) or (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)))
+		if(Message::isVideoEnhanced(payload, len) or (TC_VIDEO_CODEC_AVC == Message::getVideoCodec(payload, len)))
 		{
 			if(len < 6)
 				return false;

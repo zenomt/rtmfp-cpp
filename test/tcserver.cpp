@@ -244,7 +244,8 @@ struct Stream {
 	Bytes m_videoInit;
 	Bytes m_audioInit;
 	Bytes m_lastVideoKeyframe;
-	Bytes m_videoMetadata; // Enhanced RTMP https://github.com/veovera/enhanced-rtmp
+	Bytes m_videoMetadataBeforeInit; // Enhanced RTMP https://github.com/veovera/enhanced-rtmp
+	Bytes m_videoMetadataLatest; // Enhanced RTMP
 	uint32_t m_lastVideoTimestamp { 0 };
 	uint32_t m_lastVideoCodec { UINT32_C(0xffffffff) };
 	uint32_t m_lastAudioCodec { UINT32_C(0xffffffff) };
@@ -258,7 +259,8 @@ struct Stream {
 		m_videoInit.clear();
 		m_audioInit.clear();
 		m_lastVideoKeyframe.clear();
-		m_videoMetadata.clear();
+		m_videoMetadataBeforeInit.clear();
+		m_videoMetadataLatest.clear();
 		m_lastVideoTimestamp = 0;
 		m_lastVideoCodec = UINT32_C(0xffffffff);
 		m_lastAudioCodec = UINT32_C(0xffffffff);
@@ -517,10 +519,12 @@ public:
 
 		if(not stream.m_audioInit.empty())
 			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioInit.data(), stream.m_audioInit.size());
-		if(not stream.m_videoMetadata.empty()) // RTMP Enhanced Video Metadata goes before Sequence Start/Init
-			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadata.data(), stream.m_videoMetadata.size());
+		if(not stream.m_videoMetadataBeforeInit.empty()) // RTMP Enhanced Video Metadata that goes before Sequence Start/Init
+			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataBeforeInit.data(), stream.m_videoMetadataBeforeInit.size());
 		if(not stream.m_videoInit.empty())
 			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoInit.data(), stream.m_videoInit.size());
+		if(not stream.m_videoMetadataLatest.empty()) // Latest RTMP Enhanced Video Metadata goes after Sequence Start/Init
+			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataLatest.data(), stream.m_videoMetadataLatest.size());
 
 		netStream->m_restarted = true;
 		if(not stream.m_lastVideoKeyframe.empty())
@@ -2076,11 +2080,12 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 		if(len) // don't count video silence messages
 		{
 			uint32_t codec = Message::getVideoCodec(payload, len);
-			if(codec != stream.m_lastVideoCodec)
+			if((codec != stream.m_lastVideoCodec) and (TC_VIDEO_CODEC_NONE != codec))
 			{
 				stream.m_videoInit.clear();
 				stream.m_lastVideoKeyframe.clear();
-				stream.m_videoMetadata.clear();
+				stream.m_videoMetadataBeforeInit.clear();
+				stream.m_videoMetadataLatest.clear();
 				stream.m_lastVideoCodec = codec;
 			}
 		}
@@ -2089,10 +2094,15 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 		{
 			stream.m_videoInit = Bytes(payload, payload + len);
 			stream.m_lastVideoKeyframe.clear();
+			if(not stream.m_videoMetadataLatest.empty())
+			{
+				stream.m_videoMetadataBeforeInit = stream.m_videoMetadataLatest;
+				stream.m_videoMetadataLatest.clear();
+			}
 		}
 		else if(Message::isVideoEnhancedMetadata(payload, len))
 		{
-			stream.m_videoMetadata = Bytes(payload, payload + len);
+			stream.m_videoMetadataLatest = Bytes(payload, payload + len);
 			stream.m_lastVideoKeyframe.clear();
 		}
 		else if(Message::isVideoKeyframe(payload, len))
@@ -2132,7 +2142,7 @@ bool App::isVideoCheckpointCommand(const uint8_t *payload, size_t len)
 			return false;
 		return TC_VIDEO_COMMAND_RANDOM_ACCESS_CHECKPOINT == payload[5];
 	}
-	else if(TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK))
+	else if(TC_VIDEO_CODEC_AVC == Message::getVideoCodec(payload, len))
 	{
 		if(len < 6)
 			return false;
