@@ -93,11 +93,13 @@ struct mediaMessage_t
     7 silence/temporary EOS (no payload, timestamp required)
   (8-f non-discardable/must-not-abandon)
     8 reserved
-    9 sticky codec-specific sequence header/config in payload (ex. AVCC, AudioSpecificConfig)
+    9 sticky codec-specific sequence header/config (ex. AVCC, AudioSpecificConfig) in payload
+    a sticky instantaneous codec metadata refresh (ex. HDR info) in options and/or payload
     f flow sync (payload <vlu syncid> <vlu count>)
 
   options:
-    TBD (example: like RTP extension headers, see RFC 8285, https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-10 )
+    TBD (for example like RTP extension headers, see RFC 8285, https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-10 )
+    To be standardized: frame markings for first/last presentation unit portions, temporal and spatial scalable coding info, HDR info
 
   segmenting coded presentation units: Some codecs (ex. AVC) can naturally segment a coded
     presentation unit (ex. by slices or category-based slice data partitioning). Segmented
