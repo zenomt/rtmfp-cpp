@@ -105,6 +105,24 @@ bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 	return (0 == len) or isAudioInit(payload, len);
 }
 
+uint32_t Message::getVideoCodec(const uint8_t *payload, size_t len)
+{
+	if(isVideoEnhanced(payload, len))
+		return (payload[1] << 24) + (payload[2] << 16) + (payload[3] << 8) + payload[4];
+	else if(len)
+		return *payload & TC_VIDEO_CODEC_MASK;
+	else
+		return 0;
+}
+
+uint32_t Message::getAudioCodec(const uint8_t *payload, size_t len)
+{
+	if(len)
+		return *payload & TC_AUDIO_CODEC_MASK;
+	else
+		return 0;
+}
+
 bool Message::timestamp_lt(uint32_t l, uint32_t r)
 {
 	return timestamp_gt(r, l);

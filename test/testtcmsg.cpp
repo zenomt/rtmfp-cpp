@@ -71,5 +71,14 @@ int main(int argc, char **argv)
 	assert(1 == Message::timestamp_diff(UINT32_C(0xF0000005), UINT32_C(0xF0000004)));
 	assert(-1 == Message::timestamp_diff(UINT32_C(0xF0000004), UINT32_C(0xF0000005)));
 
+	uint8_t v1[] = { TC_VIDEO_FRAMETYPE_IDR | TC_VIDEO_CODEC_AVC, TC_VIDEO_AVCPACKET_NALU, 0, 0, 0 };
+	assert(TC_VIDEO_CODEC_AVC == Message::getVideoCodec(v1, sizeof(v1)));
+
+	uint8_t v2[] = { TC_VIDEO_ENHANCED_FLAG_ISEXHEADER | TC_VIDEO_FRAMETYPE_IDR | TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES, 0x68, 0x76, 0x63, 0x31, 0, 0, 0 };
+	assert(TC_VIDEO_ENH_CODEC_HEVC == Message::getVideoCodec(v2, sizeof(v2)));
+
+	uint8_t a1[] = { TC_AUDIO_CODEC_AAC | TC_AUDIO_RATE_44100 | TC_AUDIO_SOUNDSIZE_16 | TC_AUDIO_SOUND_STEREO, TC_AUDIO_AACPACKET_AUDIO_AAC };
+	assert(TC_AUDIO_CODEC_AAC == Message::getAudioCodec(a1, sizeof(a1)));
+
 	return 0;
 }

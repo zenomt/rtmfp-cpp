@@ -73,6 +73,12 @@ enum {
 };
 
 enum {
+	TC_VIDEO_ENH_CODEC_AV1  = 0x61763031, // 'av01'
+	TC_VIDEO_ENH_CODEC_HEVC = 0x68766331, // 'hvc1'
+	TC_VIDEO_ENH_CODEC_VP9  = 0x76703039  // 'vp09'
+};
+
+enum {
 	TC_VIDEO_AVCPACKET_AVCC = 0,
 	TC_VIDEO_AVCPACKET_NALU = 1,
 	TC_VIDEO_AVCPACKET_EOS  = 2
@@ -154,6 +160,9 @@ public:
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
+
+	static uint32_t getVideoCodec(const uint8_t *payload, size_t len);
+	static uint32_t getAudioCodec(const uint8_t *payload, size_t len);
 
 	// answer true if l is before r with wrap-around.
 	static bool timestamp_lt(uint32_t l, uint32_t r);

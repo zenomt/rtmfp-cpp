@@ -31,7 +31,6 @@
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
 using namespace com::zenomt::rtmp;
-using Args = std::vector<std::shared_ptr<AMF0>>;
 
 namespace {
 
@@ -451,7 +450,7 @@ std::string streamNameFromFilename(std::string filename)
 	// C++17 has std::filesystem::path::stem, but we’re targeting C++11
 
 	size_t lastSlash = filename.rfind('/');
-	std::string basename = (std::string::npos == lastSlash) ? filename :  filename.substr(lastSlash + 1);
+	std::string basename = (std::string::npos == lastSlash) ? filename : filename.substr(lastSlash + 1);
 	if((basename.size() > 4) and (basename.substr(basename.size() - 4) == ".flv"))
 		return basename.substr(0, basename.size() - 4);
 	return basename;
