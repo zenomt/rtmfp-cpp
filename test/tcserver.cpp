@@ -246,6 +246,8 @@ struct Stream {
 	Bytes m_lastVideoKeyframe;
 	Bytes m_videoMetadata; // Enhanced RTMP https://github.com/veovera/enhanced-rtmp
 	uint32_t m_lastVideoTimestamp { 0 };
+	uint32_t m_lastVideoCodec { UINT32_C(0xffffffff) };
+	uint32_t m_lastAudioCodec { UINT32_C(0xffffffff) };
 	double m_priority { 0 };
 
 	void unpublishClear()
@@ -258,6 +260,8 @@ struct Stream {
 		m_lastVideoKeyframe.clear();
 		m_videoMetadata.clear();
 		m_lastVideoTimestamp = 0;
+		m_lastVideoCodec = UINT32_C(0xffffffff);
+		m_lastAudioCodec = UINT32_C(0xffffffff);
 	}
 };
 
@@ -2069,6 +2073,18 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 	}
 	else if(TCMSG_VIDEO == messageType)
 	{
+		if(len) // don't count video silence messages
+		{
+			uint32_t codec = Message::getVideoCodec(payload, len);
+			if(codec != stream.m_lastVideoCodec)
+			{
+				stream.m_videoInit.clear();
+				stream.m_lastVideoKeyframe.clear();
+				stream.m_videoMetadata.clear();
+				stream.m_lastVideoCodec = codec;
+			}
+		}
+
 		if(Message::isVideoInit(payload, len))
 		{
 			stream.m_videoInit = Bytes(payload, payload + len);
@@ -2086,6 +2102,16 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 	}
 	else if(TCMSG_AUDIO == messageType)
 	{
+		if(len) // don't count silence messages
+		{
+			uint32_t codec = Message::getAudioCodec(payload, len);
+			if(codec != stream.m_lastAudioCodec)
+			{
+				stream.m_audioInit.clear();
+				stream.m_lastAudioCodec = codec;
+			}
+		}
+
 		if(Message::isAudioInit(payload, len))
 			stream.m_audioInit = Bytes(payload, payload + len);
 	}
