@@ -51,10 +51,13 @@ int main(int argc, char **argv)
 	assert(m2->getTickDuration() > 1./1001.);
 	assert(m2->reorderSuggestion < 0);
 	assert(m1 == *m2);
+	assert(0 == m1.track_compare(*m2));
 
 	m2->setTimescale(90000, 1);
 	m2->mediaType = "video";
 	assert(m1 != *m2);
+	assert(0 != m1.track_compare(*m2));
+	assert(m1.track_compare(*m2) != m2->track_compare(m1));
 	auto m3 = Media::fromMetadata(m2->toMetadata());
 	printf("m3 tick duration %.8Lf should be %.8Lf\n", m3->getTickDuration(), Time(1.0/90000.0));
 	Hex::print("m3", m3->toMetadata());
@@ -79,6 +82,7 @@ int main(int argc, char **argv)
 	m4->trackID = 13;
 	assert(*m3 != *m4);
 	assert(m3->encodingParametersEqual(*m4));
+	assert(Media::track_less(*m3, *m4));
 	m4->reorderSuggestion = 5.3;
 	m4->setReceiveIntent(RO_NETWORK);
 	assert(*m3 != *m4);
@@ -97,6 +101,13 @@ int main(int argc, char **argv)
 	assert(m5->reorderSuggestion > 5.299);
 	assert(RO_NETWORK == m5->getReceiveIntent());
 	assert(*m4 == *m5);
+	assert(not Media::stream_track_less(*m4, *m5));
+	assert(0 == m4->stream_track_compare(*m5));
+
+	m5->streamID = 2;
+	assert(0 == m4->track_compare(*m5));
+	assert(0 != m4->stream_track_compare(*m5));
+	assert(Media::stream_track_less(*m4, *m5));
 
 	m5md.pop_back();
 	assert(not Media::fromMetadata(m5md));

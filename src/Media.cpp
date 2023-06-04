@@ -450,6 +450,30 @@ uintmax_t Media::timeToTicks(Time t) const
 	return uintmax_t((t + rounding - m_origin) / getTickDuration());
 }
 
+int Media::track_compare(const Media &other) const
+{
+	if(trackID != other.trackID)
+		return trackID < other.trackID ? -1 : 1;
+	return mediaType.compare(other.mediaType);
+}
+
+int Media::stream_track_compare(const Media &other) const
+{
+	if(streamID != other.streamID)
+		return streamID < other.streamID ? -1 : 1;
+	return track_compare(other);
+}
+
+bool Media::track_less(const Media &lhs, const Media &rhs)
+{
+	return lhs.track_compare(rhs) < 0;
+}
+
+bool Media::stream_track_less(const Media &lhs, const Media &rhs)
+{
+	return lhs.stream_track_compare(rhs) < 0;
+}
+
 bool Media::encodingParametersEqual(const Media &other) const
 {
 	return (m_timescale_ticks == other.m_timescale_ticks)

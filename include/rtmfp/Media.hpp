@@ -62,6 +62,20 @@ public:
 	Time      ticksToTime(uintmax_t ticks) const;
 	uintmax_t timeToTicks(Time t) const;
 
+	// Compare this track’s identity { trackID, mediaType } to other’s
+	// with a consistent ordering. Answer 0 if this and other refer to the same
+	// track regardless of encoding parameters, <0 if this is ordered before other,
+	// >0 if this is ordered after other. Stream ID is not considered.
+	int track_compare(const Media &other) const;
+
+	// Compare this track's identity as track_compare() but also consider streamID.
+	int stream_track_compare(const Media &other) const;
+
+	// Answer true if lhs.track_compare(rhs) or lhs.stream_track_compare(rhs) < 0,
+	// false otherwise. Intended for use with sets and map keys.
+	static bool track_less(const Media &lhs, const Media &rhs);
+	static bool stream_track_less(const Media &lhs, const Media &rhs);
+
 	// Answer true if other has the same timescale & origin, receive intent, media type, and codec.
 	bool encodingParametersEqual(const Media &other) const;
 
