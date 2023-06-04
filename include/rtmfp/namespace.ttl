@@ -94,7 +94,7 @@ struct mediaMessage_t
   (8-f non-discardable/must-not-abandon)
     8 reserved
     9 sticky codec-specific sequence header/config (ex. AVCC, AudioSpecificConfig) in payload
-    a sticky instantaneous codec metadata refresh (ex. HDR info) in options and/or payload
+    a sticky instantaneous ancillary data refresh (ex. HDR info) in options and/or payload
     f flow sync (payload <vlu syncid> <vlu count>)
 
   options:

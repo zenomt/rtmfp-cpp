@@ -86,7 +86,7 @@ public:
 		MSG_TIMING_CHECKPOINT        = 6,
 		MSG_SILENCE                  = 7,
 		MSG_SEQUENCE_HEADER          = 9,
-		MSG_CODEC_METADATA_REFRESH   = 10,
+		MSG_ANCILLARY_DATA_REFRESH   = 10,
 		MSG_FLOW_SYNC                = 15,
 		MSG_MASK                     = 0x0f
 	};
