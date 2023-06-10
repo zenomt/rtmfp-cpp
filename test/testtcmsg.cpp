@@ -64,6 +64,8 @@ int main(int argc, char **argv)
 	assert(Message::timestamp_lt(UINT32_C(0xF0000000), UINT32_C(0x60000000)));
 	assert(not Message::timestamp_lt(2, 1));
 	assert(Message::timestamp_gt(2, 1));
+	assert(not Message::timestamp_lt(2, 2));
+	assert(not Message::timestamp_gt(2, 2));
 
 	assert(1 == Message::timestamp_diff(2, 1));
 	assert(-1 == Message::timestamp_diff(1, 2));

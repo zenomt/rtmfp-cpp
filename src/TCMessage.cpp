@@ -130,7 +130,7 @@ bool Message::timestamp_lt(uint32_t l, uint32_t r)
 
 bool Message::timestamp_gt(uint32_t l, uint32_t r)
 {
-	return (l - r) < UINT32_C(0x80000000);
+	return uint32_t(r - l) > UINT32_C(0x7fffffff);
 }
 
 int32_t Message::timestamp_diff(uint32_t l, uint32_t r)
