@@ -2077,9 +2077,10 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 	}
 	else if(TCMSG_VIDEO == messageType)
 	{
+		uint32_t codec = Message::getVideoCodec(payload, len);
+
 		if(len) // don't count video silence messages
 		{
-			uint32_t codec = Message::getVideoCodec(payload, len);
 			if((codec != stream.m_lastVideoCodec) and (TC_VIDEO_CODEC_NONE != codec))
 			{
 				stream.m_videoInit.clear();
@@ -2106,7 +2107,25 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 			stream.m_lastVideoKeyframe.clear();
 		}
 		else if(Message::isVideoKeyframe(payload, len))
-			stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
+		{
+			switch(codec)
+			{
+			case TC_VIDEO_CODEC_SPARK:
+			case TC_VIDEO_CODEC_SCREEN:
+			case TC_VIDEO_CODEC_VP6:
+			case TC_VIDEO_CODEC_VP6_ALPHA:
+			case TC_VIDEO_CODEC_SCREEN_V2:
+			case TC_VIDEO_CODEC_AVC:
+				// not all codecs work well if you replay the last keyframe and then
+				// start sending predicted frames with missing intervening frames.
+				// these codecs seem to work ok though.
+				stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
+				break;
+
+			default:
+				break;
+			}
+		}
 
 		stream.m_lastVideoTimestamp = timestamp;
 	}
