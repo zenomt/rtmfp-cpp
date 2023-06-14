@@ -1112,7 +1112,7 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 			// we're responsible for extra delay.
 			m_last_delaycc_action = now;
 			m_last_minrtt_probe = now;
-			m_ssthresh = MAX(m_ssthresh, m_cwnd);
+			m_ssthresh = m_cwnd;
 			m_cwnd = MAX(m_pre_ack_outstanding * 21 / 32, CWND_INIT); // take about 2 RTT to slow-start back
 
 			return;
@@ -1121,13 +1121,15 @@ void Session::updateCWND(size_t acked_bytes_this_packet, size_t lost_bytes_this_
 
 	if(any_loss)
 	{
+		size_t pre_cut = MIN(m_cwnd, m_pre_ack_outstanding);
+
 		if(tc_sent or ((m_pre_ack_outstanding > 67200) and fastgrow_allowed))
-			m_recovery_loss_allowance = m_pre_ack_outstanding / 8;
+			m_recovery_loss_allowance = pre_cut / 8;
 		else
-			m_recovery_loss_allowance = m_pre_ack_outstanding / 2;
-		m_recovery_loss_allowance = MIN(m_pre_ack_outstanding, MAX(m_recovery_loss_allowance, adjusted_loss_cost));
-		m_ssthresh = m_pre_ack_outstanding - m_recovery_loss_allowance;
-		m_ssthresh = MAX(m_ssthresh, CWND_INIT);
+			m_recovery_loss_allowance = pre_cut / 2;
+		m_recovery_loss_allowance = MIN(pre_cut, MAX(m_recovery_loss_allowance, adjusted_loss_cost));
+
+		m_ssthresh = MAX(pre_cut - m_recovery_loss_allowance, CWND_INIT);
 		m_cwnd = m_ssthresh;
 		m_acked_bytes_accumulator = 0;
 		m_recovery_remaining = m_outstandingFrags.sum();
