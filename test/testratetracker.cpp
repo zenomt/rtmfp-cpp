@@ -64,9 +64,9 @@ int main(int argc, char **argv)
 	Time interval = 1024.0/48000.0;
 	for(Time now = 0; now < 5; now += interval)
 	{
-		tracker.update(342, now);
 		if(now > 4)
-			testRate(tracker, now, 16031.25, 342);
+			testRate(tracker, now, 16031.25, 1.7);
+		tracker.update(342, now);
 	}
 
 	return 0;
