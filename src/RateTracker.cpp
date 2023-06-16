@@ -51,8 +51,8 @@ double RateTracker::getRate(Time now) const
 	// else 0 ≤ delta < m_windowPeriod
 	if(m_previousRate > 0.0)
 	{
-		long double currentPortion = delta / m_windowPeriod;
-		return (m_count * currentPortion / m_windowPeriod) + (m_previousRate * (1.0 - currentPortion));
+		long double previousPortion = 1.0 - delta / m_windowPeriod;
+		return (m_count / m_windowPeriod) + (m_previousRate * previousPortion);
 	}
 	else
 		return m_count / m_windowPeriod;
