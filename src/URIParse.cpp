@@ -60,6 +60,15 @@ void URIParse::parse(const std::string &uri_)
 	port = hostparts[6];
 	effectivePort = port;
 
+	if(not fragment.empty())
+	{
+		std::smatch fragmentparts;
+		std::regex_match(fragment, fragmentparts, std::regex("^([^?]*)(\\?(.*))?"));
+		fragmentPath = fragmentparts[1];
+		fragmentQueryPart = fragmentparts[2];
+		fragmentQuery = fragmentparts[3];
+	}
+
 	if((not scheme.empty()) and not hostinfo.empty())
 		origin = scheme + "://" + hostinfo;
 	else

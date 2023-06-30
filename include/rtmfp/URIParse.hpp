@@ -45,6 +45,15 @@ struct URIParse {
 	std::string port;
 	std::string effectivePort;
 	std::string origin;
+
+	// subdivide the fragment (ABNF):
+	// fragment-path = *( pchar / "/" )
+	// fragment-query = *( pchar / "/" / "?" )
+	// fragment-query-part = "?" fragment-query
+	// fragment-subdivided = fragment-path [ fragment-query-part ]
+	std::string fragmentPath;
+	std::string fragmentQueryPart;
+	std::string fragmentQuery;
 };
 
 } } // namespace com::zenomt
