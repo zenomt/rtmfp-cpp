@@ -86,7 +86,7 @@ bool Message::isVideoInit(const uint8_t *payload, size_t len)
 
 bool Message::isVideoKeyframe(const uint8_t *payload, size_t len)
 {
-	return len and (TC_VIDEO_FRAMETYPE_IDR == (payload[0] & TC_VIDEO_FRAMETYPE_MASK));
+	return len and (TC_VIDEO_FRAMETYPE_IDR == (payload[0] & TC_VIDEO_FRAMETYPE_MASK)) and not isVideoSequenceSpecial(payload, len);
 }
 
 bool Message::isVideoSequenceSpecial(const uint8_t *payload, size_t len)

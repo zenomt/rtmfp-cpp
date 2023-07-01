@@ -491,6 +491,11 @@ public:
 			rv->onFinished = [] (bool abandoned) { if(abandoned) { printf("-"); fflush(stdout); } };
 	}
 
+	void relayStreamMessage(std::shared_ptr<NetStream> netStream, uint8_t messageType, uint32_t timestamp, const Bytes &payload)
+	{
+		return relayStreamMessage(netStream, messageType, timestamp, payload.data(), payload.size());
+	}
+
 	void sendPublishNotify(std::shared_ptr<NetStream> netStream, const Stream &stream)
 	{
 		netStream->m_restarted = true;
@@ -514,31 +519,31 @@ public:
 			infoObject->putValueAtKey(AMF0::String(stream.m_publisher->m_owner->m_publishUsername), "publisherName");
 
 		auto onStatusMessage = Message::command("onStatus", 0, nullptr, infoObject);
-		relayStreamMessage(netStream, TCMSG_COMMAND, 0, onStatusMessage.data(), onStatusMessage.size());
+		relayStreamMessage(netStream, TCMSG_COMMAND, 0, onStatusMessage);
 
 		for(auto it = stream.m_dataFrames.begin(); it != stream.m_dataFrames.end(); it++)
-		 	relayStreamMessage(netStream, TCMSG_DATA, 0, it->second.data(), it->second.size());
+			relayStreamMessage(netStream, TCMSG_DATA, 0, it->second);
 
 		if(not stream.m_audioInit.empty())
-			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioInit.data(), stream.m_audioInit.size());
+			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioInit);
 		if(not stream.m_videoMetadataBeforeInit.empty()) // RTMP Enhanced Video Metadata that goes before Sequence Start/Init
-			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataBeforeInit.data(), stream.m_videoMetadataBeforeInit.size());
+			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataBeforeInit);
 		if(not stream.m_videoInit.empty())
-			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoInit.data(), stream.m_videoInit.size());
+			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoInit);
 		if(not stream.m_videoMetadataLatest.empty()) // Latest RTMP Enhanced Video Metadata goes after Sequence Start/Init
-			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataLatest.data(), stream.m_videoMetadataLatest.size());
+			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataLatest);
 
 		netStream->m_restarted = true;
 		if(not stream.m_lastVideoKeyframe.empty())
 		{
-			relayStreamMessage(netStream, TCMSG_VIDEO, stream.m_lastVideoTimestamp, stream.m_lastVideoKeyframe.data(), stream.m_lastVideoKeyframe.size());
+			relayStreamMessage(netStream, TCMSG_VIDEO, stream.m_lastVideoTimestamp, stream.m_lastVideoKeyframe);
 
 			if(not stream.m_lastVideoFrameWasKey)
 			{
 				// not all codecs work well if you replay the last keyframe and then
 				// start sending predicted frames with missing intervening frames.
 
-				switch(Message::getVideoCodec(stream.m_lastVideoKeyframe.data(), stream.m_lastVideoKeyframe.size()))
+				switch(stream.m_lastVideoCodec)
 				{
 				case TC_VIDEO_CODEC_SPARK:
 				case TC_VIDEO_CODEC_SCREEN:
@@ -550,8 +555,8 @@ public:
 					break;
 
 				default:
+					relayStreamMessage(netStream, TCMSG_VIDEO, stream.m_lastVideoTimestamp, Message::makeVideoEndOfSequence(stream.m_lastVideoCodec));
 					netStream->m_seenKeyframe = false;
-					// TODO send a video silence/flush message
 					break;
 				}
 			}
