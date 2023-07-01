@@ -153,9 +153,7 @@ int main(int argc, char **argv)
 	if(uri.host.empty() or uri.effectivePort.empty())
 		return usage(argv[0], 1, "can't parse uri hostinfo: ", argv[optind]);
 
-	std::string streamName = "live";
-	if(not uri.fragmentPart.empty())
-		streamName = uri.fragmentPath;
+	std::string streamName = uri.fragmentPart.empty() ? "live" : uri.fragmentPath;
 
 	printf("play %s from: %s\n", streamName.c_str(), uri.publicUri.c_str());
 
