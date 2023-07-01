@@ -57,6 +57,24 @@ Bytes Message::command(const char *commandName, double transactionID, const std:
 	return rv;
 }
 
+Bytes Message::makeVideoEndOfSequence(uint32_t codec)
+{
+	if(codec > TC_VIDEO_CODEC_MASK) // enhanced
+	{
+		Bytes rv;
+		rv.push_back(TC_VIDEO_ENHANCED_FLAG_ISEXHEADER | TC_VIDEO_FRAMETYPE_IDR | TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_END);
+		rv.push_back((codec >> 24) & 0xff);
+		rv.push_back((codec >> 16) & 0xff);
+		rv.push_back((codec >>  8) & 0xff);
+		rv.push_back((codec      ) & 0xff);
+		return rv;
+	}
+	else if(TC_VIDEO_CODEC_AVC == codec)
+		return { TC_VIDEO_FRAMETYPE_IDR | TC_VIDEO_CODEC_AVC, TC_VIDEO_AVCPACKET_EOS, 0, 0, 0 };
+	else
+		return {}; // video "silence"
+}
+
 bool Message::isVideoInit(const uint8_t *payload, size_t len)
 {
 	if(isVideoEnhanced(payload, len))

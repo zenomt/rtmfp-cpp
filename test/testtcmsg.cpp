@@ -82,5 +82,20 @@ int main(int argc, char **argv)
 	uint8_t a1[] = { TC_AUDIO_CODEC_AAC | TC_AUDIO_RATE_44100 | TC_AUDIO_SOUNDSIZE_16 | TC_AUDIO_SOUND_STEREO, TC_AUDIO_AACPACKET_AUDIO_AAC };
 	assert(TC_AUDIO_CODEC_AAC == Message::getAudioCodec(a1, sizeof(a1)));
 
+	Bytes eos = Message::makeVideoEndOfSequence(TC_VIDEO_CODEC_AVC);
+	assert(5 == eos.size());
+	assert(TC_VIDEO_CODEC_AVC == Message::getVideoCodec(eos.data(), eos.size()));
+	assert(Message::isVideoSequenceSpecial(eos.data(), eos.size()));
+
+	eos = Message::makeVideoEndOfSequence(TC_VIDEO_ENH_CODEC_HEVC);
+	assert(5 == eos.size());
+	assert(TC_VIDEO_ENH_CODEC_HEVC == Message::getVideoCodec(eos.data(), eos.size()));
+	assert(Message::isVideoSequenceSpecial(eos.data(), eos.size()));
+
+	eos = Message::makeVideoEndOfSequence(TC_VIDEO_CODEC_NONE);
+	assert(0 == eos.size());
+	assert(0 == Message::getVideoCodec(eos.data(), eos.size()));
+	assert(Message::isVideoSequenceSpecial(eos.data(), eos.size()));
+
 	return 0;
 }
