@@ -1197,6 +1197,8 @@ protected:
 			netStream->m_highestTimestamp = (uint32_t)(args[4]->doubleValue());
 			netStream->m_restarted = true;
 		}
+		if(netStream->m_paused)
+			netStream->m_seenKeyframe = false;
 		logStreamEvent(netStream->m_paused ? "pause" : "unpause", netStream);
 	}
 
@@ -1205,6 +1207,8 @@ protected:
 		if(args.size() < 4)
 			return;
 		netStream->m_receiveVideo = args[3]->booleanValue();
+		if(not netStream->m_receiveVideo)
+			netStream->m_seenKeyframe = false;
 		logStreamEvent(netStream->m_receiveVideo ? "receiveVideo,unmute" : "receiveVideo,mute", netStream);
 	}
 
