@@ -42,7 +42,6 @@ Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
 bool expirePreviousGop = true;
-const char *streamNameOverride = nullptr;
 double publishPriority = -INFINITY;
 bool hashAuthToken = false;
 bool requireHashAuthToken = false;
@@ -487,7 +486,6 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -A secs      -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F secs      -- finish-by margin (default %.3Lf)\n", finishByMargin);
 	printf("  -E           -- don't expire previous GOP\n");
-	printf("  -p name      -- publish stream name (default %s)\n", streamNameOverride ? streamNameOverride : "basename of flv-file minus \".flv\"");
 	printf("  -P priority  -- publish priority (tcserver) (default %.3f)\n", publishPriority);
 	printf("  -L           -- loop stream forever\n");
 	printf("  -R           -- send releaseStream before publish\n");
@@ -502,6 +500,14 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -6           -- only bind to [::]\n");
 	printf("  -v           -- increase verboseness\n");
 	printf("  -h           -- show this help\n");
+	printf("\n");
+	printf("default stream name is basename of flv-file minus \".flv\". override with\n");
+	printf("rtmfp-uri fragment identifier.\n");
+	printf("\n");
+	printf("example rtmfp-uris:\n");
+	printf("  rtmfp://server.example/live/instance\n");
+	printf("  rtmfp://auth-token@server.example/live/instance#stream-name\n");
+	printf("  rtmfp://username:password@server.example/live/instance#stream-name\n");
 	return rv;
 }
 
@@ -539,7 +545,7 @@ int main(int argc, char **argv)
 	const char *fingerprint = nullptr;
 	int ch;
 
-	while((ch = getopt(argc, argv, "V:A:F:Ep:P:LRf:mMT:X:HS46vh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:EP:LRf:mMT:X:HS46vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -557,10 +563,6 @@ int main(int argc, char **argv)
 
 		case 'E':
 			expirePreviousGop = false;
-			break;
-
-		case 'p':
-			streamNameOverride = optarg;
 			break;
 
 		case 'P':
@@ -632,12 +634,7 @@ int main(int argc, char **argv)
 	}
 
 	if(argc <= optind + 1)
-		return usage(argv[0], 1, "specify rtmfp uri and FLV filename\n",
-			"example rtmfp-uris:\n"
-			"  rtmfp://server.example/live/instance\n"
-			"  rtmfp://auth-token@server.example/live/instance\n"
-			"  rtmfp://username:password@server.example/live/instance\n"
-		);
+		return usage(argv[0], 1, "specify rtmfp uri and FLV filename\n");
 
 	URIParse uri(argv[optind]);
 	if(uri.canonicalScheme != "rtmfp") // maybe more later
@@ -661,7 +658,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	std::string publishName = streamNameOverride ? streamNameOverride : streamNameFromFilename(argv[optind + 1]);
+	std::string publishName = uri.fragmentPart.empty() ? streamNameFromFilename(argv[optind + 1]) : uri.fragmentPath;
 
 	printf("publish %s to %s\n", publishName.c_str(), uri.publicUri.c_str());
 

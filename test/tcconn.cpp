@@ -28,7 +28,6 @@ int verbose = 0;
 Time delaycc_delay = INFINITY;
 bool interrupted = false;
 int tos = 0;
-const char *streamName = "live";
 
 void signal_handler(int unused)
 {
@@ -73,7 +72,6 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -S        -- don't require session sequence numbers\n");
 	printf("  -4        -- only bind to 0.0.0.0\n");
 	printf("  -6        -- only bind to [::]\n");
-	printf("  -s stream -- play stream (default %s)\n", streamName);
 	printf("  -f finger -- set required fingerprint in endpoint discriminator\n");
 	printf("  -m        -- hash auth token (tcserver)\n");
 	printf("  -M        -- require hashed auth token in connect response (tcserver)\n");
@@ -81,6 +79,13 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -X secs   -- set congestion extra delay threshold (default %.3Lf)\n", delaycc_delay);
 	printf("  -v        -- increase verboseness\n");
 	printf("  -h        -- show this help\n");
+	printf("\n");
+	printf("default stream name is \"live\". override with rtmfp-uri fragment identifier.\n");
+	printf("\n");
+	printf("example rtmfp-uris:\n");
+	printf("  rtmfp://server.example/app/instance\n");
+	printf("  rtmfp://server.example/app/instance#stream-name\n");
+	printf("  rtmfp://user:pass@server.example/app#stream-name\n");
 	return rv;
 }
 
@@ -97,7 +102,7 @@ int main(int argc, char **argv)
 	const char *fingerprint = nullptr;
 	int ch;
 
-	while((ch = getopt(argc, argv, "h46HSs:f:mMxX:v")) != -1)
+	while((ch = getopt(argc, argv, "h46HSf:mMxX:v")) != -1)
 	{
 		switch(ch)
 		{
@@ -114,9 +119,6 @@ int main(int argc, char **argv)
 			break;
 		case 'S':
 			requireSSEQ = false;
-			break;
-		case 's':
-			streamName = optarg;
 			break;
 		case 'f':
 			fingerprint = optarg;
@@ -150,7 +152,12 @@ int main(int argc, char **argv)
 		return usage(argv[0], 1, "unsupported scheme: ", uri.scheme.c_str());
 	if(uri.host.empty() or uri.effectivePort.empty())
 		return usage(argv[0], 1, "can't parse uri hostinfo: ", argv[optind]);
-	printf("connecting to %s\n", uri.publicUri.c_str());
+
+	std::string streamName = "live";
+	if(not uri.fragmentPart.empty())
+		streamName = uri.fragmentPath;
+
+	printf("play %s from: %s\n", streamName.c_str(), uri.publicUri.c_str());
 
 	if(not uri.userinfoPart.empty())
 		memset(argv[optind], '#', strlen(argv[optind]));
@@ -190,7 +197,7 @@ int main(int argc, char **argv)
 
 	auto tcconn = share_ref(new RunLoopRTMFPTCConnection(&rl, verbose), false);
 	tcconn->init(&rtmfp, epd);
-	tcconn->onTransportOpen = [tcconn, uri, hashAuthToken, requireHashAuthToken, &crypto] {
+	tcconn->onTransportOpen = [tcconn, uri, hashAuthToken, requireHashAuthToken, &crypto, streamName] {
 		printf("transport open\n");
 		printf("  far address: %s\n", tcconn->sessionOpt()->getFarAddress().toPresentation().c_str());
 		printf("  fingerprint: %s\n", Hex::encode(tcconn->getServerFingerprint()).c_str());
@@ -210,7 +217,7 @@ int main(int argc, char **argv)
 			authToken = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
 
 		tcconn->connect(
-			[tcconn, plainAuthToken, requireHashAuthToken, &crypto] (bool success, std::shared_ptr<AMF0> result) {
+			[tcconn, plainAuthToken, requireHashAuthToken, &crypto, streamName] (bool success, std::shared_ptr<AMF0> result) {
 				printf("onConnect %s %s\n\n", success ? "success" : "failure", result ? result->repr().c_str() : "nullptr");
 				if(not success)
 					return;
