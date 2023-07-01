@@ -250,6 +250,7 @@ struct Stream {
 	uint32_t m_lastVideoCodec { UINT32_C(0xffffffff) };
 	uint32_t m_lastAudioCodec { UINT32_C(0xffffffff) };
 	double m_priority { 0 };
+	bool m_lastVideoFrameWasKey { false };
 
 	void unpublishClear()
 	{
@@ -264,6 +265,7 @@ struct Stream {
 		m_lastVideoTimestamp = 0;
 		m_lastVideoCodec = UINT32_C(0xffffffff);
 		m_lastAudioCodec = UINT32_C(0xffffffff);
+		m_lastVideoFrameWasKey = false;
 	}
 };
 
@@ -528,7 +530,32 @@ public:
 
 		netStream->m_restarted = true;
 		if(not stream.m_lastVideoKeyframe.empty())
+		{
 			relayStreamMessage(netStream, TCMSG_VIDEO, stream.m_lastVideoTimestamp, stream.m_lastVideoKeyframe.data(), stream.m_lastVideoKeyframe.size());
+
+			if(not stream.m_lastVideoFrameWasKey)
+			{
+				// not all codecs work well if you replay the last keyframe and then
+				// start sending predicted frames with missing intervening frames.
+
+				switch(Message::getVideoCodec(stream.m_lastVideoKeyframe.data(), stream.m_lastVideoKeyframe.size()))
+				{
+				case TC_VIDEO_CODEC_SPARK:
+				case TC_VIDEO_CODEC_SCREEN:
+				case TC_VIDEO_CODEC_VP6:
+				case TC_VIDEO_CODEC_VP6_ALPHA:
+				case TC_VIDEO_CODEC_SCREEN_V2:
+				case TC_VIDEO_CODEC_AVC:
+					// these codecs seem to work ok though.
+					break;
+
+				default:
+					netStream->m_seenKeyframe = false;
+					// TODO send a video silence/flush message
+					break;
+				}
+			}
+		}
 	}
 
 	void sendUnpublishNotify(std::shared_ptr<NetStream> netStream)
@@ -2077,10 +2104,10 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 	}
 	else if(TCMSG_VIDEO == messageType)
 	{
-		uint32_t codec = Message::getVideoCodec(payload, len);
-
 		if(len) // don't count video silence messages
 		{
+			uint32_t codec = Message::getVideoCodec(payload, len);
+
 			if((codec != stream.m_lastVideoCodec) and (TC_VIDEO_CODEC_NONE != codec))
 			{
 				stream.m_videoInit.clear();
@@ -2108,24 +2135,11 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 		}
 		else if(Message::isVideoKeyframe(payload, len))
 		{
-			switch(codec)
-			{
-			case TC_VIDEO_CODEC_SPARK:
-			case TC_VIDEO_CODEC_SCREEN:
-			case TC_VIDEO_CODEC_VP6:
-			case TC_VIDEO_CODEC_VP6_ALPHA:
-			case TC_VIDEO_CODEC_SCREEN_V2:
-			case TC_VIDEO_CODEC_AVC:
-				// not all codecs work well if you replay the last keyframe and then
-				// start sending predicted frames with missing intervening frames.
-				// these codecs seem to work ok though.
-				stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
-				break;
-
-			default:
-				break;
-			}
+			stream.m_lastVideoKeyframe = Bytes(payload, payload + len);
+			stream.m_lastVideoFrameWasKey = true;
 		}
+		else
+			stream.m_lastVideoFrameWasKey = false;
 
 		stream.m_lastVideoTimestamp = timestamp;
 	}
