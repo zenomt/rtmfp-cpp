@@ -47,13 +47,13 @@ struct URIParse {
 	std::string origin;
 
 	// subdivide the fragment (ABNF):
-	// fragment-path = *( pchar / "/" )
-	// fragment-query = *( pchar / "/" / "?" )
-	// fragment-query-part = "?" fragment-query
-	// fragment-subdivided = fragment-path [ fragment-query-part ]
-	std::string fragmentPath;
-	std::string fragmentQueryPart;
-	std::string fragmentQuery;
+	// secondary-path = *( pchar / "/" )
+	// secondary-params = *( pchar / "/" / "?" )
+	// secondary-params-part = "?" secondary-params
+	// fragment-subdivided = secondary-path [ secondary-params-part ]
+	std::string secondaryPath;
+	std::string secondaryParamsPart;
+	std::string secondaryParams;
 };
 
 } } // namespace com::zenomt

@@ -658,7 +658,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	std::string publishName = uri.fragmentPart.empty() ? streamNameFromFilename(argv[optind + 1]) : uri.fragmentPath;
+	std::string publishName = uri.fragmentPart.empty() ? streamNameFromFilename(argv[optind + 1]) : uri.secondaryPath;
 
 	printf("publish %s to %s\n", publishName.c_str(), uri.publicUri.c_str());
 

@@ -62,11 +62,11 @@ void URIParse::parse(const std::string &uri_)
 
 	if(not fragment.empty())
 	{
-		std::smatch fragmentparts;
-		std::regex_match(fragment, fragmentparts, std::regex("^([^?]*)(\\?(.*))?"));
-		fragmentPath = fragmentparts[1];
-		fragmentQueryPart = fragmentparts[2];
-		fragmentQuery = fragmentparts[3];
+		std::smatch secondaryparts;
+		std::regex_match(fragment, secondaryparts, std::regex("^([^?]*)(\\?(.*))?"));
+		secondaryPath = secondaryparts[1];
+		secondaryParamsPart = secondaryparts[2];
+		secondaryParams = secondaryparts[3];
 	}
 
 	if((not scheme.empty()) and not hostinfo.empty())
