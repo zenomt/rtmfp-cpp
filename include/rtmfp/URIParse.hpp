@@ -45,15 +45,6 @@ struct URIParse {
 	std::string port;
 	std::string effectivePort;
 	std::string origin;
-
-	// subdivide the fragment (ABNF):
-	// secondary-path = *( pchar / "/" )
-	// secondary-params = *( pchar / "/" / "?" )
-	// secondary-params-part = "?" secondary-params
-	// fragment-subdivided = secondary-path [ secondary-params-part ]
-	std::string secondaryPath;
-	std::string secondaryParamsPart;
-	std::string secondaryParams;
 };
 
 } } // namespace com::zenomt

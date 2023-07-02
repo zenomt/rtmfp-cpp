@@ -20,9 +20,6 @@ static void printUri(const char *msg, const com::zenomt::URIParse &p)
 	printf("query: %s\n", p.query.c_str());
 	printf("fragmentPart: %s\n", p.fragmentPart.c_str());
 	printf("fragment: %s\n", p.fragment.c_str());
-	printf("  secondaryPath: %s\n", p.secondaryPath.c_str());
-	printf("  secondaryParamsPart: %s\n", p.secondaryParamsPart.c_str());
-	printf("  secondaryParams: %s\n", p.secondaryParams.c_str());
 	printf("authorityPart: %s\n", p.authorityPart.c_str());
 	printf("authority: %s\n", p.authority.c_str());
 	printf("path: %s\n", p.path.c_str());
@@ -148,9 +145,6 @@ int main(int argc, char *argv[])
 	printUri("u14", u14);
 	assert(u14.query == "bar");
 	assert(u14.fragment == "baz");
-	assert(u14.secondaryPath == "baz");
-	assert(u14.secondaryParamsPart.empty());
-	assert(u14.secondaryParams.empty());
 	assert(u14.path == "/foo");
 	assert(u14.userinfo == "user:pw");
 	assert(u14.passwordPart == ":pw");
@@ -167,9 +161,6 @@ int main(int argc, char *argv[])
 	assert(u15.query.empty());
 	assert(not u15.fragmentPart.empty());
 	assert(u15.fragment.empty());
-	assert(u15.secondaryParamsPart.empty());
-	assert(u15.secondaryParams.empty());
-	assert(u15.secondaryPath.empty());
 
 	URIParse u16("6://foo/bar/baz");
 	printUri("u16", u16);
@@ -182,13 +173,6 @@ int main(int argc, char *argv[])
 	assert(u17.host == "2001:db8::10.0.1.2");
 	assert(u17.port == "1234");
 	assert(u17.hostinfo == "[2001:db8::10.0.1.2]:1234");
-
-	URIParse u18("rtmp://host.example/foo?bar#fragment?fragmentQuery?more");
-	printUri("u18", u18);
-	assert(u18.fragment == "fragment?fragmentQuery?more");
-	assert(u18.secondaryPath == "fragment");
-	assert(u18.secondaryParamsPart == "?fragmentQuery?more");
-	assert(u18.secondaryParams == "fragmentQuery?more");
 
 	// test cases from RFC 3986 §5.4.1
 	URIParse baseUri("http://a/b/c/d;p?q");
