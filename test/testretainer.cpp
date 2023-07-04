@@ -150,6 +150,13 @@ int main(int, char **)
 		assert(not t2);
 	}
 
+	{
+		auto t2 = t1;
+		t1 = t2;
+		assert(2 == t1->getRefcount());
+		assert(t1 == t2);
+	}
+
 	// ---
 
 	assert(1 == t1->getRefcount());
