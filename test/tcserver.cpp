@@ -139,27 +139,6 @@ std::string logEscape(std::string s)
 	return rv;
 }
 
-std::vector<std::string> split(const std::string &s, char sep, size_t maxParts = 0)
-{
-	std::vector<std::string> rv;
-
-	size_t cursor = 0;
-	while((--maxParts) and (cursor < s.size()))
-	{
-		size_t found = s.find(sep, cursor);
-		if(std::string::npos == found)
-			break;
-
-		rv.push_back(s.substr(cursor, found - cursor));
-		cursor = found + 1;
-	}
-
-	if(cursor <= s.size())
-		rv.push_back(s.substr(cursor));
-
-	return rv;
-}
-
 struct NetStream : public Object {
 	enum State { NS_IDLE, NS_PUBLISHING, NS_PLAYING };
 
@@ -1287,10 +1266,10 @@ protected:
 		long double expiration = INFINITY;
 		long double useBy = INFINITY;
 
-		auto params = split(configSpec, ';');
+		auto params = URIParse::split(configSpec, ';');
 		for(auto param = params.begin(); param != params.end(); param++)
 		{
-			auto parts = split(*param, '=', 2);
+			auto parts = URIParse::split(*param, '=', 2);
 			if(parts[0] == "pri")
 				m_maxPublishPriority = configValueToFloat(parts, m_maxPublishPriority);
 			else if(parts[0] == "name")

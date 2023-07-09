@@ -5,7 +5,6 @@
 #include <cstring>
 
 #include <regex>
-#include <vector>
 
 #include "../include/rtmfp/URIParse.hpp"
 
@@ -176,6 +175,27 @@ std::string URIParse::removeDotSegments(const std::string &path_)
 	rv.reserve(path_.size());
 	for(auto it = outputBuffer.begin(); it != outputBuffer.end(); it++)
 		rv += *it;
+
+	return rv;
+}
+
+std::vector<std::string> URIParse::split(const std::string &str, char sep, size_t maxParts)
+{
+	std::vector<std::string> rv;
+
+	size_t cursor = 0;
+	while((--maxParts) and (cursor < str.size()))
+	{
+		size_t found = str.find(sep, cursor);
+		if(std::string::npos == found)
+			break;
+
+		rv.push_back(str.substr(cursor, found - cursor));
+		cursor = found + 1;
+	}
+
+	if(cursor <= str.size())
+		rv.push_back(str.substr(cursor));
 
 	return rv;
 }

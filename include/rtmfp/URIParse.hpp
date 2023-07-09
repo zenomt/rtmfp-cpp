@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <string>
+#include <vector>
 
 namespace com { namespace zenomt {
 
@@ -21,6 +22,9 @@ struct URIParse {
 
 	// RFC 3986 §5.2.4
 	static std::string removeDotSegments(const std::string &path);
+
+	// split str on sep into at most maxParts (0 for unlimited)
+	static std::vector<std::string> split(const std::string &str, char sep, size_t maxParts = 0);
 
 	std::string uri;
 	std::string publicUri;

@@ -221,5 +221,30 @@ int main(int argc, char *argv[])
 	checkRel(baseUri, "g#s/../x",   "http://a/b/c/g#s/../x");
 	checkRel(baseUri, "http:g",     "http:g"); // we're strict
 
+	auto split1 = URIParse::split("test", ':');
+	assert(split1.size() == 1);
+	assert(split1[0] == "test");
+
+	auto split2 = URIParse::split("part1:part2:part3", ':');
+	assert(split2.size() == 3);
+	assert(split2[0] == "part1");
+	assert(split2[1] == "part2");
+	assert(split2[2] == "part3");
+
+	auto split3 = URIParse::split("part1:part2:part3", ':', 2);
+	assert(split3.size() == 2);
+	assert(split3[0] == "part1");
+	assert(split3[1] == "part2:part3");
+
+	auto split4 = URIParse::split("part1:part2", ':', 1);
+	assert(split4.size() == 1);
+	assert(split4[0] == "part1:part2");
+
+	auto split5 = URIParse::split(":part2:", ':');
+	assert(split5.size() == 3);
+	assert(split5[0].empty());
+	assert(split5[1] == "part2");
+	assert(split5[2].empty());
+
 	return 0;
 }
