@@ -162,9 +162,13 @@ public:
 		m_uri(uri)
 	{
 		if(verbose) printf("new Publisher %p\n", (void *)this);
-		m_username = m_uri.userinfoPart.empty() ? nullptr : AMF0::String(uri.user);
-		m_password = m_uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password);
-		m_authToken = m_password ? m_password : m_username;
+
+		if(not m_uri.userinfoPart.empty())
+		{
+			m_connectArgs = AMF0::toStrings(URIParse::split(m_uri.userinfo, ':'));
+			m_authToken = m_connectArgs.back();
+		}
+
 		m_flvReader = share_ref(new FLVReader(flvFile), false);
 	}
 
@@ -222,14 +226,12 @@ public:
 		m_tcconn->sessionOpt()->setSessionTrafficClass(dscp << 2);
 		m_tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 
-		std::shared_ptr<AMF0> authToken = m_authToken;
-		if(authToken and hashAuthToken)
-			authToken = AMF0::String(hexHMACSHA256(m_tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
+		if(m_authToken and hashAuthToken)
+			m_connectArgs.back() = AMF0::String(hexHMACSHA256(m_tcconn->sessionOpt()->getFarNonce(), m_authToken->stringValue()));
 
 		m_tcconn->connect(
 			[this] (bool success, std::shared_ptr<AMF0> result) { onConnectResult(success, result); },
-			m_uri.publicUri, nullptr,
-			{ m_password ? m_username : authToken, m_password ? authToken : nullptr }
+			m_uri.publicUri, nullptr, m_connectArgs
 		);
 	}
 
@@ -434,8 +436,7 @@ protected:
 	URIParse m_uri;
 	std::shared_ptr<RTMFPTCConnection> m_tcconn;
 	std::shared_ptr<TCStream> m_publishStream;
-	std::shared_ptr<AMF0> m_username;
-	std::shared_ptr<AMF0> m_password;
+	std::vector<std::shared_ptr<AMF0>> m_connectArgs;
 	std::shared_ptr<AMF0> m_authToken;
 	bool m_publishing { false };
 	std::shared_ptr<FLVReader> m_flvReader;

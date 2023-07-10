@@ -207,24 +207,22 @@ int main(int argc, char **argv)
 		tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 		tcconn->sessionOpt()->setSessionFIHelloMode(FI_SEND_RHELLO);
 
-		std::shared_ptr<AMF0> username = uri.userinfoPart.empty() ? nullptr : AMF0::String(uri.user);
-		std::shared_ptr<AMF0> password = uri.passwordPart.empty() ? nullptr : AMF0::String(uri.password);
-		std::shared_ptr<AMF0> plainAuthToken = password ? password : username;
-		std::shared_ptr<AMF0> authToken = plainAuthToken;
+		auto connectArgs = AMF0::toStrings(uri.userinfoPart.empty() ? std::vector<std::string>() : uri.split(uri.userinfo, ':'));
+		std::shared_ptr<AMF0> authToken = connectArgs.empty() ? nullptr : connectArgs.back();
 		if(authToken and hashAuthToken)
-			authToken = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
+			connectArgs.back() = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));
 
 		tcconn->connect(
-			[tcconn, plainAuthToken, requireHashAuthToken, &crypto, streamName] (bool success, std::shared_ptr<AMF0> result) {
+			[tcconn, authToken, requireHashAuthToken, &crypto, streamName] (bool success, std::shared_ptr<AMF0> result) {
 				printf("onConnect %s %s\n\n", success ? "success" : "failure", result ? result->repr().c_str() : "nullptr");
 				if(not success)
 					return;
 
-				if(plainAuthToken and requireHashAuthToken)
+				if(authToken and requireHashAuthToken)
 				{
 					auto serverAuthToken = result->getValueAtKey("authToken");
 					if( (not serverAuthToken->isString())
-					 or (hexHMACSHA256(&crypto, tcconn->sessionOpt()->getNearNonce(), plainAuthToken->stringValue()) != serverAuthToken->stringValue())
+					 or (hexHMACSHA256(&crypto, tcconn->sessionOpt()->getNearNonce(), authToken->stringValue()) != serverAuthToken->stringValue())
 					)
 					{
 						printf("!!! server didn't authenticate. closing...\n\n");
@@ -259,10 +257,7 @@ int main(int argc, char **argv)
 			, AMF0::Object()
 				->putValueAtKey(AMF0::Number(0xffff), "videoCodecs") // wildcard
 				->putValueAtKey(AMF0::Number(0xffff), "audioCodecs") // wildcard
-			, {
-				password ? username : authToken, // might just be uri.user or nullptr
-				password ? authToken : nullptr
-			}
+			, connectArgs
 		);
 	};
 
