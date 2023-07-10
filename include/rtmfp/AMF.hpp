@@ -60,6 +60,9 @@ public:
 	static std::shared_ptr<AMF0ECMAArray> ECMAArray();
 	static std::shared_ptr<AMF0Array> Array();
 
+	// convenience function, answer a vector of shared_ptrs to AMF0Strings from strs
+	static std::vector<std::shared_ptr<AMF0>> toStrings(const std::vector<std::string> &strs);
+
 	virtual Type getType() const = 0;
 
 	virtual bool isNumber() const;

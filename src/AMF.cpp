@@ -27,6 +27,17 @@ std::shared_ptr<AMF0TypedObject> AMF0::TypedObject(const char *class_name) { ret
 std::shared_ptr<AMF0ECMAArray> AMF0::ECMAArray() { return share_ref(new AMF0ECMAArray(), false); }
 std::shared_ptr<AMF0Array> AMF0::Array() { return share_ref(new AMF0Array(), false); }
 
+std::vector<std::shared_ptr<AMF0>> AMF0::toStrings(const std::vector<std::string> &strs)
+{
+	std::vector<std::shared_ptr<AMF0>> rv;
+	rv.reserve(strs.size());
+
+	for(auto it = strs.begin(); it != strs.end(); it++)
+		rv.push_back(String(*it));
+
+	return rv;
+}
+
 bool AMF0::isNumber() const { return false; }
 AMF0Number *AMF0::asNumber() { return nullptr; }
 AMF0Number *AMF0::asNumber(AMF0 *amf) { return amf ? amf->asNumber() : nullptr; }
