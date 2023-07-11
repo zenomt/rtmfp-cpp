@@ -15,7 +15,6 @@ static void _indent(std::string &dst, size_t depth)
 namespace com { namespace zenomt { namespace rtmp {
 
 std::shared_ptr<AMF0Number> AMF0::Number(double v) { return share_ref(new AMF0Number(v), false); }
-std::shared_ptr<AMF0String> AMF0::String(const char *v) { return share_ref(new AMF0String(v), false); }
 std::shared_ptr<AMF0String> AMF0::String(const std::string &v) { return share_ref(new AMF0String(v), false); }
 std::shared_ptr<AMF0Boolean> AMF0::Boolean(bool v) { return share_ref(new AMF0Boolean(v), false); }
 std::shared_ptr<AMF0Boolean> AMF0::True() { return Boolean(true); }
@@ -26,17 +25,6 @@ std::shared_ptr<AMF0Object> AMF0::Object() { return share_ref(new AMF0Object(), 
 std::shared_ptr<AMF0TypedObject> AMF0::TypedObject(const char *class_name) { return share_ref(new AMF0TypedObject(class_name), false); }
 std::shared_ptr<AMF0ECMAArray> AMF0::ECMAArray() { return share_ref(new AMF0ECMAArray(), false); }
 std::shared_ptr<AMF0Array> AMF0::Array() { return share_ref(new AMF0Array(), false); }
-
-std::vector<std::shared_ptr<AMF0>> AMF0::toStrings(const std::vector<std::string> &strs)
-{
-	std::vector<std::shared_ptr<AMF0>> rv;
-	rv.reserve(strs.size());
-
-	for(auto it = strs.begin(); it != strs.end(); it++)
-		rv.push_back(String(*it));
-
-	return rv;
-}
 
 bool AMF0::isNumber() const { return false; }
 AMF0Number *AMF0::asNumber() { return nullptr; }

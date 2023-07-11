@@ -140,11 +140,5 @@ int main(int argc, char **argv)
 	assert(amf_ecmaarray_dup->isECMAArray());
 	assert(3 == amf_ecmaarray_dup->asECMAArray()->size());
 
-	auto strs = AMF0::toStrings({"hi", "there"});
-	assert(strs.size() == 2);
-	assert(strs[0]->isString());
-	assert(0 == strcmp(strs[0]->stringValue(), "hi"));
-	assert(0 == strcmp(strs[1]->stringValue(), "there"));
-
 	return 0;
 }

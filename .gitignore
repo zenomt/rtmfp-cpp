@@ -33,3 +33,4 @@ test/tcpublish
 test/testratetracker
 test/conncheck
 test/testretainer
+test/testcollect

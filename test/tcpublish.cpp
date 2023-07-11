@@ -27,6 +27,7 @@
 #include "rtmfp/Hex.hpp"
 #include "rtmfp/TCConnection.hpp"
 #include "rtmfp/URIParse.hpp"
+#include "rtmfp/Algorithm.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
@@ -165,7 +166,7 @@ public:
 
 		if(not m_uri.userinfoPart.empty())
 		{
-			m_connectArgs = AMF0::toStrings(URIParse::split(m_uri.userinfo, ':'));
+			m_connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, URIParse::split(m_uri.userinfo, ':'));
 			m_authToken = m_connectArgs.back();
 		}
 

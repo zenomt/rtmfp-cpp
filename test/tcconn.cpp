@@ -12,6 +12,7 @@
 #include "rtmfp/Hex.hpp"
 #include "rtmfp/TCConnection.hpp"
 #include "rtmfp/URIParse.hpp"
+#include "rtmfp/Algorithm.hpp"
 
 #ifndef IPTOS_DSCP_AF41
 #define IPTOS_DSCP_AF41 0x88
@@ -207,7 +208,7 @@ int main(int argc, char **argv)
 		tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 		tcconn->sessionOpt()->setSessionFIHelloMode(FI_SEND_RHELLO);
 
-		auto connectArgs = AMF0::toStrings(uri.userinfoPart.empty() ? std::vector<std::string>() : uri.split(uri.userinfo, ':'));
+		auto connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, uri.userinfoPart.empty() ? std::vector<std::string>() : uri.split(uri.userinfo, ':'));
 		std::shared_ptr<AMF0> authToken = connectArgs.empty() ? nullptr : connectArgs.back();
 		if(authToken and hashAuthToken)
 			connectArgs.back() = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));

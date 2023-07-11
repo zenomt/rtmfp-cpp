@@ -48,8 +48,7 @@ public:
 		AMF0_XMLDOCUMENT, AMF0_TYPED_OBJECT };
 
 	static std::shared_ptr<AMF0Number> Number(double v = 0);
-	static std::shared_ptr<AMF0String> String(const char *v = "");
-	static std::shared_ptr<AMF0String> String(const std::string &v);
+	static std::shared_ptr<AMF0String> String(const std::string &v = "");
 	static std::shared_ptr<AMF0Boolean> Boolean(bool v = false);
 	static std::shared_ptr<AMF0Boolean> True();
 	static std::shared_ptr<AMF0Boolean> False();
@@ -59,9 +58,6 @@ public:
 	static std::shared_ptr<AMF0TypedObject> TypedObject(const char *class_name);
 	static std::shared_ptr<AMF0ECMAArray> ECMAArray();
 	static std::shared_ptr<AMF0Array> Array();
-
-	// convenience function, answer a vector of shared_ptrs to AMF0Strings from strs
-	static std::vector<std::shared_ptr<AMF0>> toStrings(const std::vector<std::string> &strs);
 
 	virtual Type getType() const = 0;
 
