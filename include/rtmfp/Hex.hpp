@@ -22,6 +22,9 @@ public:
 	static std::string encode(const std::vector<uint8_t> &bytes);
 
 	static bool decode(const char *hex, std::vector<uint8_t> &dst);
+
+	static int decodeDigit(char d);
+	static int decodeByte(const char *hex); // attempt to decode exactly two hex digits at hex
 };
 
 } } // namespace com::zenomt

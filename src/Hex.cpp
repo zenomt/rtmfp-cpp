@@ -98,19 +98,6 @@ std::string Hex::encode(const std::vector<uint8_t> &bytes)
 	return encode(bytes.data(), bytes.size());
 }
 
-static int _xdigitToInt(char d)
-{
-	if((d >= '0') and (d <= '9'))
-		return d - '0';
-	if((d >= 'a') and (d <= 'f'))
-		return d - 'a' + 0x0a;
-	if((d >= 'A') and (d <= 'F'))
-		return d - 'A' + 0x0a;
-	if(isspace(d))
-		return -1;
-	return -2;
-}
-
 bool Hex::decode(const char *hex, std::vector<uint8_t> &dst)
 {
 	const char *cursor = hex;
@@ -121,7 +108,7 @@ bool Hex::decode(const char *hex, std::vector<uint8_t> &dst)
 
 	while((d = *cursor++))
 	{
-		int digit = _xdigitToInt(d);
+		int digit = decodeDigit(d);
 		if(digit < 0)
 		{
 			if((digit < -1) or not onFirstDigit)
@@ -147,6 +134,32 @@ bool Hex::decode(const char *hex, std::vector<uint8_t> &dst)
 fail:
 	dst.resize(originalSize);
 	return false;
+}
+
+int Hex::decodeDigit(char d)
+{
+	if((d >= '0') and (d <= '9'))
+		return d - '0';
+	if((d >= 'a') and (d <= 'f'))
+		return d - 'a' + 0x0a;
+	if((d >= 'A') and (d <= 'F'))
+		return d - 'A' + 0x0a;
+	if(isspace(d))
+		return -1;
+	return -2;
+}
+
+int Hex::decodeByte(const char *hex)
+{
+	int firstDigit = decodeDigit(*hex);
+	if(firstDigit >= 0)
+	{
+		int secondDigit = decodeDigit(*(hex + 1));
+		if(secondDigit >= 0)
+			return (firstDigit << 4) + secondDigit;
+	}
+
+	return -1;
 }
 
 } } // namespace com::zenomt
