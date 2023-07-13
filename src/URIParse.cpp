@@ -6,6 +6,7 @@
 
 #include <regex>
 
+#include "../include/rtmfp/Hex.hpp"
 #include "../include/rtmfp/URIParse.hpp"
 
 static std::string lowercase(const std::string &s)
@@ -198,6 +199,36 @@ std::vector<std::string> URIParse::split(const std::string &str, char sep, size_
 		rv.push_back(str.substr(cursor));
 
 	return rv;
+}
+
+std::string URIParse::percentDecode(const std::string &str)
+{
+	std::string rv;
+	rv.reserve(str.size());
+
+	int ch;
+	const char *cursor = str.data();
+	while((ch = *cursor++))
+	{
+		if('%' == ch)
+		{
+			int b = Hex::decodeByte(cursor);
+			if(b < 1) // reject errors and NUL in strings
+				return "";
+			rv.push_back(uint8_t(b));
+			cursor += 2;
+		}
+		else
+			rv.push_back(ch);
+	}
+
+	return rv;
+}
+
+std::string URIParse::safePercentDecode(const std::string &str)
+{
+	std::string rv = percentDecode(str);
+	return rv.empty() ? str : rv;
 }
 
 } } // namespace com::zenomt

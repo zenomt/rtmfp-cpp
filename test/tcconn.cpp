@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 	if(uri.host.empty() or uri.effectivePort.empty())
 		return usage(argv[0], 1, "can't parse uri hostinfo: ", argv[optind]);
 
-	std::string streamName = uri.fragmentPart.empty() ? "live" : uri.fragment;
+	std::string streamName = uri.fragmentPart.empty() ? "live" : URIParse::safePercentDecode(uri.fragment);
 
 	printf("play %s from: %s\n", streamName.c_str(), uri.publicUri.c_str());
 
@@ -208,7 +208,8 @@ int main(int argc, char **argv)
 		tcconn->sessionOpt()->setSessionCongestionDelay(delaycc_delay);
 		tcconn->sessionOpt()->setSessionFIHelloMode(FI_SEND_RHELLO);
 
-		auto connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, uri.userinfoPart.empty() ? std::vector<std::string>() : uri.split(uri.userinfo, ':'));
+		auto connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, collect<std::string>(URIParse::safePercentDecode,
+			uri.userinfoPart.empty() ? std::vector<std::string>() : uri.split(uri.userinfo, ':')));
 		std::shared_ptr<AMF0> authToken = connectArgs.empty() ? nullptr : connectArgs.back();
 		if(authToken and hashAuthToken)
 			connectArgs.back() = AMF0::String(hexHMACSHA256(&crypto, tcconn->sessionOpt()->getFarNonce(), authToken->stringValue()));

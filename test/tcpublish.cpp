@@ -166,7 +166,7 @@ public:
 
 		if(not m_uri.userinfoPart.empty())
 		{
-			m_connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, URIParse::split(m_uri.userinfo, ':'));
+			m_connectArgs = collect<std::shared_ptr<AMF0>>(AMF0::String, collect<std::string>(URIParse::safePercentDecode, URIParse::split(m_uri.userinfo, ':')));
 			m_authToken = m_connectArgs.back();
 		}
 
@@ -660,7 +660,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	std::string publishName = uri.fragmentPart.empty() ? streamNameFromFilename(argv[optind + 1]) : uri.fragment;
+	std::string publishName = uri.fragmentPart.empty() ? streamNameFromFilename(argv[optind + 1]) : URIParse::safePercentDecode(uri.fragment);
 
 	printf("publish %s to %s\n", publishName.c_str(), uri.publicUri.c_str());
 

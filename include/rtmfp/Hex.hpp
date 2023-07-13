@@ -23,8 +23,8 @@ public:
 
 	static bool decode(const char *hex, std::vector<uint8_t> &dst);
 
-	static int decodeDigit(char d);
-	static int decodeByte(const char *hex); // attempt to decode exactly two hex digits at hex
+	static int decodeDigit(char d); // answer 0-15 or -1 if not a hex digit
+	static int decodeByte(const char *hex); // attempt to decode exactly two digits at hex, -1 on error
 };
 
 } } // namespace com::zenomt

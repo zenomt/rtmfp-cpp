@@ -41,10 +41,10 @@ int main(int argc, char *argv[])
 	_testHexDecode("fo", -1);
 	_testHexDecode("1", -1);
 
-	assert(Hex::decodeByte("") == -1);
-	assert(Hex::decodeByte("0") == -1);
-	assert(Hex::decodeByte("0g") == -1);
-	assert(Hex::decodeByte("g0") == -1);
+	assert(Hex::decodeByte("") < 0);
+	assert(Hex::decodeByte("0") < 0);
+	assert(Hex::decodeByte("0g") < 0);
+	assert(Hex::decodeByte("g0") < 0);
 	assert(Hex::decodeByte("00") == 0x00);
 	assert(Hex::decodeByte("08") == 0x08);
 	assert(Hex::decodeByte("a0") == 0xa0);

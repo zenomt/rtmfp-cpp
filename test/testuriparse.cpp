@@ -246,5 +246,15 @@ int main(int argc, char *argv[])
 	assert(split5[1] == "part2");
 	assert(split5[2].empty());
 
+	assert(URIParse::percentDecode("hi%20%20there") == "hi  there");
+	assert(URIParse::percentDecode("hi%20%2there") == "");
+	assert(URIParse::percentDecode("hi%00there") == "");
+	assert(URIParse::safePercentDecode("hi%20%2there") == "hi%20%2there");
+	assert(URIParse::percentDecode("hi %c2%b6") == "hi ¶");
+	assert(URIParse::percentDecode("%c2%b6") == "¶");
+	assert(URIParse::percentDecode("%20") == " ");
+	assert(URIParse::percentDecode("%") == "");
+	assert(URIParse::percentDecode(" %") == "");
+
 	return 0;
 }

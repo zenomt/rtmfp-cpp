@@ -26,6 +26,12 @@ struct URIParse {
 	// split str on sep into at most maxParts (0 for unlimited)
 	static std::vector<std::string> split(const std::string &str, char sep, size_t maxParts = 0);
 
+	// decode a percent-encoded string, return empty string on error
+	static std::string percentDecode(const std::string &str);
+
+	// decode a percent-encoded string, return str on error
+	static std::string safePercentDecode(const std::string &str);
+
 	std::string uri;
 	std::string publicUri;
 	std::string schemePart;
