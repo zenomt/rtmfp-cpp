@@ -281,8 +281,9 @@ sent to the `play` command.
 
 Like a query in a URI, query parameters follow the first `?` (`QUESTION MARK`)
 in the stream name. Parameters are specified as “`<name>=<value>`” and are
-separated by `&` (`AMPERSAND`) or `?` characters. If there are multiple
-parameters with the same name, a later one overrides the previous value.
+separated by `&` (`AMPERSAND`), `?`, or `;` (`SEMICOLON`) characters. If there
+are multiple parameters with the same name, a later one overrides the previous
+value.
 
 Any query parameters present in the stream name override their corresponding
 default settings. The following parameters are recognized:
@@ -306,7 +307,7 @@ Example: `BigBuckBunny?audioLifetime=0.25&videoLifetime=1`
 
 Like the `play` command, the stream name for a `publish` can contain query
 parameters. Query parameters follow the first `?` character in the stream
-name and are separated by `&` or `?` characters.
+name and are separated by `&`, `?`, or `;` characters.
 
 Streams are published with a _publish priority_, used for preempting or
 overriding another publish to the same stream name. If unspecified in the

@@ -202,7 +202,7 @@ struct NetStream : public Object {
 
 	void overridePlayParams(const std::string &queryStr)
 	{
-		auto params = splitParams(queryStr, "&?");
+		auto params = splitParams(queryStr, "&?;");
 
 		trySetTimeParam(&m_audioLifetime, params, "audioLifetime", audioLifetime);
 		trySetTimeParam(&m_videoLifetime, params, "videoLifetime", videoLifetime);
@@ -1086,8 +1086,9 @@ protected:
 
 		if(publishArgs.size() > 1)
 		{
-			auto params = splitParams(publishArgs[1], "&?");
-			publishPriority = std::min(m_maxPublishPriority, double(paramValueToFloat(params["priority"], publishPriority)));
+			auto params = splitParams(publishArgs[1], "&?;");
+			if(params.count("priority"))
+				publishPriority = std::min(m_maxPublishPriority, double(paramValueToFloat(params["priority"], publishPriority)));
 		}
 
 		if( (m_publishCount >= m_maxPublishCount)
