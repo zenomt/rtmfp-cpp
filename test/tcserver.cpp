@@ -4,9 +4,10 @@
 // TC Server, a simple live media server for RTMFP/RTMP “Tin-Can” clients.
 // See the help message and tcserver.md for more information.
 
+// TODO: more stats
+// TODO: JSON logging
+// TODO: rate limits
 // TODO: support http://zenomt.com/ns/rtmfp#media (rtmfp, rtws)
-// TODO: app and client constraints
-// TODO: stats
 
 #include <cassert>
 #include <cerrno>
@@ -139,6 +140,31 @@ std::string logEscape(std::string s)
 	return rv;
 }
 
+std::map<std::string, std::string> splitParams(const std::string &str, const std::string &seps)
+{
+	std::map<std::string, std::string> rv;
+
+	auto params = URIParse::split(str, seps);
+	for(auto it = params.begin(); it != params.end(); it++)
+	{
+		auto parts = URIParse::split(*it, "=", 2);
+		rv[parts[0]] = parts.size() > 1 ? parts[1] : "";
+	}
+
+	return rv;
+}
+
+long double paramValueToFloat(const std::string &str, long double defaultValue)
+{
+	if(str.empty())
+		return defaultValue;
+
+	const char *valueStr = str.c_str();
+	char *endptr = nullptr;
+	long double rv = strtold(valueStr, &endptr);
+	return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
+}
+
 struct NetStream : public Object {
 	enum State { NS_IDLE, NS_PUBLISHING, NS_PLAYING };
 
@@ -158,40 +184,45 @@ struct NetStream : public Object {
 		m_seenKeyframe = false;
 	}
 
-	static void trySetTimeParam(Time *dst, const AMF0Object *params, const char *key, Time defaultSetting)
+	static void trySetTimeParam(Time *dst, const std::map<std::string, std::string> &params, const std::string &key, Time defaultSetting)
 	{
-		if(params->has(key))
+		auto it = params.find(key);
+		if(it != params.end())
 		{
-			Time timeValue = params->getValueAtKey(key)->doubleValue();
+			Time timeValue = paramValueToFloat(it->second, -1);
 			if(timeValue >= 0.0)
 			{
 				Time max = std::max(Time(10.0), defaultSetting * 2); // safety to avoid buffering too much
 				*dst = std::min(timeValue, max);
 
-				if(verbose) printf("set play param %s to %f\n", key, (double)*dst);
+				if(verbose) printf("set play param %s to %f\n", key.c_str(), (double)*dst);
 			}
 		}
 	}
 
-	static void trySetBoolParam(bool *dst, const AMF0Object *params, const char *key)
+	void overridePlayParams(const std::string &queryStr)
 	{
-		if(params->has(key))
-		{
-			*dst = params->getValueAtKey(key)->isTruthy();
-			if(verbose) printf("set play param %s to %s\n", key, *dst ? "true" : "false");
-		}
-	}
-
-	void overridePlayParams(const AMF0Object *params)
-	{
-		if(not params)
-			return;
+		auto params = splitParams(queryStr, "&?");
 
 		trySetTimeParam(&m_audioLifetime, params, "audioLifetime", audioLifetime);
 		trySetTimeParam(&m_videoLifetime, params, "videoLifetime", videoLifetime);
 		trySetTimeParam(&m_finishByMargin, params, "finishByMargin", finishByMargin);
 
-		trySetBoolParam(&m_expirePreviousGop, params, "expirePreviousGop");
+		if(params.count("expirePreviousGop"))
+		{
+			auto v = params["expirePreviousGop"];
+			m_expirePreviousGop = not ((v == "0") or (v == "no") or (v == "false"));
+			if(verbose) printf("set expirePreviousGop to %s\n", m_expirePreviousGop ? "yes" : "no");
+		}
+
+		if(params.count("asis"))
+		{
+			auto v = params["asis"];
+			m_adjustTimestamps = ((v == "0") or (v == "no") or (v == "false"));
+			if(not m_adjustTimestamps)
+				m_timestampOffset = m_highestTimestamp = m_minTimestamp = 0;
+			if(verbose) printf("set asis to %s\n", m_adjustTimestamps ? "no" : "yes");
+		}
 	}
 
 	std::shared_ptr<Client> m_owner;
@@ -1046,12 +1077,18 @@ protected:
 		if((args.size() < 4) or not args[3]->isString())
 			return; // empty or non-string publish is unpublish so we're done
 
-		double publishPriority = -INFINITY;
-		if((args.size() > 4) and not std::isnan(args[4]->getValueAtKey("priority")->doubleValue()))
-			publishPriority = std::min(m_maxPublishPriority, args[4]->getValueAtKey("priority")->doubleValue());
+		auto publishArgs = URIParse::split(args[3]->stringValue(), "?", 2);
 
-		std::string publishName = args[3]->stringValue();
+		std::string publishName = publishArgs[0];
 		std::string hashname = App::asHashName(publishName);
+
+		double publishPriority = -INFINITY;
+
+		if(publishArgs.size() > 1)
+		{
+			auto params = splitParams(publishArgs[1], "&?");
+			publishPriority = std::min(m_maxPublishPriority, double(paramValueToFloat(params["priority"], publishPriority)));
+		}
 
 		if( (m_publishCount >= m_maxPublishCount)
 		 or (App::isHashName(publishName))
@@ -1083,6 +1120,7 @@ protected:
 				->putValueAtKey(AMF0::String(publishName), "detail")
 				->putValueAtKey(AMF0::String(hashname), "hashname")
 				->putValueAtKey(AMF0::String("publishing"), "description")
+				->putValueAtKey(AMF0::Number(publishPriority), "priority")
 			), INFINITY, INFINITY);
 	}
 
@@ -1093,7 +1131,9 @@ protected:
 		if((args.size() < 4) or not args[3]->isString()) // empty or non-string play is unsubscribe so we're done
 			return;
 
-		std::string playName = args[3]->stringValue();
+		auto playArgs = URIParse::split(args[3]->stringValue(), '?', 2);
+
+		std::string playName = playArgs[0];
 		netStream->m_name = playName;
 		if(0 == playName.compare(0, 5, "asis:"))
 		{
@@ -1111,8 +1151,8 @@ protected:
 		netStream->m_state = NetStream::NS_PLAYING;
 		netStream->resetPlayParams();
 
-		if(args.size() > 4)
-			netStream->overridePlayParams(args[4]->asObject());
+		if(playArgs.size() > 1)
+			netStream->overridePlayParams(playArgs[1]);
 
 		logStreamEvent("play", netStream);
 
@@ -1246,18 +1286,6 @@ protected:
 	{
 	}
 
-	static long double configValueToFloat(const std::vector<std::string> &parts, long double defaultValue)
-	{
-		if(2 == parts.size())
-		{
-			const char *valueStr = parts[1].c_str();
-			char *endptr = nullptr;
-			long double rv = strtold(valueStr, &endptr);
-			return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
-		}
-		return defaultValue;
-	}
-
 	void configureUser(const std::string &configSpec)
 	{
 		long double unixNow = ::time(nullptr);
@@ -1266,27 +1294,24 @@ protected:
 		long double expiration = INFINITY;
 		long double useBy = INFINITY;
 
-		auto params = URIParse::split(configSpec, ';');
-		for(auto param = params.begin(); param != params.end(); param++)
-		{
-			auto parts = URIParse::split(*param, '=', 2);
-			if(parts[0] == "pri")
-				m_maxPublishPriority = configValueToFloat(parts, m_maxPublishPriority);
-			else if(parts[0] == "name")
-				m_publishUsername = (2 == parts.size()) ? parts[1] : "";
-			else if(parts[0] == "xcl")
-				m_exclusiveConnection = true;
-			else if(parts[0] == "nbf")
-				notBeforeTime = configValueToFloat(parts, notBeforeTime);
-			else if(parts[0] == "exi")
-				expiresIn = configValueToFloat(parts, expiresIn);
-			else if(parts[0] == "exp")
-				expiration = configValueToFloat(parts, expiration);
-			else if(parts[0] == "use_by")
-				useBy = configValueToFloat(parts, useBy);
-			else if(parts[0] == "pub")
-				m_maxPublishCount = (2 == parts.size()) ? (size_t)atoi(parts[1].c_str()) : 0;
-		}
+		auto params = splitParams(configSpec, ";");
+
+		if(params.count("pri"))
+			m_maxPublishPriority = paramValueToFloat(params["pri"], m_maxPublishPriority);
+		if(params.count("name"))
+			m_publishUsername = params["name"];
+		if(params.count("xcl"))
+			m_exclusiveConnection = true;
+		if(params.count("nbf"))
+			notBeforeTime = paramValueToFloat(params["nbf"], notBeforeTime);
+		if(params.count("exi"))
+			expiresIn = paramValueToFloat(params["exi"], expiresIn);
+		if(params.count("exp"))
+			expiration = paramValueToFloat(params["exp"], expiration);
+		if(params.count("use_by"))
+			useBy = paramValueToFloat(params["use_by"], useBy);
+		if(params.count("pub"))
+			m_maxPublishCount = (size_t)atoi(params["pub"].c_str());
 
 		if((unixNow < notBeforeTime) or (unixNow > useBy))
 			m_disconnectAfter = -1;

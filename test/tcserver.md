@@ -208,7 +208,7 @@ Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
 `localhost` with these authentication settings and credentials, using and
 requiring hashed authentication tokens, and publishing at priority 3:
 
-    $ ./tcpublish -mM -P 3 'rtmfp://67890;name=mike;pri=5;exp=1682190000:46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3@localhost/live/12345' /path/to/BigBuckBunny.flv
+    $ ./tcpublish -mM 'rtmfp://67890;name=mike;pri=5;exp=1682190000:46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3@localhost/live/12345#BigBuckBunny?priority=3' /path/to/bbb.flv
 
 ## Streaming
 
@@ -235,12 +235,12 @@ Adobe Media Server, timestamps on stream messages are translated so that
 streams begin at timestamp `0` on a new subscribe, and timestamps on new
 publishes for the same stream name are stitched together to be contiguous for
 a continuous subscriber. To disable this behavior and receive the timestamps
-exactly as sent by the publisher, prepend `asis:` to the stream name. For
-example, to receive an as-is version of “`foo`”, issue a `play` command for
-either of the following stream names:
+exactly as sent by the publisher, add an `asis` query parameter to the stream
+name.  For example, to receive an as-is version of “`foo`”, issue a `play`
+command for either of the following stream names:
 
-    asis:foo
-    asis:sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+    foo?asis
+    sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae?asis
 
 When subscribing to a stream that has already been published, the server will
 send the most recently received video keyframe, if available, along with video
@@ -276,35 +276,50 @@ the publisher.
 By default, when sending stream messages to a subscriber, the server will use
 the queue lifetimes and other treatments as specified by the corresponding
 command-line arguments or their default values. The subscriber can override
-these default settings by specifying an argument to the `play` stream command
-after the stream name.
+these default settings by specifying query parameters in the stream name
+sent to the `play` command.
 
-If the first argument after the stream name is an Object, then any members
-present override their corresponding settings. The following member names are
-recognized:
+Like a query in a URI, query parameters follow the first `?` (`QUESTION MARK`)
+in the stream name. Parameters are specified as “`<name>=<value>`” and are
+separated by `&` (`AMPERSAND`) or `?` characters. If there are multiple
+parameters with the same name, a later one overrides the previous value.
+
+Any query parameters present in the stream name override their corresponding
+default settings. The following parameters are recognized:
 
 - `audioLifetime`: (Number) Audio queue lifetime (seconds).
 - `videoLifetime`: (Number) Video queue lifetime.
 - `finishByMargin`: (Number) Additional time to complete a message if transmission has started.
-- `expirePreviousGop`: (Truthy) Whether to expire the previous Group of Pictures (GOP) early when a new GOP starts.
+- `expirePreviousGop`: Whether to expire the previous Group of Pictures (GOP) early
+  when a new GOP starts. Disabled for values `0`, `no`, or `false`; any other value
+  (including blank) enables.
+- `asis`: Whether to repeat the timestamps exactly as sent by the publisher as
+  described above in **Streaming**. Disabled for values `0`, `no`, or `false`;
+  any other value (including blank) enables.
 
 For safety, the server caps each parameter above at 10 seconds or twice the
 default value, whichever is greater.
 
+Example: `BigBuckBunny?audioLifetime=0.25&videoLifetime=1`
+
 ### Publish Priority and Preemption
 
-Streams are published with a _publish priority_, used for preempting or
-overriding publishes to the same stream name. If unspecified in the `publish`
-stream command, the publish priority defaults to negative infinity. A higher
-numeric priority overrides a lower priority value.
+Like the `play` command, the stream name for a `publish` can contain query
+parameters. Query parameters follow the first `?` character in the stream
+name and are separated by `&` or `?` characters.
 
-If the first argument to the `publish` command after the stream name is an
-Object, then any members present override their corresponding default settings.
-The following member name is recognized:
+Streams are published with a _publish priority_, used for preempting or
+overriding another publish to the same stream name. If unspecified in the
+`publish` stream name’s query, the publish priority defaults to negative
+infinity. A higher numeric priority overrides a lower priority value.
+
+The following query parameter is recognized:
 
 - `priority`: (Number) Publish priority. The publish priority is capped to
-  the maximum for the user (default 0; override with the `pri` user-specific
-  property).
+  the maximum for the user (capped to 0 by default; override the user’s
+  cap with the `pri` user-specific property).
+
+Example: `BigBuckBunny?priority=-1`
 
 If a publisher is preempted, it will receive a `NetStream.Publish.BadName`
 event. Otherwise the new publisher will receive a `NetStream.Publish.BadName`
