@@ -182,12 +182,20 @@ std::string URIParse::removeDotSegments(const std::string &path_)
 
 std::vector<std::string> URIParse::split(const std::string &str, char sep, size_t maxParts)
 {
+	return split(str, std::string(1, sep), maxParts);
+}
+
+std::vector<std::string> URIParse::split(const std::string &str, const std::string &seps, size_t maxParts)
+{
+	if(seps.empty())
+		return {};
+
 	std::vector<std::string> rv;
 
 	size_t cursor = 0;
 	while((--maxParts) and (cursor < str.size()))
 	{
-		size_t found = str.find(sep, cursor);
+		size_t found = str.find_first_of(seps, cursor);
 		if(std::string::npos == found)
 			break;
 

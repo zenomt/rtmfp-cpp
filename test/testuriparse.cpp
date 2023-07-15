@@ -246,6 +246,13 @@ int main(int argc, char *argv[])
 	assert(split5[1] == "part2");
 	assert(split5[2].empty());
 
+	auto split6 = URIParse::split("a?&cc?d&e", "?&");
+	assert(split6.size() == 5);
+	assert(split6[1].empty());
+	assert(split6[2].size() == 2);
+
+	assert(URIParse::split("a?&c?d&e", "").empty());
+
 	assert(URIParse::percentDecode("hi%20%20there") == "hi  there");
 	assert(URIParse::percentDecode("hi%20%2there") == "");
 	assert(URIParse::percentDecode("hi%00there") == "");
