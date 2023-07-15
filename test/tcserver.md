@@ -195,20 +195,20 @@ setting names are ignored. The following setting names are currently recognized:
 * `exi`: (Number) “Expires In”; disconnect after this many seconds (default infinity).
 * `pub`: (Number) Maximum number of simultaneous publishes allowed in this connection (default unlimited).
 
-Example: user name `67890;name=mike;pri=5;exp=1682190000` encodes an ignored
+Example: user name `67890;name=mike;pri=5;exp=1832700000` encodes an ignored
 portion `67890`, a publisher name of `mike`, a maximum publishing priority
-of 5, and an expiration time of April 22 2023 19:00:00 UTC. To calculate the
+of 5, and an expiration time of January 28 2028 19:20:00 UTC. To calculate the
 user-specific authentication token for this user name assuming authentication
 master key `supersecret` and app `live/12345`:
 
-    $ ./tcserver -k supersecret '67890;name=mike;pri=5;exp=1682190000@live/12345'
-    ,auth,46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3,67890;name=mike;pri=5;exp=1682190000@live/12345
+    $ ./tcserver -k supersecret '67890;name=mike;pri=5;exp=1832700000@live/12345'
+    ,auth,5f9f4c0692998b02c15d7a8a1d80ca530db1b1e93fa69cb8bb1c765b32f3bab6,67890;name=mike;pri=5;exp=1832700000@live/12345
 
 Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
 `localhost` with these authentication settings and credentials, using and
 requiring hashed authentication tokens, and publishing at priority 3:
 
-    $ ./tcpublish -mM 'rtmfp://67890;name=mike;pri=5;exp=1682190000:46c659987c412a7b6e5892f9ccc25019cee40f6934978876ab89a389e6317dc3@localhost/live/12345#BigBuckBunny?priority=3' /path/to/bbb.flv
+    $ ./tcpublish -mM 'rtmfp://67890;name=mike;pri=5;exp=1832700000:5f9f4c0692998b02c15d7a8a1d80ca530db1b1e93fa69cb8bb1c765b32f3bab6@localhost/live/12345#BigBuckBunny?priority=3' /path/to/bbb.flv
 
 ## Streaming
 
