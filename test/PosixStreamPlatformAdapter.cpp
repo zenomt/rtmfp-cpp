@@ -93,6 +93,12 @@ bool PosixStreamPlatformAdapter::setSocketFd(int fd)
 	fcntl(m_fd, F_SETNOSIGPIPE, 1);
 #endif
 
+	{
+		int flags = fcntl(m_fd, F_GETFL);
+		flags |= O_NONBLOCK;
+		fcntl(m_fd, F_SETFL, flags);
+	}
+
 	tryRegisterReadable();
 	tryRegisterWritable();
 
