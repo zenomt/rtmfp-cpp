@@ -557,11 +557,7 @@ AMF0ECMAArray *AMF0ECMAArray::asECMAArray() { return this; }
 
 void AMF0ECMAArray::encode(Bytes &dst) const
 {
-	size_t numElements = size();
-	if(numElements >= size_t(UINT32_MAX) - 1)
-		numElements = UINT32_MAX - 1;
-
-	numElements++; // for end marker that some parsers (FFmpeg) require :(
+	size_t numElements = std::min(size(), size_t(UINT32_MAX));
 
 	dst.push_back(AMF0_ECMAARRAY_MARKER);
 	dst.push_back((numElements >> 24) & 0xff);
@@ -569,68 +565,20 @@ void AMF0ECMAArray::encode(Bytes &dst) const
 	dst.push_back((numElements >>  8) & 0xff);
 	dst.push_back((numElements      ) & 0xff);
 
-	for(auto it = begin(); it != end(); it++)
-	{
-		if(1 == numElements--)
-			break; // that's all we could fit, leaving room for end marker
-
-		size_t keyLength = it->first.size(); // safe, no long keys are ever inserted
-		dst.push_back((keyLength >> 8) & 0xff);
-		dst.push_back((keyLength     ) & 0xff);
-		dst.insert(dst.end(), it->first.begin(), it->first.end());
-
-		if(it->second)
-			it->second->encode(dst);
-		else
-			dst.push_back(AMF0_UNDEFINED_MARKER);
-	}
-
-	dst.push_back(0);
-	dst.push_back(0);
-	dst.push_back(AMF0_OBJECT_END_MARKER);
+	encodeMembers(dst);
 }
 
 bool AMF0ECMAArray::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth)
 {
-	const uint8_t *cursor = *cursor_ptr;
-
-	if(limit - cursor < 4)
+	if(limit - *cursor_ptr < 4)
 		return false;
 
-	size_t numElements = *cursor++;
-	numElements <<= 8; numElements += *cursor++;
-	numElements <<= 8; numElements += *cursor++;
-	numElements <<= 8; numElements += *cursor++;
+	// Adobe's implementations sets associative-count to 0, and all
+	// implementations terminate the associative array with a
+	// ("" object-end-marker) 00 00 09. So just ignore the length field.
+	*cursor_ptr += 4;
 
-	while(numElements--)
-	{
-		if(limit - cursor < 3)
-			return false;
-
-		size_t keyLength = *cursor++;
-		keyLength <<= 8; keyLength += *cursor++;
-
-		if((size_t)(limit - cursor) < keyLength)
-			return false;
-
-		std::string key((const char *)cursor, keyLength);
-		cursor += keyLength;
-
-		if((cursor < limit) and (AMF0_OBJECT_END_MARKER == *cursor) and (0 == key.size()))
-		{
-			cursor++;
-			continue;
-		}
-
-		auto value = decode(&cursor, limit, depth + 1);
-		if(not value)
-			return false;
-
-		putValueAtKey(value, key);
-	}
-
-	*cursor_ptr = cursor;
-	return true;
+	return AMF0Object::setFromEncoding(typeMarker, cursor_ptr, limit, depth);
 }
 
 // --- AMF0Null
@@ -666,8 +614,6 @@ bool AMF0Undefined::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_p
 {
 	return true;
 }
-
-// --- AMF0ECMAArray TODO
 
 // --- AMF0Array
 
