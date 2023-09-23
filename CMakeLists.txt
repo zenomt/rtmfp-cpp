@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.4)
 
-project(rtmfp-cpp VERSION 1.5.0)
+project(rtmfp-cpp VERSION 1.5.1)
 
 find_package(OpenSSL)
 
