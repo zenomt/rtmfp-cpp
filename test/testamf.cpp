@@ -163,6 +163,9 @@ int main(int argc, char **argv)
 		->appendValue(AMF0::Null())
 		->appendValue(AMF0::Number(0.99))
 		->appendValue(AMF0::String("quote\"\a\r\n./™✓\177"))
+		->appendValue(AMF0::Number(-100.1))
+		->appendValue(AMF0::Number(-INFINITY))
+		->appendValue(AMF0::Number(-0.0))
 	;
 	_print(unusualArray);
 

@@ -82,12 +82,12 @@ static bool dtoa(std::string &dst, double val, bool isJSON)
 {
 	if(val != val)
 		dst.append(isJSON ? "null" : "nan"); // no nan in JSON
-	else if(signbit(val))
+	else if(std::signbit(val))
 	{
 		dst.append("-");
 		return dtoa(dst, -val, isJSON);
 	}
-	else if(isinf(val))
+	else if(std::isinf(val))
 		dst.append(isJSON ? "1e5000" : "inf"); // will still be INFINITY if decoded to IEEE 754 quad-precision (15-bit exponent)
 	else if((val >= UINTMAX_MAX) or ((val > 0.0) and (val < 0.0001)))
 	{
