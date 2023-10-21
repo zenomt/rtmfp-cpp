@@ -2,14 +2,177 @@
 // SPDX-License-Identifier: MIT
 
 #include <algorithm>
+#include <cassert>
+#include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 #include "../include/rtmfp/AMF.hpp"
 
-static void _indent(std::string &dst, size_t depth)
+static void _indent(std::string &dst, size_t indent, size_t depth)
 {
-	dst.append(depth * 4, ' ');
+	if(indent)
+		dst.push_back('\n');
+	dst.append(depth * indent, ' ');
+}
+
+static std::string toBase10(uintmax_t val)
+{
+	char buf[40]; // big enough for 2^128 - 1 with null terminator
+	char *cursor = buf + sizeof(buf);
+	const char *limit = buf;
+	uintmax_t remaining = val;
+
+	*--cursor = 0; // null terminate
+	do {
+		unsigned digit = remaining % 10;
+		*--cursor = '0' + digit;
+		remaining /= 10;
+	} while(remaining and (cursor > limit));
+
+	return cursor;
+}
+
+static std::string fractionToBase10NoTrailingZeros(double fractionPart, size_t maxDigits)
+{
+	// Finite-Precision Fixed-Point Fraction Printout ((FP)3)
+	// adapted from "How to Print Floating-Point Numbers Accurately"
+	// by Guy L. Steele Jr. and Jon L White, Proceedings of the ACM
+	// SIGPLAN'90 Conference on Programming Language Design and
+	// Implementation.
+
+	double error_M = pow(10, 0.0 - maxDigits) / 2.0;
+	double remainder_R = fractionPart;
+	std::string rv;
+	double digit_U;
+
+	assert(remainder_R < 1.0);
+	if(remainder_R >= 1.0) // safety
+		remainder_R = 1.0 - DBL_EPSILON;
+
+	for(;;)
+	{
+		digit_U = floor(remainder_R * 10.0);
+		remainder_R = fmod(remainder_R * 10.0, 1.0);
+		error_M *= 10.0;
+
+		if((remainder_R < error_M) or (remainder_R > 1.0 - error_M))
+			break;
+
+		rv.push_back('0' + int(digit_U));
+	}
+
+	if(remainder_R >= 0.5)
+		digit_U += 1.0;
+
+	if(digit_U > 9.0)
+		return fractionToBase10NoTrailingZeros(fractionPart, maxDigits + 1);
+
+	rv.push_back('0' + int(digit_U));
+
+	return rv;
+}
+
+// this function is needed because C and C++11 don't provide a
+// locale-independent floating point conversion function. C++17
+// has std::to_chars but we're targeting C++11. someday we can
+// switch to std::to_chars and remove these functions.
+static bool dtoa(std::string &dst, double val, bool isJSON)
+{
+	if(val != val)
+		dst.append(isJSON ? "null" : "nan"); // no nan in JSON
+	else if(signbit(val))
+	{
+		dst.append("-");
+		return dtoa(dst, -val, isJSON);
+	}
+	else if(isinf(val))
+		dst.append(isJSON ? "1e5000" : "inf"); // will still be INFINITY if decoded to IEEE 754 quad-precision (15-bit exponent)
+	else if((val >= UINTMAX_MAX) or ((val > 0.0) and (val < 0.0001)))
+	{
+		// use long double's (hopefully) greater precision to maintain good-enough
+		// precision through log10 and pow.
+		long double logarithm = log10l(val);
+		long double exponent = floorl(logarithm);
+		long double logremainder = logarithm - exponent;
+		double shifted = powl(10.0, logremainder < 0.0 ? logremainder + 1.0 : logremainder);
+		if(shifted >= 10.0)
+		{
+			shifted /= 10.0;
+			exponent += 1.0;
+		}
+		if(!dtoa(dst, shifted, isJSON))
+			return false;
+		dst.append("e");
+		return dtoa(dst, exponent, isJSON);
+	}
+	else
+	{
+		double integerPart = floor(val);
+		std::string integerDigits = toBase10(uintmax_t(integerPart));
+		dst.append(integerDigits);
+
+		if(integerPart != val)
+		{
+			double fractionPart = val - integerPart;
+			size_t bonusDigits = 1;
+			if(val < 1.0)
+				bonusDigits++;
+			if(val < 0.1)
+				bonusDigits++;
+			if(val < 0.01)
+				bonusDigits++;
+			if(val < 0.001)
+				bonusDigits++;
+
+			dst.append(".");
+			dst.append(fractionToBase10NoTrailingZeros(fractionPart, bonusDigits + DBL_DIG - std::min(size_t(DBL_DIG), integerDigits.size())));
+		}
+	}
+
+	return true;
+}
+
+// we assume strings are UTF-8
+static void jsonString(std::string &dst, const std::string &s)
+{
+	const uint8_t *cursor = (const uint8_t *)s.data();
+	const uint8_t *limit = cursor + s.size();
+
+	dst.push_back('"');
+
+	while(cursor < limit)
+	{
+		uint8_t each = *cursor++;
+
+		if((0x5c == each) or ('"' == each))
+		{
+			dst.push_back(0x5c);
+			dst.push_back(each);
+		}
+		else if(0x08 == each)
+			dst.append("\\b");
+		else if(0x0c == each)
+			dst.append("\\f");
+		else if(0x0a == each)
+			dst.append("\\n");
+		else if(0x0d == each)
+			dst.append("\\r");
+		else if(0x09 == each)
+			dst.append("\\t");
+		else if((each < 0x20) or (each == 0x7f))
+		{
+			char hexdigits[] = "0123456789ABCDEF";
+			dst.append("\\u00");
+			dst.push_back(hexdigits[(each >> 4) & 0x0f]);
+			dst.push_back(hexdigits[(each     ) & 0x0f]);
+		}
+		else
+			dst.push_back(each);
+	}
+
+	dst.push_back('"');
 }
 
 namespace com { namespace zenomt { namespace rtmp {
@@ -199,6 +362,18 @@ std::string AMF0::repr() const
 	return rv;
 }
 
+std::string AMF0::toJSON(size_t indent) const
+{
+	std::string rv;
+	encodeJSON(rv, indent, 0);
+	return rv;
+}
+
+void AMF0::encodeJSON(std::string &dst, size_t, size_t depth) const
+{
+	repr(dst, depth);
+}
+
 std::shared_ptr<AMF0> AMF0::duplicate() const
 {
 	Bytes tmp;
@@ -217,7 +392,8 @@ bool AMF0Number::isNumber() const { return true; }
 AMF0Number * AMF0Number::asNumber() { return this; }
 double AMF0Number::doubleValue() const { return m_value; }
 void AMF0Number::doubleValue(double v) { m_value = v; }
-void AMF0Number::repr(std::string &dst, size_t depth) const { dst.append(std::to_string(doubleValue())); }
+void AMF0Number::repr(std::string &dst, size_t) const { dtoa(dst, m_value, false); }
+void AMF0Number::encodeJSON(std::string &dst, size_t, size_t) const { dtoa(dst, m_value, true); }
 bool AMF0Number::isTruthy() const { return (m_value < 0.0) or (m_value > 0.0); }
 
 void AMF0Number::encode(Bytes &dst) const
@@ -304,7 +480,11 @@ const char * AMF0String::stringValue() const { return m_value.c_str(); }
 void AMF0String::stringValue(const char *v) { m_value = v; }
 size_t AMF0String::size() const { return m_value.size(); }
 bool AMF0String::isTruthy() const { return size(); }
-void AMF0String::repr(std::string &dst, size_t depth) const { dst.push_back('"'); dst.append(m_value); dst.push_back('"'); }
+
+void AMF0String::repr(std::string &dst, size_t depth) const
+{
+	jsonString(dst, m_value);
+}
 
 bool AMF0String::decodeString(bool isLongString, const uint8_t **cursor_ptr, const uint8_t *limit, std::string &dst)
 {
@@ -444,12 +624,10 @@ void AMF0Object::reprMembers(std::string &dst, size_t depth) const
 	{
 		if(not isFirst)
 			dst.push_back(',');
-		dst.push_back('\n');
 		isFirst = false;
-		_indent(dst, depth + 1);
-		dst.push_back('"');
-		dst.append(it->first);
-		dst.append("\": ");
+		_indent(dst, 4, depth + 1);
+		jsonString(dst, it->first);
+		dst.append(": ");
 		if(it->second)
 			it->second->repr(dst, depth + 1);
 		else
@@ -457,10 +635,7 @@ void AMF0Object::reprMembers(std::string &dst, size_t depth) const
 	}
 
 	if(not isFirst)
-	{
-		dst.push_back('\n');
-		_indent(dst, depth);
-	}
+		_indent(dst, 4, depth);
 }
 
 void AMF0Object::encodeMembers(Bytes &dst) const
@@ -512,6 +687,32 @@ bool AMF0Object::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr,
 	}
 
 	return false;
+}
+
+void AMF0Object::encodeJSON(std::string &dst, size_t indent, size_t depth) const
+{
+	dst.push_back('{');
+
+	bool isFirst = true;
+	for(auto it = begin(); it != end(); it++)
+	{
+		if(it->second and not it->second->isUndefined())
+		{
+			if(not isFirst)
+				dst.push_back(',');
+			isFirst = false;
+			_indent(dst, indent, depth + 1);
+			jsonString(dst, it->first);
+			dst.push_back(':');
+			if(indent)
+				dst.push_back(' ');
+			it->second->encodeJSON(dst, indent, depth + 1);
+		}
+	}
+
+	if(not isFirst)
+		_indent(dst, indent, depth);
+	dst.push_back('}');
 }
 
 // --- AMF0TypedObject
@@ -604,6 +805,7 @@ AMF0::Type AMF0Undefined::getType() const { return AMF0_UNDEFINED; }
 bool AMF0Undefined::isUndefined() const { return true; }
 AMF0Undefined * AMF0Undefined::asUndefined() { return this; }
 void AMF0Undefined::repr(std::string &dst, size_t depth) const { dst.append("undefined"); }
+void AMF0Undefined::encodeJSON(std::string &dst, size_t, size_t) const { dst.append("null"); } // JSON doesn't have undefined
 
 void AMF0Undefined::encode(Bytes &dst) const
 {
@@ -695,15 +897,11 @@ void AMF0Array::repr(std::string &dst, size_t depth) const
 		if(not isFirst)
 			dst.push_back(',');
 		isFirst = false;
-		dst.push_back('\n');
-		_indent(dst, depth + 1);
+		_indent(dst, 4, depth + 1);
 		getValueAtIndex(i)->repr(dst, depth + 1);
 	}
 	if(not isFirst)
-	{
-		dst.push_back('\n');
-		_indent(dst, depth);
-	}
+		_indent(dst, 4, depth);
 	dst.push_back(']');
 }
 
@@ -741,6 +939,23 @@ bool AMF0Array::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, 
 
 	*cursor_ptr = cursor;
 	return true;
+}
+
+void AMF0Array::encodeJSON(std::string &dst, size_t indent, size_t depth) const
+{
+	dst.push_back('[');
+	bool isFirst = true;
+	for(uint32_t i = 0; i < size(); i++)
+	{
+		if(not isFirst)
+			dst.push_back(',');
+		isFirst = false;
+		_indent(dst, indent, depth + 1);
+		getValueAtIndex(i)->encodeJSON(dst, indent, depth + 1);
+	}
+	if(not isFirst)
+		_indent(dst, indent, depth);
+	dst.push_back(']');
 }
 
 // --- AMF0Date TODO

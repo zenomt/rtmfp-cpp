@@ -124,6 +124,9 @@ public:
 	std::string repr() const;
 	virtual void repr(std::string &dst, size_t depth) const = 0;
 
+	std::string toJSON(size_t indent = 4) const; // indent 0 for compact
+	virtual void encodeJSON(std::string &dst, size_t indent, size_t depth) const;
+
 	std::shared_ptr<AMF0> duplicate() const;
 
 protected:
@@ -149,6 +152,7 @@ public:
 	void repr(std::string &dst, size_t depth) const override;
 
 	void encode(Bytes &dst) const override;
+	void encodeJSON(std::string &dst, size_t indent, size_t depth) const override;
 
 protected:
 	bool setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth) override;
@@ -243,6 +247,7 @@ public:
 	void repr(std::string &dst, size_t depth) const override;
 
 	void encode(Bytes &dst) const override;
+	void encodeJSON(std::string &dst, size_t indent, size_t depth) const override;
 
 protected:
 	void reprMembers(std::string &dst, size_t depth) const;
@@ -319,6 +324,7 @@ public:
 	void repr(std::string &dst, size_t depth) const override;
 
 	void encode(Bytes &dst) const override;
+	void encodeJSON(std::string &dst, size_t indent, size_t depth) const override;
 
 protected:
 	bool setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth) override;
@@ -349,6 +355,7 @@ public:
 	void repr(std::string &dst, size_t depth) const override;
 
 	void encode(Bytes &dst) const override;
+	void encodeJSON(std::string &dst, size_t indent, size_t depth) const override;
 
 protected:
 	bool setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, const uint8_t *limit, size_t depth) override;

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -12,6 +13,8 @@ using Bytes = AMF0::Bytes;
 static void _print(const std::shared_ptr<AMF0> &amf)
 {
 	printf("%s (truthy: %s)\n", amf->repr().c_str(), amf->isTruthy() ? "yes" : "no");
+	printf("JSON pretty: %s\n", amf->toJSON().c_str());
+	printf("JSON compact: %s\n", amf->toJSON(0).c_str());
 }
 
 int main(int argc, char **argv)
@@ -102,7 +105,7 @@ int main(int argc, char **argv)
 	printf("amf_array[0][\"array value\"][1]: %s\n", amf_array->getValueAtIndex(0)->getValueAtKey("array value")->getValueAtIndex(1)->stringValue());
 	printf("amf_array[0][\"array value 2\"][1]: %s\n", amf_array->getValueAtIndex(0)->getValueAtKey("array value 2")->getValueAtIndex(2)->stringValue());
 	printf("amf_array[1][\"array value 2\"][1]: %s\n", amf_array->getValueAtIndex(1)->getValueAtKey("array value 2")->getValueAtIndex(2)->stringValue());
-	printf("amf_array[1][\"obj\"][\"num\"]: %f\n", amf_array->getValueAtIndex(1)->getValueAtKey("obj")->getValueAtKey("num")->doubleValue());
+	printf("amf_array[1][\"obj\"][\"num\"]: %g\n", amf_array->getValueAtIndex(1)->getValueAtKey("obj")->getValueAtKey("num")->doubleValue());
 	printf("isNumber? amf_array[2][\"obj\"][\"num\"]: %d\n", amf_array->getValueAtIndex(2)->getValueAtKey("obj")->getValueAtKey("num")->isNumber());
 
 	printf("\n\n");
@@ -139,6 +142,28 @@ int main(int argc, char **argv)
 	auto amf_ecmaarray_dup = amf_ecmaarray->duplicate();
 	assert(amf_ecmaarray_dup->isECMAArray());
 	assert(3 == amf_ecmaarray_dup->asECMAArray()->size());
+
+	auto unusuals = AMF0::Object();
+	unusuals
+		->putValueAtKey(AMF0::Number(INFINITY), "infinity")
+		->putValueAtKey(AMF0::Number(NAN), "nan")
+		->putValueAtKey(AMF0::Number(3.00003), "fractional")
+		->putValueAtKey(AMF0::Undefined(), "undefined")
+		->putValueAtKey(AMF0::True(), "foo\\bar\"baz")
+	;
+	_print(unusuals);
+
+	auto unusualArray = AMF0::Array();
+	unusualArray
+		->appendValue(AMF0::Number(INFINITY))
+		->appendValue(AMF0::Number(NAN))
+		->appendValue(AMF0::Number(1e100))
+		->appendValue(AMF0::Undefined())
+		->appendValue(AMF0::Null())
+		->appendValue(AMF0::Number(0.99))
+		->appendValue(AMF0::String("quote\"\a\r\n./™✓\177"))
+	;
+	_print(unusualArray);
 
 	return 0;
 }
