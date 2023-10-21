@@ -89,7 +89,7 @@ static bool dtoa(std::string &dst, double val, bool isJSON)
 	}
 	else if(std::isinf(val))
 		dst.append(isJSON ? "1e5000" : "inf"); // will still be INFINITY if decoded to IEEE 754 quad-precision (15-bit exponent)
-	else if((val >= UINTMAX_MAX) or ((val > 0.0) and (val < 0.0001)))
+	else if((val >= double(UINTMAX_MAX)) or ((val > 0.0) and (val < 0.0001)))
 	{
 		// use long double's (hopefully) greater precision to maintain good-enough
 		// precision through log10 and pow.
