@@ -12,7 +12,8 @@ using Bytes = AMF0::Bytes;
 
 static void _print(const std::shared_ptr<AMF0> &amf)
 {
-	printf("%s (truthy: %s)\n", amf->repr().c_str(), amf->isTruthy() ? "yes" : "no");
+	printf("AMF pretty: %s (%s)\n", amf->repr().c_str(), amf->isTruthy() ? "truthy" : "falsey");
+	printf("AMF compact: %s\n", amf->repr(0).c_str());
 	printf("JSON pretty: %s\n", amf->toJSON().c_str());
 	printf("JSON compact: %s\n", amf->toJSON(0).c_str());
 }

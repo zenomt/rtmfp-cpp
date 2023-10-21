@@ -355,23 +355,23 @@ void AMF0::encode(const std::vector<std::shared_ptr<AMF0>> &values, Bytes &dst)
 			(*it)->encode(dst);
 }
 
-std::string AMF0::repr() const
+std::string AMF0::repr(size_t indent) const
 {
 	std::string rv;
-	repr(rv, 0);
+	repr(rv, 0, indent, false);
 	return rv;
+}
+
+void AMF0::repr(std::string &dst, size_t depth) const
+{
+	repr(dst, depth, 4, false);
 }
 
 std::string AMF0::toJSON(size_t indent) const
 {
 	std::string rv;
-	encodeJSON(rv, indent, 0);
+	repr(rv, 0, indent, true);
 	return rv;
-}
-
-void AMF0::encodeJSON(std::string &dst, size_t, size_t depth) const
-{
-	repr(dst, depth);
 }
 
 std::shared_ptr<AMF0> AMF0::duplicate() const
@@ -392,8 +392,7 @@ bool AMF0Number::isNumber() const { return true; }
 AMF0Number * AMF0Number::asNumber() { return this; }
 double AMF0Number::doubleValue() const { return m_value; }
 void AMF0Number::doubleValue(double v) { m_value = v; }
-void AMF0Number::repr(std::string &dst, size_t) const { dtoa(dst, m_value, false); }
-void AMF0Number::encodeJSON(std::string &dst, size_t, size_t) const { dtoa(dst, m_value, true); }
+void AMF0Number::repr(std::string &dst, size_t, size_t, bool asJson) const { dtoa(dst, m_value, asJson); }
 bool AMF0Number::isTruthy() const { return (m_value < 0.0) or (m_value > 0.0); }
 
 void AMF0Number::encode(Bytes &dst) const
@@ -452,7 +451,7 @@ AMF0Boolean * AMF0Boolean::asBoolean() { return this; }
 bool AMF0Boolean::booleanValue() const { return m_value; }
 void AMF0Boolean::booleanValue(bool v) { m_value = v; }
 bool AMF0Boolean::isTruthy() const { return m_value; }
-void AMF0Boolean::repr(std::string &dst, size_t depth) const { dst.append(booleanValue() ? "true" : "false"); }
+void AMF0Boolean::repr(std::string &dst, size_t, size_t, bool) const { dst.append(booleanValue() ? "true" : "false"); }
 
 void AMF0Boolean::encode(Bytes &dst) const
 {
@@ -481,7 +480,7 @@ void AMF0String::stringValue(const char *v) { m_value = v; }
 size_t AMF0String::size() const { return m_value.size(); }
 bool AMF0String::isTruthy() const { return size(); }
 
-void AMF0String::repr(std::string &dst, size_t depth) const
+void AMF0String::repr(std::string &dst, size_t, size_t, bool) const
 {
 	jsonString(dst, m_value);
 }
@@ -603,10 +602,10 @@ AMF0Object::AMF0Map::const_iterator AMF0Object::begin() const { return m_members
 AMF0Object::AMF0Map::iterator AMF0Object::end() { return m_members.end(); }
 AMF0Object::AMF0Map::const_iterator AMF0Object::end() const { return m_members.end(); }
 
-void AMF0Object::repr(std::string &dst, size_t depth) const
+void AMF0Object::repr(std::string &dst, size_t depth, size_t indent, bool asJson) const
 {
 	dst.append("{");
-	reprMembers(dst, depth);
+	reprMembers(dst, depth, indent, asJson);
 	dst.append("}");
 }
 
@@ -616,26 +615,31 @@ void AMF0Object::encode(Bytes &dst) const
 	encodeMembers(dst);
 }
 
-void AMF0Object::reprMembers(std::string &dst, size_t depth) const
+void AMF0Object::reprMembers(std::string &dst, size_t depth, size_t indent, bool asJson) const
 {
 	bool isFirst = true;
 
 	for(auto it = begin(); it != end(); it++)
 	{
-		if(not isFirst)
-			dst.push_back(',');
-		isFirst = false;
-		_indent(dst, 4, depth + 1);
-		jsonString(dst, it->first);
-		dst.append(": ");
-		if(it->second)
-			it->second->repr(dst, depth + 1);
-		else
-			dst.append("undefined");
+		if((not asJson) or (it->second and not it->second->isUndefined()))
+		{
+			if(not isFirst)
+				dst.push_back(',');
+			isFirst = false;
+			_indent(dst, indent, depth + 1);
+			jsonString(dst, it->first);
+			dst.push_back(':');
+			if(indent)
+				dst.push_back(' ');
+			if(it->second)
+				it->second->repr(dst, depth + 1, indent, asJson);
+			else
+				dst.append("undefined");
+		}
 	}
 
 	if(not isFirst)
-		_indent(dst, 4, depth);
+		_indent(dst, indent, depth);
 }
 
 void AMF0Object::encodeMembers(Bytes &dst) const
@@ -689,32 +693,6 @@ bool AMF0Object::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr,
 	return false;
 }
 
-void AMF0Object::encodeJSON(std::string &dst, size_t indent, size_t depth) const
-{
-	dst.push_back('{');
-
-	bool isFirst = true;
-	for(auto it = begin(); it != end(); it++)
-	{
-		if(it->second and not it->second->isUndefined())
-		{
-			if(not isFirst)
-				dst.push_back(',');
-			isFirst = false;
-			_indent(dst, indent, depth + 1);
-			jsonString(dst, it->first);
-			dst.push_back(':');
-			if(indent)
-				dst.push_back(' ');
-			it->second->encodeJSON(dst, indent, depth + 1);
-		}
-	}
-
-	if(not isFirst)
-		_indent(dst, indent, depth);
-	dst.push_back('}');
-}
-
 // --- AMF0TypedObject
 
 AMF0TypedObject::AMF0TypedObject(const char *class_name) :
@@ -727,13 +705,18 @@ bool AMF0TypedObject::isTypedObject() const { return true; }
 AMF0TypedObject * AMF0TypedObject::asTypedObject() { return this; }
 const char * AMF0TypedObject::className() const { return m_class_name.c_str(); }
 
-void AMF0TypedObject::repr(std::string &dst, size_t depth) const
+void AMF0TypedObject::repr(std::string &dst, size_t depth, size_t indent, bool asJson) const
 {
-	dst.append("<");
-	dst.append(m_class_name);
-	dst.append(":{");
-	reprMembers(dst, depth);
-	dst.append("}>");
+	if(asJson)
+		AMF0Object::repr(dst, depth, indent, asJson);
+	else
+	{
+		dst.append("<");
+		jsonString(dst, m_class_name);
+		dst.append(":{");
+		reprMembers(dst, depth, indent, asJson);
+		dst.append("}>");
+	}
 }
 
 void AMF0TypedObject::encode(Bytes &dst) const
@@ -787,7 +770,7 @@ bool AMF0ECMAArray::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_p
 AMF0::Type AMF0Null::getType() const { return AMF0_NULL; }
 bool AMF0Null::isNull() const { return true; }
 AMF0Null * AMF0Null::asNull() { return this; }
-void AMF0Null::repr(std::string &dst, size_t depth) const { dst.append("null"); }
+void AMF0Null::repr(std::string &dst, size_t, size_t, bool) const { dst.append("null"); }
 
 void AMF0Null::encode(Bytes &dst) const
 {
@@ -804,8 +787,7 @@ bool AMF0Null::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, c
 AMF0::Type AMF0Undefined::getType() const { return AMF0_UNDEFINED; }
 bool AMF0Undefined::isUndefined() const { return true; }
 AMF0Undefined * AMF0Undefined::asUndefined() { return this; }
-void AMF0Undefined::repr(std::string &dst, size_t depth) const { dst.append("undefined"); }
-void AMF0Undefined::encodeJSON(std::string &dst, size_t, size_t) const { dst.append("null"); } // JSON doesn't have undefined
+void AMF0Undefined::repr(std::string &dst, size_t, size_t, bool asJson) const { dst.append(asJson ? "null" : "undefined"); }
 
 void AMF0Undefined::encode(Bytes &dst) const
 {
@@ -888,7 +870,7 @@ std::shared_ptr<AMF0> AMF0Array::getValueAtIndex(uint32_t index) const
 	return m_members.at(index);
 }
 
-void AMF0Array::repr(std::string &dst, size_t depth) const
+void AMF0Array::repr(std::string &dst, size_t depth, size_t indent, bool asJson) const
 {
 	dst.push_back('[');
 	bool isFirst = true;
@@ -897,11 +879,11 @@ void AMF0Array::repr(std::string &dst, size_t depth) const
 		if(not isFirst)
 			dst.push_back(',');
 		isFirst = false;
-		_indent(dst, 4, depth + 1);
-		getValueAtIndex(i)->repr(dst, depth + 1);
+		_indent(dst, indent, depth + 1);
+		getValueAtIndex(i)->repr(dst, depth + 1, indent, asJson);
 	}
 	if(not isFirst)
-		_indent(dst, 4, depth);
+		_indent(dst, indent, depth);
 	dst.push_back(']');
 }
 
@@ -939,23 +921,6 @@ bool AMF0Array::setFromEncoding(uint8_t typeMarker, const uint8_t **cursor_ptr, 
 
 	*cursor_ptr = cursor;
 	return true;
-}
-
-void AMF0Array::encodeJSON(std::string &dst, size_t indent, size_t depth) const
-{
-	dst.push_back('[');
-	bool isFirst = true;
-	for(uint32_t i = 0; i < size(); i++)
-	{
-		if(not isFirst)
-			dst.push_back(',');
-		isFirst = false;
-		_indent(dst, indent, depth + 1);
-		getValueAtIndex(i)->encodeJSON(dst, indent, depth + 1);
-	}
-	if(not isFirst)
-		_indent(dst, indent, depth);
-	dst.push_back(']');
 }
 
 // --- AMF0Date TODO
