@@ -141,8 +141,8 @@ public:
 	virtual std::shared_ptr<AES_Context>        makeAES_Context()  = 0;
 	virtual std::shared_ptr<DH_Context>         makeDH_Context()   = 0; // MUST support at least group 2.
 
-	virtual bool defaultEncrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv);
-	virtual bool defaultDecrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv);
+	virtual bool defaultEncrypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv);
+	virtual bool defaultDecrypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv);
 
 	struct EPDParseState {
 		const uint8_t *requiredHostname { nullptr };
@@ -193,7 +193,7 @@ public:
 
 	// crypt_cbc() should be able to be called repeatedly to re-use the
 	// same key, but it will not be called concurrently.
-	virtual bool crypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv) = 0;
+	virtual bool crypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv) = 0;
 };
 
 class DH_Context : public Object {

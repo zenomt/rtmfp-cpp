@@ -266,7 +266,7 @@ public:
 		return true;
 	}
 
-	bool crypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv) override
+	bool crypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv) override
 	{
 		int outl = (int)len;
 

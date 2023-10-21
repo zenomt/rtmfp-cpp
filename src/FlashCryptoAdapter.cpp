@@ -455,12 +455,12 @@ bool FlashCryptoAdapter::computeSharedSecret(int group, const void *otherPublic,
 	return it->second->computeSharedSecret(otherPublic, len, dst);
 }
 
-bool FlashCryptoAdapter::defaultEncrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv)
+bool FlashCryptoAdapter::defaultEncrypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv)
 {
 	return m_defaultEncryptContext->crypt_cbc(dst, src, len, iv);
 }
 
-bool FlashCryptoAdapter::defaultDecrypt_cbc(const void *dst, const void *src, size_t len, uint8_t *iv)
+bool FlashCryptoAdapter::defaultDecrypt_cbc(void *dst, const void *src, size_t len, uint8_t *iv)
 {
 	return m_defaultDecryptContext->crypt_cbc(dst, src, len, iv);
 }
