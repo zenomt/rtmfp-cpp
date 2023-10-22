@@ -199,6 +199,7 @@ AMF0Boolean *AMF0::asBoolean() { return nullptr; }
 AMF0Boolean *AMF0::asBoolean(AMF0 *amf) { return amf ? amf->asBoolean() : nullptr; }
 bool AMF0::booleanValue() const { return false; }
 bool AMF0::isTruthy() const { return false; }
+AMF0::operator bool() const { return isTruthy(); }
 
 bool AMF0::isString() const { return false; }
 AMF0String *AMF0::asString() { return nullptr; }
@@ -208,7 +209,6 @@ const char *AMF0::stringValue() const { return nullptr; }
 bool AMF0::isObject() const { return false; }
 AMF0Object *AMF0::asObject() { return nullptr; }
 AMF0Object *AMF0::asObject(AMF0 *amf) { return amf ? amf->asObject() : nullptr; }
-std::shared_ptr<AMF0> AMF0::getValueAtKey(const char *key) const { return getValueAtKey(std::string(key)); }
 std::shared_ptr<AMF0> AMF0::getValueAtKey(const std::string &key) const { return Undefined(); }
 
 bool AMF0::isNull() const { return false; }
@@ -549,14 +549,9 @@ bool AMF0Object::isObject() const { return true; }
 AMF0Object * AMF0Object::asObject() { return this; }
 bool AMF0Object::isTruthy() const { return true; }
 
-AMF0Object * AMF0Object::putValueAtKey(AMF0 *value, const char *key)
+AMF0Object * AMF0Object::putValueAtKey(AMF0 *value, const std::string &key)
 {
 	return putValueAtKey(share_ref(value), key);
-}
-
-AMF0Object * AMF0Object::putValueAtKey(const std::shared_ptr<AMF0> &value, const char *key)
-{
-	return putValueAtKey(value, std::string(key));
 }
 
 AMF0Object * AMF0Object::putValueAtKey(const std::shared_ptr<AMF0> &value, const std::string &key)

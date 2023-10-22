@@ -71,6 +71,7 @@ public:
 	static  AMF0Boolean *asBoolean(AMF0 *amf);
 	virtual bool booleanValue() const;
 	virtual bool isTruthy() const;
+	operator bool() const; // answers isTruthy()
 
 	virtual bool isString() const;
 	virtual AMF0String *asString();
@@ -80,7 +81,6 @@ public:
 	virtual bool isObject() const;
 	virtual AMF0Object *asObject();
 	static  AMF0Object *asObject(AMF0 *amf);
-	virtual std::shared_ptr<AMF0> getValueAtKey(const char *key) const;
 	virtual std::shared_ptr<AMF0> getValueAtKey(const std::string &key) const;
 
 	virtual bool isNull() const;
@@ -222,9 +222,9 @@ public:
 	AMF0Object *asObject() override;
 	bool isTruthy() const override;
 
-	AMF0Object *putValueAtKey(AMF0 *value, const char *key);
-	AMF0Object *putValueAtKey(const std::shared_ptr<AMF0> &value, const char *key);
+	AMF0Object *putValueAtKey(AMF0 *value, const std::string &key);
 	AMF0Object *putValueAtKey(const std::shared_ptr<AMF0> &value, const std::string &key);
+
 	void erase(const char *key);
 	void erase(const std::string &key);
 	void clear();
@@ -233,7 +233,6 @@ public:
 	bool has(const char *key) const;
 	bool has(const std::string &key) const;
 
-	using AMF0::getValueAtKey;
 	std::shared_ptr<AMF0> getValueAtKey(const std::string &key) const override;
 
 	AMF0Map::iterator begin();
