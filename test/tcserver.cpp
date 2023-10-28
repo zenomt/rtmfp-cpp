@@ -111,6 +111,20 @@ std::string protocolDescription(Protocol protocol)
 	}
 }
 
+std::string redirectorStatusDescription(RedirectorClient::Status status)
+{
+	switch(status)
+	{
+	case RedirectorClient::STATUS_IDLE:                  return "idle";
+	case RedirectorClient::STATUS_CONNECTING:            return "connecting";
+	case RedirectorClient::STATUS_CONNECTED:             return "connected";
+	case RedirectorClient::STATUS_DISCONNECTED:          return "disconnected";
+	case RedirectorClient::STATUS_DISCONNECTED_BAD_AUTH: return "disconnected-bad-auth";
+	case RedirectorClient::STATUS_CLOSED:                return "closed";
+	default: return "unknown-status";
+	}
+}
+
 std::string hexHMACSHA256(const Bytes &key, const std::string &app)
 {
 	uint8_t md[32] = { 0 };
@@ -2697,7 +2711,7 @@ int main(int argc, char **argv)
 			jsonLog("redirector-status", {
 				{"redirector", AMF0::String(hostname)},
 				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
-				{"status", AMF0::Number(status)}
+				{"status", AMF0::String(redirectorStatusDescription(status))}
 			});
 		};
 
