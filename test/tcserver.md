@@ -80,8 +80,8 @@ authentication token would be
 For convenience, the `tcserver` command can calculate these for you:
 
     $ ./tcserver -k supersecret live/12345 mike@live/12345
-    ,auth,df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786,live/12345
-    ,auth,8bddf00ca7e31862fe17872c463df61eafde6518f565cb3def0e82a3b2d639d7,mike@live/12345
+    {"@type":"auth","app":"live/12345","token":"df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786"}
+    {"@type":"auth","app":"mike@live/12345","token":"8bddf00ca7e31862fe17872c463df61eafde6518f565cb3def0e82a3b2d639d7"}
 
 Give the App-wide authentication token as the first and only argument to the
 `connect` command after the command argument object, where the user name would
@@ -127,8 +127,8 @@ two mitigations are available:
    Clients can connect using an
    [endpoint discriminator](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.4)
    [specifying the server’s fingerprint](https://www.rfc-editor.org/rfc/rfc7425.html#section-4.4.2.3)
-   to ensure the connection is not intercepted. When run in this mode, the
-   server prints its fingerprint on startup.
+   to ensure the connection is not intercepted. The server prints its
+   fingerprint on startup.
 
 2. RTMFP clients can prove possession of the authentication token to the server
    without disclosing it by further hashing it with HMAC-SHA-256 using the
@@ -173,7 +173,7 @@ using the `-K` option (capital `K` for a binary hex key); for example using
 the values above including the client’s nonce:
 
     $ ./tcserver -K cbc290212a52dad978da93870e6929a5050d838a18723620b92df9a530535442 df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
-    ,auth,bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c,df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786
+    {"@type":"auth","app":"df41d9cbe74f325250d6e0346dcd9e95fb837892f4a927c27cecf2664d639786","token":"bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c"}
 
 ### User-Specific Properties
 
@@ -202,7 +202,7 @@ user-specific authentication token for this user name assuming authentication
 master key `supersecret` and app `live/12345`:
 
     $ ./tcserver -k supersecret '67890;name=mike;pri=5;exp=1832700000@live/12345'
-    ,auth,5f9f4c0692998b02c15d7a8a1d80ca530db1b1e93fa69cb8bb1c765b32f3bab6,67890;name=mike;pri=5;exp=1832700000@live/12345
+    {"@type":"auth","app":"67890;name=mike;pri=5;exp=1832700000@live/12345","token":"5f9f4c0692998b02c15d7a8a1d80ca530db1b1e93fa69cb8bb1c765b32f3bab6"}
 
 Example using [`tcpublish`](tcpublish.cpp) to publish Big Buck Bunny to
 `localhost` with these authentication settings and credentials, using and
@@ -301,7 +301,7 @@ default settings. The following parameters are recognized:
 For safety, the server caps each parameter above at 10 seconds or twice the
 default value, whichever is greater.
 
-Example: `BigBuckBunny?audioLifetime=0.25&videoLifetime=1`
+Example: `BigBuckBunny?asis&audioLifetime=0.25&videoLifetime=1`
 
 ### Publish Priority and Preemption
 

@@ -5,7 +5,6 @@
 // See the help message and tcserver.md for more information.
 
 // TODO: more stats
-// TODO: JSON logging
 // TODO: rate limits
 // TODO: support http://zenomt.com/ns/rtmfp#media (rtmfp, rtws)
 
@@ -16,7 +15,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 
 extern "C" {
 #include <fcntl.h>
@@ -24,6 +22,7 @@ extern "C" {
 #include <sys/socket.h>
 #include <unistd.h>
 #include <netinet/tcp.h>
+#include <time.h>
 }
 
 #include "rtmfp/rtmfp.hpp"
@@ -50,6 +49,7 @@ using namespace com::zenomt::rtmp;
 using namespace com::zenomt::websock;
 
 using Args = std::vector<std::shared_ptr<AMF0>>;
+using LogAttributes = std::vector<std::pair<const char *, std::shared_ptr<AMF0>>>;
 
 namespace {
 
@@ -84,6 +84,8 @@ uint32_t timestampAdjustmentMargin = 4000;
 std::vector<Bytes> secrets;
 const char *serverInfo = nullptr;
 std::vector<std::shared_ptr<RedirectorClient>> redirectors;
+pid_t pid;
+std::string serverId;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -116,30 +118,6 @@ std::string hexHMACSHA256(const Bytes &key, const std::string &app)
 	return Hex::encode(md, sizeof(md));
 }
 
-std::string logEscape(std::string s)
-{
-	static char xdigits[] = "0123456789abcdef";
-	size_t len = s.size();
-	const uint8_t *data = (const uint8_t *)s.data();
-
-	std::string rv;
-	while(len--)
-	{
-		uint8_t c = *data++;
-		if((c < 32) or ('\\' == c) or (',' == c) or ('\'' == c) or ('"' == c) or (0x7f == c))
-		{
-			rv.push_back('\\');
-			rv.push_back('x');
-			rv.push_back(xdigits[(c >> 4) & 0xf]);
-			rv.push_back(xdigits[(c     ) & 0xf]);
-		}
-		else
-			rv.push_back(c);
-	}
-
-	return rv;
-}
-
 std::map<std::string, std::string> splitParams(const std::string &str, const std::string &seps)
 {
 	std::map<std::string, std::string> rv;
@@ -163,6 +141,34 @@ long double paramValueToFloat(const std::string &str, long double defaultValue)
 	char *endptr = nullptr;
 	long double rv = strtold(valueStr, &endptr);
 	return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
+}
+
+Time unixCurrentTime()
+{
+	// note: C++20 guarantees that std::chrono::system_clock measures
+	// Unix time, but we're C++11 right now, which doesn't.
+
+	struct timespec tp;
+	if(::clock_gettime(CLOCK_REALTIME, &tp))
+		return -1.0;
+	return Time(tp.tv_sec) + Time(tp.tv_nsec) / Time(1000000000.0);
+}
+
+void jsonLog(const std::string &type, const LogAttributes &attrlist)
+{
+	auto attrs = AMF0::Object();
+
+	for(auto it = attrlist.begin(); it != attrlist.end(); it++)
+		attrs->putValueAtKey(it->second, it->first);
+
+	attrs
+		->putValueAtKey(AMF0::Number(pid), "@pid")
+		->putValueAtKey(AMF0::String(serverId), "@server")
+		->putValueAtKey(AMF0::Number(unixCurrentTime()), "@timestamp")
+		->putValueAtKey(AMF0::String(type), "@type")
+	;
+
+	printf("%s\n", attrs->toJSON(0).c_str());
 }
 
 struct NetStream : public Object {
@@ -283,12 +289,12 @@ class App : public Object {
 public:
 	App(const std::string &name) : m_name(name)
 	{
-		printf(",create-app,%s\n", logEscape(m_name).c_str());
+		jsonLog("create-app", {{"app", AMF0::String(m_name)}});
 	}
 
 	~App()
 	{
-		printf(",destroy-app,%s\n", logEscape(m_name).c_str());
+		jsonLog("destroy-app", {{"app", AMF0::String(m_name)}});
 	}
 
 	static bool isHashName(const std::string &name)
@@ -355,7 +361,10 @@ public:
 		Address addr(srcAddr);
 		addr.setOrigin(Address::ORIGIN_OBSERVED);
 
-		if(verbose) printf("%s,lookup,%s\n", addr.toPresentation().c_str(), Hex::encode(epdParsed.fingerprint, epdParsed.fingerprintLen).c_str());
+		if(verbose) jsonLog("lookup", {
+			{"address", AMF0::String(addr.toPresentation())},
+			{"target", AMF0::String(Hex::encode(epdParsed.fingerprint, epdParsed.fingerprintLen))}
+		});
 
 		auto it = clients.find(Bytes(epdParsed.fingerprint, epdParsed.fingerprint + epdParsed.fingerprintLen));
 		if(it != clients.end())
@@ -368,7 +377,9 @@ public:
 
 	virtual void close()
 	{
-		printf("%s,close,%s,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str(), logEscape(m_username).c_str());
+		clientLog("close", {});
+		showStats = true;
+
 		m_open = false;
 
 		if(m_disconnectTimer)
@@ -650,7 +661,12 @@ protected:
 	{
 		if(verbose > 1)
 		{
-			printf("%s,debug-stream,streamID,%u,type,%d,timestamp,%u,len,%lu\n", m_farAddressStr.c_str(), streamID, messageType, timestamp, (unsigned long)len);
+			clientLog("debug-stream", {
+				{"stringID", AMF0::Number(streamID)},
+				{"messageType", AMF0::Number(messageType)},
+				{"messageTimestamp", AMF0::Number(timestamp)},
+				{"messageLength", AMF0::Number(len)}
+			});
 			fflush(stdout);
 		}
 
@@ -701,7 +717,7 @@ protected:
 		 or (not args[1]->isNumber()) // transaction ID
 		)
 		{
-			printf("%s,error,invalid-command-format\n", m_farAddressStr.c_str());
+			clientLog("error", {{"reason", AMF0::String("invalid-command-format")}});
 			close();
 			return;
 		}
@@ -724,7 +740,7 @@ protected:
 
 		if(not m_connected)
 		{
-			printf("%s,error,command-before-connect\n", m_farAddressStr.c_str());
+			clientLog("error", {{"reason", AMF0::String("command-before-connect")}});
 			close();
 			return;
 		}
@@ -810,14 +826,14 @@ protected:
 	{
 		if(args.size() < 3)
 		{
-			printf("%s,error,connect-missing-arg\n", m_farAddressStr.c_str());
+			clientLog("error", {{"reason", AMF0::String("connect-missing-arg")}});
 			close();
 			return;
 		}
 
 		if(m_connecting)
 		{
-			printf("%s,error,connect-after-connect\n", m_farAddressStr.c_str());
+			clientLog("error", {{"reason", AMF0::String("connect-after-connect")}});
 			close();
 			return;
 		}
@@ -829,7 +845,7 @@ protected:
 			auto tcUrl = args[2]->getValueAtKey("tcUrl");
 			if(not tcUrl->isString())
 			{
-				printf("%s,error,connect-missing-app-and-tcUrl\n", m_farAddressStr.c_str());
+				clientLog("error", {{"reason", AMF0::String("connect-missing-app-and-tcUrl")}});
 				close();
 				return;
 			}
@@ -845,7 +861,7 @@ protected:
 			matchedKey = validateAuth(args);
 			if(matchedKey < 0)
 			{
-				printf("%s,connect-reject,bad-auth,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str());
+				clientLog("connect-reject", {{"reason", AMF0::String("bad-auth")}, {"requestedApp", app}});
 
 				write(0, TCMSG_COMMAND, 0, Message::command("_error", args[1]->doubleValue(), nullptr,
 					AMF0::Object()
@@ -896,14 +912,15 @@ protected:
 		if(serverInfo)
 			resultObject->putValueAtKey(AMF0::String(serverInfo), "serverInfo");
 
-		printf("%s,connect,%s,%s,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str(), logEscape(m_appName).c_str(), logEscape(m_username).c_str());
-
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, resultObject), INFINITY, INFINITY);
 
 		m_app = App::getApp(m_appName);
 		m_app->addClient(share_ref(this), m_username, m_exclusiveConnection);
 
 		m_connected = true;
+
+		clientLog("connect", {{"tcUrl", args[2]->getValueAtKey("tcUrl")}, {"connectArg", m_username.empty() ? nullptr : AMF0::String(m_username)}});
+		showStats = true;
 
 		if(shuttingDown)
 			sendShutdownNotify();
@@ -924,7 +941,7 @@ protected:
 
 		m_netStreams[streamID] = share_ref(new NetStream(share_ref(this), streamID), false);
 
-		printf("%s,createStream,%lu\n", m_farAddressStr.c_str(), (unsigned long)streamID);
+		clientLog("createStream", {{"streamID", AMF0::Number(streamID)}});
 
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, AMF0::Number(streamID)), INFINITY, INFINITY);
 	}
@@ -940,7 +957,7 @@ protected:
 		if(it != m_netStreams.end())
 		{
 			closeStream(it->second);
-			printf("%s,deleteStream,%lu\n", m_farAddressStr.c_str(), (unsigned long)streamID);
+			clientLog("deleteStream", {{"streamID", AMF0::Number(streamID)}});
 			m_netStreams.erase(streamID);
 			deleteStreamTransport(streamID);
 		}
@@ -959,7 +976,7 @@ protected:
 		auto it = clients.find(dst);
 		if(it == clients.end())
 		{
-			printf("%s,relay,not-found,\n", m_farAddressStr.c_str());
+			clientLog("relay", {{"found", AMF0::False()}});
 			return;
 		}
 
@@ -967,7 +984,11 @@ protected:
 		for(size_t x = 4; x < args.size(); x++)
 			args[x]->encode(msg);
 
-		printf("%s,relay,found,%s\n", m_farAddressStr.c_str(), it->second->m_farAddressStr.c_str());
+		clientLog("relay", {
+			{"found", AMF0::True()},
+			{"target", AMF0::String(it->second->connectionIDStr())},
+			{"targetAddress", AMF0::String(it->second->m_farAddressStr)}
+		});
 
 		it->second->sendRelay(this, msg);
 	}
@@ -982,7 +1003,7 @@ protected:
 		for(size_t x = 3; x < args.size(); x++)
 			args[x]->encode(msg);
 
-		printf("%s,broadcast,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str());
+		clientLog("broadcast", {});
 
 		m_app->broadcastMessage(this, msg);
 	}
@@ -1002,7 +1023,7 @@ protected:
 		Bytes target;
 		if((not args[3]->isString()) or not Hex::decode(args[3]->stringValue(), target))
 		{
-			printf("%s,watch,malformed,\n", m_farAddressStr.c_str());
+			clientLog("watch", {{"status", AMF0::String("malformed")}});
 			write(0, TCMSG_COMMAND, 0, Message::command("onDisconnected", 0, nullptr, args[3]), INFINITY, INFINITY);
 			return;
 		}
@@ -1011,17 +1032,21 @@ protected:
 		if(it == clients.end())
 		{
 			sendOnDisconnected(target);
-			printf("%s,watch,not-found,\n", m_farAddressStr.c_str());
+			clientLog("watch", {{"status", AMF0::String("not-found")}});
 			return;
 		}
 
 		if(it->second.get() == this)
 		{
-			printf("%s,watch,self,\n", m_farAddressStr.c_str());
+			clientLog("watch", {{"status", AMF0::String("self")}});
 			return;
 		}
 
-		printf("%s,watch,found,%s\n", m_farAddressStr.c_str(), it->second->m_farAddressStr.c_str());
+		clientLog("watch", {
+			{"status", AMF0::String("found")},
+			{"targetAddress", AMF0::String(it->second->m_farAddressStr)},
+			{"target", args[3]}
+		});
 
 		m_watching.insert(it->second);
 		it->second->onWatchRequest(share_ref(this));
@@ -1037,7 +1062,7 @@ protected:
 		std::string publishName = args[3]->stringValue();
 		std::string hashname = App::asHashName(publishName);
 
-		printf("%s,releaseStream,%s,%s,%s\n", m_farAddressStr.c_str(), logEscape(m_appName).c_str(), logEscape(publishName).c_str(), hashname.c_str());
+		clientLog("releaseStream", {{"name", AMF0::String(publishName)}, {"hashname", AMF0::String(hashname)}});
 
 		if((App::isHashName(publishName)) or (0 == publishName.compare(0, 5, "asis:")))
 			return;
@@ -1067,7 +1092,11 @@ protected:
 
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
 	{
-		printf("%s,%s,%lu,%s,%s,%s\n", m_farAddressStr.c_str(), name, (unsigned long)netStream->m_streamID, logEscape(m_appName).c_str(), logEscape(netStream->m_name).c_str(), netStream->m_hashname.c_str());
+		clientLog(name, {
+			{"streamID", AMF0::Number(netStream->m_streamID)},
+			{"name", AMF0::String(netStream->m_name)},
+			{"hashname", AMF0::String(netStream->m_hashname)}
+		});
 	}
 
 	void onPublishCommand(std::shared_ptr<NetStream> netStream, const Args &args)
@@ -1097,7 +1126,7 @@ protected:
 		 or (not m_app->publishStream(hashname, netStream, publishPriority))
 		)
 		{
-			printf("%s,publish-reject,%lu,%s\n", m_farAddressStr.c_str(), (unsigned long)netStream->m_streamID, logEscape(publishName).c_str());
+			clientLog("publish-reject", {{"streamID", AMF0::Number(netStream->m_streamID)}, {"name", AMF0::String(publishName)}});
 
 			write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 				AMF0::Object()
@@ -1289,7 +1318,7 @@ protected:
 
 	void configureUser(const std::string &configSpec)
 	{
-		long double unixNow = ::time(nullptr);
+		long double unixNow = unixCurrentTime();
 		long double notBeforeTime = -INFINITY;
 		Time expiresIn = INFINITY;
 		long double expiration = INFINITY;
@@ -1320,6 +1349,19 @@ protected:
 			m_disconnectAfter = std::min(expiration - unixNow, expiresIn);
 	}
 
+	void clientLog(const std::string &type, const LogAttributes &attrs)
+	{
+		auto clientAttrs = attrs;
+		clientAttrs.push_back({"connectionID", AMF0::String(connectionIDStr())});
+		clientAttrs.push_back({"address", AMF0::String(m_farAddressStr)});
+		clientAttrs.push_back({"app",m_app ? AMF0::String(m_appName) : nullptr});
+		clientAttrs.push_back({"proto", AMF0::String(protocol())});
+		clientAttrs.push_back({"username", m_publishUsername.empty() ? nullptr : AMF0::String(m_publishUsername)});
+		jsonLog(type, clientAttrs);
+	}
+
+	virtual std::string protocol() const = 0;
+
 	uint32_t m_nextStreamID { 1 };
 	bool m_connecting { false };
 	bool m_connected { false };
@@ -1345,6 +1387,15 @@ protected:
 
 class RTMFPClient : public Client {
 public:
+	static Bytes getPeerID(const std::shared_ptr<RecvFlow> &flow)
+	{
+		auto epd = flow->getFarCanonicalEPD();
+		if((epd.size() == 34) and (0x21 == epd[0]) and (EPD_OPTION_FINGERPRINT == epd[1]))
+			return Bytes(epd.data() + 2, epd.data() + epd.size());
+		else
+			return epd;
+	}
+
 	static void newClient(std::shared_ptr<RecvFlow> controlRecv)
 	{
 		if(shuttingDown and not allowConnectDuringShutdown)
@@ -1359,13 +1410,7 @@ public:
 		if(allowMultipleConnections)
 			client->setRandomConnectionID();
 		else
-		{
-			auto epd = controlRecv->getFarCanonicalEPD();
-			if((epd.size() == 34) and (0x21 == epd[0]) and (EPD_OPTION_FINGERPRINT == epd[1]))
-				client->m_connectionID = Bytes(epd.data() + 2, epd.data() + epd.size());
-			else
-				client->m_connectionID = epd;
-		}
+			client->m_connectionID = getPeerID(controlRecv);
 
 		if(clients.count(client->m_connectionID))
 			return; // enforce if not allowMultipleConnections
@@ -1391,7 +1436,7 @@ public:
 
 		m_controlRecv->forwardIHello(epd, epdLen, addr, tag, tagLen);
 
-		if(verbose) printf("%s,rtmfp-intro,%s\n", m_farAddressStr.c_str(), addr.toPresentation().c_str());
+		if(verbose) clientLog("rtmfp-intro", {{"initiator", AMF0::String(addr.toPresentation())}});
 	}
 
 	void close() override
@@ -1492,7 +1537,7 @@ protected:
 		m_setPeerInfoReceived = true;
 		m_additionalAddresses.clear();
 
-		printf("%s,setPeerInfo,rtmfp,%s", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str());
+		auto addresses = AMF0::Array();
 
 		for(size_t x = 3; x < args.size(); x++)
 		{
@@ -1503,12 +1548,12 @@ protected:
 				if(each.setFromPresentation(args[x]->stringValue()))
 				{
 					m_additionalAddresses.push_back(each);
-					printf(",%s", each.toPresentation().c_str());
+					addresses->appendValue(AMF0::String(each.toPresentation()));
 				}
 			}
 		}
 
-		printf("\n");
+		clientLog("setPeerInfo", {{"addresses", addresses}});
 	}
 
 	bool setup(std::shared_ptr<RecvFlow> controlRecv)
@@ -1530,7 +1575,11 @@ protected:
 		m_controlRecv->onFarAddressDidChange = [this] { onFarAddressDidChange(); };
 		setOnMessage(m_controlRecv, 0, nullptr);
 
-		printf("%s,accept,rtmfp\n", m_farAddressStr.c_str());
+		jsonLog("accept", {
+			{"proto", AMF0::String("rtmfp")},
+			{"address", AMF0::String(m_farAddressStr)},
+			{"peerID", AMF0::String(Hex::encode(getPeerID(m_controlRecv)))}
+		});
 		m_controlRecv->accept();
 
 		return true;
@@ -1625,7 +1674,7 @@ protected:
 		Address oldAddress = m_farAddress;
 		m_farAddress = m_controlRecv->getFarAddress();
 		m_farAddressStr = m_farAddress.toPresentation();
-		printf("%s,address-change,rtmfp,%s\n", oldAddress.toPresentation().c_str(), m_farAddressStr.c_str());
+		clientLog("address-change", {{"oldAddress", AMF0::String(oldAddress.toPresentation())}});
 		write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 			AMF0::Object()
 				->putValueAtKey(AMF0::String("status"), "level")
@@ -1646,6 +1695,8 @@ protected:
 	{
 		m_netStreamTransports.erase(streamID);
 	}
+
+	std::string protocol() const override { return "rtmfp"; }
 
 	uint32_t m_nextSyncID { 0 };
 	FlowSyncManager m_syncManager;
@@ -1677,7 +1728,7 @@ public:
 		updateRedirectorLoadFactor();
 	}
 
-	RTMPClient(bool simple)
+	RTMPClient(bool simple) : m_simple(simple)
 	{
 		m_adapter = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
 		m_rtmp = share_ref(new RTMP(m_adapter), false);
@@ -1740,8 +1791,11 @@ public:
 	}
 
 protected:
+	std::string protocol() const override { return m_simple ? "rtmp-simple" : "rtmp"; }
+
 	std::shared_ptr<PosixStreamPlatformAdapter> m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
+	bool m_simple;
 };
 
 class RTWebSocketClient : public Client {
@@ -1886,9 +1940,9 @@ protected:
 
 		auto forwardedFor = m_websock->getHeader("x-forwarded-for");
 		if(not forwardedFor.empty())
-			m_farAddressStr = m_farAddress.toPresentation() + ";" + logEscape(forwardedFor);
+			m_farAddressStr = m_farAddress.toPresentation() + ";" + forwardedFor;
 
-		printf("%s,accept-control,rtws,%s\n", m_farAddressStr.c_str(), Hex::encode(m_connectionID).c_str());
+		clientLog("accept-control", {});
 	}
 
 	void acceptOtherFlow(std::shared_ptr<rtws::RecvFlow> flow)
@@ -1941,6 +1995,8 @@ protected:
 	{
 		m_netStreamTransports.erase(streamID);
 	}
+
+	std::string protocol() const override { return "rtws"; }
 
 	uint32_t m_nextSyncID { 0 };
 	std::shared_ptr<rtws::SendFlow> m_controlSend;
@@ -2106,12 +2162,12 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 			{
 				stream.m_dataFrames[callbackName->stringValue()] = Bytes(cursorAtCallbackName, limit); // so we don't have to reserialize for new subscribers
 				actualPayload = cursorAtCallbackName;
-				printf(",@setDataFrame,%s,%s,%s\n", logEscape(m_name).c_str(), hashname.c_str(), logEscape(callbackName->stringValue()).c_str());
+				if(verbose) jsonLog("@setDataFrame", {{"app", AMF0::String(m_name)}, {"hashname", AMF0::String(hashname)}, {"callbackName", callbackName}});
 			}
 			else if(0 == strcmp(commandName->stringValue(), "@clearDataFrame"))
 			{
 				stream.m_dataFrames.erase(callbackName->stringValue());
-				printf(",@clearDataFrame,%s,%s,%s\n", logEscape(m_name).c_str(), hashname.c_str(), logEscape(callbackName->stringValue()).c_str());
+				if(verbose) jsonLog("@clearDataFrame", {{"app", AMF0::String(m_name)}, {"hashname", AMF0::String(hashname)}, {"callbackName", callbackName}});
 				return; // does not need to be forwarded
 			}
 		}
@@ -2226,7 +2282,12 @@ void unregister_signal_handler(int param)
 void printStats()
 {
 	showStats = false;
-	printf(",stats,clients,%zu,apps,%zu,publishing,%zu,playing,%zu\n", clients.size(), apps.size(), currentPublishCount, currentSubscribeCount);
+	jsonLog("stats", {
+		{"clients", AMF0::Number(clients.size())},
+		{"apps", AMF0::Number(apps.size())},
+		{"publishing", AMF0::Number(currentPublishCount)},
+		{"playing", AMF0::Number(currentSubscribeCount)},
+	});
 	fflush(stdout);
 }
 
@@ -2256,7 +2317,7 @@ bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenF
 	union Address::in_sockaddr boundAddr;
 	socklen_t addrLen = sizeof(boundAddr);
 	getsockname(fd, &boundAddr.s, &addrLen);
-	printf(",listen,%s,%s\n", protocolDescription(protocol).c_str(), Address(&boundAddr.s).toPresentation().c_str());
+	jsonLog("listen", {{"proto", AMF0::String(protocolDescription(protocol))}, {"bind", AMF0::String(Address(&boundAddr.s).toPresentation())}});
 
 	if(listen(fd, 5))
 	{
@@ -2294,7 +2355,7 @@ bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenF
 #endif
 
 		Address boundAddr(&boundAddr_u.s);
-		printf("%s,accept,%s\n", boundAddr.toPresentation().c_str(), protocolDescription(protocol).c_str());
+		jsonLog("accept", {{"address", AMF0::String(boundAddr.toPresentation())}, {"proto", AMF0::String(protocolDescription(protocol))}});
 
 		switch(protocol)
 		{
@@ -2427,6 +2488,8 @@ int main(int argc, char **argv)
 	std::map<std::string, std::vector<Address>> redirectorSpecs;
 	std::vector<Address> advertiseAddresses;
 
+	pid = getpid();
+
 	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:cvh")) != -1)
 	{
 		switch(ch)
@@ -2553,7 +2616,12 @@ int main(int argc, char **argv)
 		flashcrypto = &crypto;
 
 		for(; optind < argc; optind++)
-			printf(",auth,%s,%s\n", hexHMACSHA256(secrets[0], argv[optind]).c_str(), argv[optind]);
+			printf("%s\n", AMF0::Object()
+				->putValueAtKey(AMF0::String("auth"), "@type")
+				->putValueAtKey(AMF0::String(argv[optind]), "app")
+				->putValueAtKey(AMF0::String(hexHMACSHA256(secrets[0], argv[optind])), "token")
+				->toJSON(0).c_str()
+			);
 
 		return 0;
 	}
@@ -2575,8 +2643,7 @@ int main(int argc, char **argv)
 	crypto.setSSeqRecvRequired(requireSSEQ);
 	flashcrypto = &crypto;
 
-	if(not ephemeralDH)
-		printf(",fingerprint,%s\n", Hex::encode(crypto.getFingerprint()).c_str());
+	serverId = std::string(Hex::encode(crypto.getFingerprint()), 0, 10);
 
 	PerformerPosixPlatformAdapter platform(&mainRL, &mainPerformer, &workerPerformer);
 
@@ -2590,6 +2657,8 @@ int main(int argc, char **argv)
 	rtmfp.setDefaultSessionRetransmitLimit(20);
 	rtmfp.setDefaultSessionIdleLimit(120);
 
+	jsonLog("rtmfp", {{"fingerprint", AMF0::String(Hex::encode(crypto.getFingerprint()))}});
+
 	for(auto it = rtmfpAddrs.begin(); it != rtmfpAddrs.end(); it++)
 	{
 		auto boundAddr = platform.addUdpInterface(it->getSockaddr());
@@ -2598,7 +2667,7 @@ int main(int argc, char **argv)
 			printf("rtmfp can't bind to requested address: %s\n", it->toPresentation().c_str());
 			return 1;
 		}
-		printf(",listen,rtmfp,%s\n", boundAddr->toPresentation().c_str());
+		jsonLog("listen", {{"proto", AMF0::String("rtmfp")}, {"bind", AMF0::String(boundAddr->toPresentation())}});
 	}
 
 	rtmfp.onRecvFlow = RTMFPClient::newClient;
@@ -2618,10 +2687,18 @@ int main(int argc, char **argv)
 		redirectorClient->setLoadFactorUpdateInterval(1);
 
 		redirectorClient->onReflexiveAddress = [hostname, redirectorClient_ptr] (const Address &addr) {
-			printf(",redirector,%s@%s,reflexive,%s\n", hostname.c_str(), redirectorClient_ptr->getRedirectorAddress().toPresentation().c_str(), addr.toPresentation().c_str());
+			jsonLog("redirector-reflexive", {
+				{"redirector", AMF0::String(hostname)},
+				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
+				{"reflexiveAddress", AMF0::String(addr.toPresentation())}
+			});
 		};
 		redirectorClient->onStatus = [hostname, redirectorClient_ptr] (RedirectorClient::Status status) {
-			printf(",redirector,%s@%s,status,%d\n", hostname.c_str(), redirectorClient_ptr->getRedirectorAddress().toPresentation().c_str(), status);
+			jsonLog("redirector-status", {
+				{"redirector", AMF0::String(hostname)},
+				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
+				{"status", AMF0::Number(status)}
+			});
 		};
 
 		redirectorClient->connect();
@@ -2656,7 +2733,7 @@ int main(int argc, char **argv)
 		if(interrupted)
 		{
 			interrupted = false;
-			printf(",interrupted,%s\n", stopping ? "quitting" : "shutting down...");
+			jsonLog("interrupted", {{"shutdown", AMF0::Boolean(stopping)}});
 			if(stopping)
 			{
 				// failsafe
@@ -2697,7 +2774,7 @@ int main(int argc, char **argv)
 				if(not allowConnectDuringShutdown)
 					unregisterAndCloseFds(listenFds);
 				mainRL.scheduleRel(Timer::makeAction([] { interrupted = true; }), gracefulShutdownTimeout);
-				printf(",unregister,shut down when idle or after %.3Lf\n", gracefulShutdownTimeout);
+				jsonLog("unregister", {{"timeout", AMF0::Number(gracefulShutdownTimeout)}});
 			}
 		}
 
@@ -2708,12 +2785,12 @@ int main(int argc, char **argv)
 			mainRL.stop();
 	};
 
-	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 2);
+	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 5);
 	mainRL.scheduleRel(Timer::makeAction([] { showStats = true; }), 300, 300);
 
 	auto workerThread = std::thread([] { workerRL.run(); });
 
-	printf(",run\n");
+	jsonLog("run", {});
 	mainRL.run();
 
 	workerPerformer.perform([] { workerRL.stop(); });
@@ -2722,7 +2799,7 @@ int main(int argc, char **argv)
 	mainPerformer.close();
 	workerPerformer.close();
 
-	printf(",end\n");
+	jsonLog("end", {});
 
 	return 0;
 }
