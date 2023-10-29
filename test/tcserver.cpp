@@ -4,7 +4,7 @@
 // TC Server, a simple live media server for RTMFP/RTMP “Tin-Can” clients.
 // See the help message and tcserver.md for more information.
 
-// TODO: more stats
+// TODO: stream stats (time watched, time published)
 // TODO: rate limits
 // TODO: support http://zenomt.com/ns/rtmfp#media (rtmfp, rtws)
 
@@ -402,7 +402,13 @@ public:
 
 	virtual void close()
 	{
-		clientLog("close", {});
+		clientLog("close", {
+			{"publishes", AMF0::Number(m_publishes)},
+			{"subscribes", AMF0::Number(m_subscribes)},
+			{"broadcasts", AMF0::Number(m_broadcasts)},
+			{"relaysSent", AMF0::Number(m_relaysSent)},
+			{"relaysReceived", AMF0::Number(m_relaysReceived)}
+		});
 		showStats = true;
 
 		m_open = false;
@@ -446,6 +452,7 @@ public:
 		header->encode(payload);
 		payload.insert(payload.end(), message.begin(), message.end());
 		write(0, TCMSG_COMMAND, 0, Message::command("onRelay", 0, nullptr, payload), INFINITY, INFINITY);
+		m_relaysReceived++;
 	}
 
 	void relayStreamMessage(std::shared_ptr<NetStream> netStream, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
@@ -1016,6 +1023,7 @@ protected:
 			{"targetAddress", AMF0::String(it->second->m_farAddressStr)}
 		});
 		relayCount++;
+		m_relaysSent++;
 
 		it->second->sendRelay(this, msg);
 	}
@@ -1032,6 +1040,7 @@ protected:
 
 		clientLog("broadcast", {});
 		broadcastCount++;
+		m_broadcasts++;
 
 		m_app->broadcastMessage(this, msg);
 	}
@@ -1148,7 +1157,7 @@ protected:
 				publishPriority = std::min(m_maxPublishPriority, double(paramValueToFloat(params["priority"], publishPriority)));
 		}
 
-		if( (m_publishCount >= m_maxPublishCount)
+		if( (m_publishingCount >= m_maxPublishingCount)
 		 or (App::isHashName(publishName))
 		 or (0 == publishName.compare(0, 5, "asis:"))
 		 or (not m_app->publishStream(hashname, netStream, publishPriority))
@@ -1168,7 +1177,8 @@ protected:
 		netStream->m_name = publishName;
 		netStream->m_hashname = hashname;
 
-		m_publishCount++;
+		m_publishingCount++;
+		m_publishes++;
 
 		logStreamEvent("publish", netStream);
 		write(netStream->m_streamID, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
@@ -1250,14 +1260,15 @@ protected:
 		write(netStream->m_streamID, TCMSG_DATA, 0, rtmpSampleAccess, INFINITY, INFINITY);
 
 		m_app->subscribeStream(netStream->m_hashname, netStream);
+		m_subscribes++;
 	}
 
 	void closeStream(std::shared_ptr<NetStream> netStream)
 	{
 		if(NetStream::NS_PUBLISHING == netStream->m_state)
 		{
-			assert(m_publishCount > 0);
-			m_publishCount--;
+			assert(m_publishingCount > 0);
+			m_publishingCount--;
 			logStreamEvent("unpublish", netStream);
 			m_app->unpublishStream(netStream->m_hashname);
 		}
@@ -1369,7 +1380,7 @@ protected:
 		if(params.count("use_by"))
 			useBy = paramValueToFloat(params["use_by"], useBy);
 		if(params.count("pub"))
-			m_maxPublishCount = (size_t)atoi(params["pub"].c_str());
+			m_maxPublishingCount = (size_t)atoi(params["pub"].c_str());
 
 		if((unixNow < notBeforeTime) or (unixNow > useBy))
 			m_disconnectAfter = -1;
@@ -1397,12 +1408,17 @@ protected:
 	bool m_finished { false };
 	bool m_exclusiveConnection { false };
 	double m_maxPublishPriority { 0 };
-	size_t m_maxPublishCount { SIZE_MAX };
-	size_t m_publishCount { 0 };
+	size_t m_maxPublishingCount { SIZE_MAX };
+	size_t m_publishingCount { 0 };
 	Time m_disconnectAfter { INFINITY };
 	std::string m_publishUsername;
 	std::string m_username;
 	std::string m_appName;
+	size_t m_publishes { 0 };
+	size_t m_subscribes { 0 };
+	size_t m_broadcasts { 0 };
+	size_t m_relaysSent { 0 };
+	size_t m_relaysReceived { 0 };
 	Bytes m_connectionID;
 	Address m_farAddress;
 	std::string m_farAddressStr;
@@ -2848,6 +2864,7 @@ int main(int argc, char **argv)
 	mainPerformer.close();
 	workerPerformer.close();
 
+	printStats();
 	jsonLog("end", {});
 
 	return 0;
