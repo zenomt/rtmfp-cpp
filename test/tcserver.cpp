@@ -98,6 +98,16 @@ std::map<Bytes, std::shared_ptr<Client>> clients;
 
 size_t currentPublishCount = 0;
 size_t currentSubscribeCount = 0;
+size_t rtmfpAcceptCount = 0;
+size_t rtmpAcceptCount = 0;
+size_t rtwsAcceptCount = 0;
+size_t connectCount = 0;
+size_t publishCount = 0;
+size_t subscribeCount = 0;
+size_t broadcastCount = 0;
+size_t relayCount = 0;
+size_t lookupCount = 0;
+size_t introCount = 0;
 
 std::string protocolDescription(Protocol protocol)
 {
@@ -379,6 +389,7 @@ public:
 			{"address", AMF0::String(addr.toPresentation())},
 			{"target", AMF0::String(Hex::encode(epdParsed.fingerprint, epdParsed.fingerprintLen))}
 		});
+		lookupCount++;
 
 		auto it = clients.find(Bytes(epdParsed.fingerprint, epdParsed.fingerprint + epdParsed.fingerprintLen));
 		if(it != clients.end())
@@ -934,6 +945,7 @@ protected:
 		m_connected = true;
 
 		clientLog("connect", {{"tcUrl", args[2]->getValueAtKey("tcUrl")}, {"connectArg", m_username.empty() ? nullptr : AMF0::String(m_username)}});
+		connectCount++;
 		showStats = true;
 
 		if(shuttingDown)
@@ -1003,6 +1015,7 @@ protected:
 			{"target", AMF0::String(it->second->connectionIDStr())},
 			{"targetAddress", AMF0::String(it->second->m_farAddressStr)}
 		});
+		relayCount++;
 
 		it->second->sendRelay(this, msg);
 	}
@@ -1018,6 +1031,7 @@ protected:
 			args[x]->encode(msg);
 
 		clientLog("broadcast", {});
+		broadcastCount++;
 
 		m_app->broadcastMessage(this, msg);
 	}
@@ -1451,6 +1465,7 @@ public:
 		m_controlRecv->forwardIHello(epd, epdLen, addr, tag, tagLen);
 
 		if(verbose) clientLog("rtmfp-intro", {{"initiator", AMF0::String(addr.toPresentation())}});
+		introCount++;
 	}
 
 	void close() override
@@ -1589,11 +1604,13 @@ protected:
 		m_controlRecv->onFarAddressDidChange = [this] { onFarAddressDidChange(); };
 		setOnMessage(m_controlRecv, 0, nullptr);
 
+		rtmfpAcceptCount++;
 		jsonLog("accept", {
 			{"proto", AMF0::String("rtmfp")},
 			{"address", AMF0::String(m_farAddressStr)},
 			{"peerID", AMF0::String(Hex::encode(getPeerID(m_controlRecv)))}
 		});
+
 		m_controlRecv->accept();
 
 		return true;
@@ -2080,6 +2097,7 @@ void App::subscribeStream(const std::string &hashname, std::shared_ptr<NetStream
 	if(stream.m_publishing)
 		netStream->m_owner->sendPublishNotify(netStream, stream);
 	currentSubscribeCount++;
+	subscribeCount++;
 }
 
 void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
@@ -2111,6 +2129,7 @@ bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> 
 		(*it)->m_owner->sendPublishNotify(*it, stream);
 
 	currentPublishCount++;
+	publishCount++;
 
 	return true;
 }
@@ -2301,6 +2320,19 @@ void printStats()
 		{"apps", AMF0::Number(apps.size())},
 		{"publishing", AMF0::Number(currentPublishCount)},
 		{"playing", AMF0::Number(currentSubscribeCount)},
+		{"connects", AMF0::Number(connectCount)},
+		{"publishes", AMF0::Number(publishCount)},
+		{"subscribes", AMF0::Number(subscribeCount)},
+		{"broadcasts", AMF0::Number(broadcastCount)},
+		{"relays", AMF0::Number(relayCount)},
+		{"accepts", share_ref(AMF0::Object()
+			->putValueAtKey(AMF0::Number(rtmfpAcceptCount), "rtmfp")
+			->putValueAtKey(AMF0::Number(rtmpAcceptCount), "rtmp")
+			->putValueAtKey(AMF0::Number(rtwsAcceptCount), "rtws")
+			->putValueAtKey(AMF0::Number(rtmfpAcceptCount + rtmpAcceptCount + rtwsAcceptCount), "@all")
+		)},
+		{"lookups", AMF0::Number(lookupCount)},
+		{"intros", AMF0::Number(introCount)}
 	});
 	fflush(stdout);
 }
@@ -2375,14 +2407,17 @@ bool listenTCP(const Address &addr, Protocol protocol, std::vector<int> &listenF
 		{
 		case PROTO_RTMP:
 			RTMPClient::newClient(newFd, false, boundAddr);
+			rtmpAcceptCount++;
 			break;
 
 		case PROTO_RTMP_SIMPLE:
 			RTMPClient::newClient(newFd, true, boundAddr);
+			rtmpAcceptCount++;
 			break;
 
 		case PROTO_RTWS:
 			RTWebSocketClient::newClient(newFd, boundAddr);
+			rtwsAcceptCount++;
 			break;
 
 		default:
