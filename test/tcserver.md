@@ -434,4 +434,3 @@ or on receiving a `SIGINT` signal.
 * Support [`http://zenomt.com/ns/rtmfp#media`](http://zenomt.com/ns/rtmfp#media)
 * User-specific constraints
   - relay and broadcast rate limits
-* Better logging

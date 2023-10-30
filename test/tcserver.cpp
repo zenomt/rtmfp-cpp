@@ -4,7 +4,6 @@
 // TC Server, a simple live media server for RTMFP/RTMP “Tin-Can” clients.
 // See the help message and tcserver.md for more information.
 
-// TODO: stream stats (time watched, time published)
 // TODO: rate limits
 // TODO: support http://zenomt.com/ns/rtmfp#media (rtmfp, rtws)
 
@@ -86,6 +85,8 @@ const char *serverInfo = nullptr;
 std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 pid_t pid;
 std::string serverId;
+Time streamAccountingMin = 1.0;
+Time streamAccountingMax = 2.0;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -108,6 +109,8 @@ size_t broadcastCount = 0;
 size_t relayCount = 0;
 size_t lookupCount = 0;
 size_t introCount = 0;
+Time   publishedDuration = 0.0;
+Time   playedDuration = 0.0;
 
 std::string protocolDescription(Protocol protocol)
 {
@@ -255,6 +258,28 @@ struct NetStream : public Object {
 		}
 	}
 
+	Time updateTimeAccounting(bool wrappingUp)
+	{
+		Time now = mainRL.getCurrentTime();
+		Time delta = now - m_lastStreamAcctTime;
+		if((delta >= streamAccountingMin) or wrappingUp)
+		{
+			m_lastStreamAcctTime = now;
+			if(delta < streamAccountingMax)
+			{
+				m_streamDuration += delta;
+				return delta;
+			}
+		}
+		return 0.0;
+	}
+
+	void resetTimeAccounting()
+	{
+		m_streamDuration = 0.0;
+		m_lastStreamAcctTime = -INFINITY;
+	}
+
 	std::shared_ptr<Client> m_owner;
 	State m_state { NS_IDLE };
 	uint32_t m_streamID;
@@ -272,6 +297,8 @@ struct NetStream : public Object {
 	Time m_audioLifetime;
 	Time m_videoLifetime;
 	Time m_finishByMargin;
+	Time m_streamDuration { 0.0 };
+	Time m_lastStreamAcctTime { -INFINITY };
 	bool m_expirePreviousGop;
 	WriteReceiptChain m_chain;
 };
@@ -402,14 +429,7 @@ public:
 
 	virtual void close()
 	{
-		clientLog("close", {
-			{"publishes", AMF0::Number(m_publishes)},
-			{"subscribes", AMF0::Number(m_subscribes)},
-			{"broadcasts", AMF0::Number(m_broadcasts)},
-			{"relaysSent", AMF0::Number(m_relaysSent)},
-			{"relaysReceived", AMF0::Number(m_relaysReceived)}
-		});
-		showStats = true;
+		clientLog("closing", {});
 
 		m_open = false;
 
@@ -432,6 +452,18 @@ public:
 		if(m_app)
 			m_app->removeClient(myself, m_username);
 		m_app.reset();
+
+		// log after tearing everything down to catch all accounting
+		clientLog("close", {
+			{"publishes", AMF0::Number(m_publishes)},
+			{"plays", AMF0::Number(m_subscribes)},
+			{"broadcasts", AMF0::Number(m_broadcasts)},
+			{"relaysSent", AMF0::Number(m_relaysSent)},
+			{"relaysReceived", AMF0::Number(m_relaysReceived)},
+			{"publishedDuration", AMF0::Number(m_publishedDuration)},
+			{"playedDuration", AMF0::Number(m_playedDuration)}
+		});
+		showStats = true;
 	}
 
 	virtual std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) = 0;
@@ -542,6 +574,8 @@ public:
 
 		if(verbose and rv)
 			rv->onFinished = [] (bool abandoned) { if(abandoned) { printf("-"); fflush(stdout); } };
+
+		updatePlayedDuration(netStream->updateTimeAccounting(false));
 	}
 
 	void relayStreamMessage(std::shared_ptr<NetStream> netStream, uint8_t messageType, uint32_t timestamp, const Bytes &payload)
@@ -1132,7 +1166,8 @@ protected:
 		clientLog(name, {
 			{"streamID", AMF0::Number(netStream->m_streamID)},
 			{"name", AMF0::String(netStream->m_name)},
-			{"hashname", AMF0::String(netStream->m_hashname)}
+			{"hashname", AMF0::String(netStream->m_hashname)},
+			{"duration", AMF0::Number(netStream->m_streamDuration)}
 		});
 	}
 
@@ -1176,6 +1211,7 @@ protected:
 		netStream->m_state = NetStream::NS_PUBLISHING;
 		netStream->m_name = publishName;
 		netStream->m_hashname = hashname;
+		netStream->resetTimeAccounting();
 
 		m_publishingCount++;
 		m_publishes++;
@@ -1218,6 +1254,7 @@ protected:
 
 		netStream->m_state = NetStream::NS_PLAYING;
 		netStream->resetPlayParams();
+		netStream->resetTimeAccounting();
 
 		if(playArgs.size() > 1)
 			netStream->overridePlayParams(playArgs[1]);
@@ -1269,14 +1306,17 @@ protected:
 		{
 			assert(m_publishingCount > 0);
 			m_publishingCount--;
+			updatePublishedDuration(netStream->updateTimeAccounting(true));
 			logStreamEvent("unpublish", netStream);
 			m_app->unpublishStream(netStream->m_hashname);
 		}
 		else if(NetStream::NS_PLAYING == netStream->m_state)
 		{
+			updatePlayedDuration(netStream->updateTimeAccounting(true));
 			logStreamEvent("unplay", netStream);
 			m_app->unsubscribeStream(netStream->m_hashname, netStream);
 		}
+
 		netStream->m_state = NetStream::NS_IDLE;
 	}
 
@@ -1324,6 +1364,8 @@ protected:
 			return;
 
 		m_app->onStreamMessage(netStream->m_hashname, messageType, timestamp, payload, len);
+
+		updatePublishedDuration(netStream->updateTimeAccounting(false));
 	}
 
 	void onWatchedClientDidClose(std::shared_ptr<Client> watched)
@@ -1388,6 +1430,18 @@ protected:
 			m_disconnectAfter = std::min(expiration - unixNow, expiresIn);
 	}
 
+	void updatePublishedDuration(Time delta)
+	{
+		publishedDuration += delta;
+		m_publishedDuration += delta;
+	}
+
+	void updatePlayedDuration(Time delta)
+	{
+		playedDuration += delta;
+		m_playedDuration += delta;
+	}
+
 	void clientLog(const std::string &type, const LogAttributes &attrs)
 	{
 		auto clientAttrs = attrs;
@@ -1419,6 +1473,8 @@ protected:
 	size_t m_broadcasts { 0 };
 	size_t m_relaysSent { 0 };
 	size_t m_relaysReceived { 0 };
+	Time m_publishedDuration { 0.0 };
+	Time m_playedDuration { 0.0 };
 	Bytes m_connectionID;
 	Address m_farAddress;
 	std::string m_farAddressStr;
@@ -2338,7 +2394,7 @@ void printStats()
 		{"playing", AMF0::Number(currentSubscribeCount)},
 		{"connects", AMF0::Number(connectCount)},
 		{"publishes", AMF0::Number(publishCount)},
-		{"subscribes", AMF0::Number(subscribeCount)},
+		{"plays", AMF0::Number(subscribeCount)},
 		{"broadcasts", AMF0::Number(broadcastCount)},
 		{"relays", AMF0::Number(relayCount)},
 		{"accepts", share_ref(AMF0::Object()
@@ -2348,7 +2404,9 @@ void printStats()
 			->putValueAtKey(AMF0::Number(rtmfpAcceptCount + rtmpAcceptCount + rtwsAcceptCount), "@all")
 		)},
 		{"lookups", AMF0::Number(lookupCount)},
-		{"intros", AMF0::Number(introCount)}
+		{"intros", AMF0::Number(introCount)},
+		{"publishedDuration", AMF0::Number(publishedDuration)},
+		{"playedDuration", AMF0::Number(playedDuration)}
 	});
 	fflush(stdout);
 }
