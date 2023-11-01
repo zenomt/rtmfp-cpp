@@ -106,7 +106,8 @@ size_t connectCount = 0;
 size_t publishCount = 0;
 size_t subscribeCount = 0;
 size_t broadcastCount = 0;
-size_t relayCount = 0;
+size_t relaysIn = 0;
+size_t relaysOut = 0;
 size_t lookupCount = 0;
 size_t introCount = 0;
 Time   publishedDuration = 0.0;
@@ -264,7 +265,7 @@ struct NetStream : public Object {
 		Time delta = now - m_lastStreamAcctTime;
 		if((delta >= streamAccountingMin) or wrappingUp)
 		{
-			m_lastStreamAcctTime = now;
+			m_lastStreamAcctTime = wrappingUp ? -INFINITY : now;
 			if(delta < streamAccountingMax)
 			{
 				m_streamDuration += delta;
@@ -345,7 +346,18 @@ public:
 
 	~App()
 	{
-		jsonLog("destroy-app", {{"app", AMF0::String(m_name)}});
+		jsonLog("destroy-app", {
+			{"app", AMF0::String(m_name)},
+			{"connects", AMF0::Number(m_connectCount)},
+			{"maxClients", AMF0::Number(m_maxClients)},
+			{"publishes", AMF0::Number(m_publishCount)},
+			{"plays", AMF0::Number(m_subscribeCount)},
+			{"relaysIn", AMF0::Number(m_relaysIn)},
+			{"relaysOut", AMF0::Number(m_relaysOut)},
+			{"broadcasts", AMF0::Number(m_broadcastCount)},
+			{"playedDuration", AMF0::Number(m_playedDuration)},
+			{"publishedDuration", AMF0::Number(m_publishedDuration)}
+		});
 	}
 
 	static bool isHashName(const std::string &name)
@@ -383,8 +395,18 @@ public:
 	static bool isVideoCheckpointCommand(const uint8_t *payload, size_t len);
 	static bool isVideoSequenceSpecial(const uint8_t *payload, size_t len);
 
+	size_t m_relaysIn { 0 };
+	size_t m_relaysOut { 0 };
+	Time   m_publishedDuration { 0.0 };
+	Time   m_playedDuration { 0.0 };
 protected:
 	void cleanupStream(const std::string &hashname);
+
+	size_t m_connectCount { 0 };
+	size_t m_publishCount { 0 };
+	size_t m_subscribeCount { 0 };
+	size_t m_broadcastCount { 0 };
+	size_t m_maxClients { 0 };
 
 	std::set<std::shared_ptr<Client>> m_clients;
 	std::string m_name;
@@ -458,8 +480,8 @@ public:
 			{"publishes", AMF0::Number(m_publishes)},
 			{"plays", AMF0::Number(m_subscribes)},
 			{"broadcasts", AMF0::Number(m_broadcasts)},
-			{"relaysSent", AMF0::Number(m_relaysSent)},
-			{"relaysReceived", AMF0::Number(m_relaysReceived)},
+			{"relaysIn", AMF0::Number(m_relaysIn)},
+			{"relaysOut", AMF0::Number(m_relaysOut)},
 			{"publishedDuration", AMF0::Number(m_publishedDuration)},
 			{"playedDuration", AMF0::Number(m_playedDuration)}
 		});
@@ -484,7 +506,9 @@ public:
 		header->encode(payload);
 		payload.insert(payload.end(), message.begin(), message.end());
 		write(0, TCMSG_COMMAND, 0, Message::command("onRelay", 0, nullptr, payload), INFINITY, INFINITY);
-		m_relaysReceived++;
+		relaysOut++;
+		m_relaysOut++;
+		m_app->m_relaysOut++;
 	}
 
 	void relayStreamMessage(std::shared_ptr<NetStream> netStream, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
@@ -664,6 +688,8 @@ public:
 			), INFINITY, INFINITY);
 
 		syncAudioAndData(netStream->m_streamID);
+
+		updatePlayedDuration(netStream->updateTimeAccounting(true));
 	}
 
 	void releaseStream(std::shared_ptr<NetStream> netStream)
@@ -1056,8 +1082,9 @@ protected:
 			{"target", AMF0::String(it->second->connectionIDStr())},
 			{"targetAddress", AMF0::String(it->second->m_farAddressStr)}
 		});
-		relayCount++;
-		m_relaysSent++;
+		relaysIn++;
+		m_relaysIn++;
+		m_app->m_relaysIn++;
 
 		it->second->sendRelay(this, msg);
 	}
@@ -1434,12 +1461,14 @@ protected:
 	{
 		publishedDuration += delta;
 		m_publishedDuration += delta;
+		m_app->m_publishedDuration += delta;
 	}
 
 	void updatePlayedDuration(Time delta)
 	{
 		playedDuration += delta;
 		m_playedDuration += delta;
+		m_app->m_playedDuration += delta;
 	}
 
 	void clientLog(const std::string &type, const LogAttributes &attrs)
@@ -1447,7 +1476,7 @@ protected:
 		auto clientAttrs = attrs;
 		clientAttrs.push_back({"connectionID", AMF0::String(connectionIDStr())});
 		clientAttrs.push_back({"address", AMF0::String(m_farAddressStr)});
-		clientAttrs.push_back({"app",m_app ? AMF0::String(m_appName) : nullptr});
+		clientAttrs.push_back({"app", m_connected ? AMF0::String(m_appName) : nullptr});
 		clientAttrs.push_back({"proto", AMF0::String(protocol())});
 		clientAttrs.push_back({"username", m_publishUsername.empty() ? nullptr : AMF0::String(m_publishUsername)});
 		jsonLog(type, clientAttrs);
@@ -1471,8 +1500,8 @@ protected:
 	size_t m_publishes { 0 };
 	size_t m_subscribes { 0 };
 	size_t m_broadcasts { 0 };
-	size_t m_relaysSent { 0 };
-	size_t m_relaysReceived { 0 };
+	size_t m_relaysIn { 0 };
+	size_t m_relaysOut { 0 };
 	Time m_publishedDuration { 0.0 };
 	Time m_playedDuration { 0.0 };
 	Bytes m_connectionID;
@@ -2131,6 +2160,8 @@ void App::addClient(std::shared_ptr<Client> client, const std::string &username,
 	// insert new client first so we don't destroy the app when closing
 	// a duplicate exclusive username
 	m_clients.insert(client);
+	m_connectCount++;
+	m_maxClients = std::max(m_maxClients, m_clients.size());
 
 	if(isExclusive)
 	{
@@ -2152,6 +2183,7 @@ void App::removeClient(std::shared_ptr<Client> client, const std::string &userna
 
 void App::broadcastMessage(Client *sender, const Bytes &message)
 {
+	m_broadcastCount++;
 	for(auto it = m_clients.begin(); it != m_clients.end(); it++)
 		(*it)->sendRelay(sender, message);
 }
@@ -2170,6 +2202,7 @@ void App::subscribeStream(const std::string &hashname, std::shared_ptr<NetStream
 		netStream->m_owner->sendPublishNotify(netStream, stream);
 	currentSubscribeCount++;
 	subscribeCount++;
+	m_subscribeCount++;
 }
 
 void App::unsubscribeStream(const std::string &hashname, std::shared_ptr<NetStream> netStream)
@@ -2202,6 +2235,7 @@ bool App::publishStream(const std::string &hashname, std::shared_ptr<NetStream> 
 
 	currentPublishCount++;
 	publishCount++;
+	m_publishCount++;
 
 	return true;
 }
@@ -2396,7 +2430,8 @@ void printStats()
 		{"publishes", AMF0::Number(publishCount)},
 		{"plays", AMF0::Number(subscribeCount)},
 		{"broadcasts", AMF0::Number(broadcastCount)},
-		{"relays", AMF0::Number(relayCount)},
+		{"relaysIn", AMF0::Number(relaysIn)},
+		{"relaysOut", AMF0::Number(relaysOut)},
 		{"accepts", share_ref(AMF0::Object()
 			->putValueAtKey(AMF0::Number(rtmfpAcceptCount), "rtmfp")
 			->putValueAtKey(AMF0::Number(rtmpAcceptCount), "rtmp")
