@@ -67,8 +67,8 @@ bool collapseAudioGaps = false;
 Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
+Time previousGopStartByMargin = 0.1;
 Time checkpointLifetime = 4.5;
-Time previousGopLifetime = 0.1;
 Time reorderWindowPeriod = 1.0;
 Time delaycc_delay = INFINITY;
 ReceiveOrder mediaReceiveIntent = RO_SEQUENCE;
@@ -189,7 +189,9 @@ public:
 		{
 			if(Message::isVideoKeyframe(data, len))
 			{
-				streamState.m_chain.expire(expirePreviousGop ? mainRL.getCurrentTime() + previousGopLifetime : INFINITY);
+				streamState.m_chain.expire(
+					expirePreviousGop ? mainRL.getCurrentTime() + previousGopStartByMargin : INFINITY,
+					expirePreviousGop ? mainRL.getCurrentTime() + finishByMargin : INFINITY);
 
 				if(replayCheckpointFrame)
 				{
@@ -1263,6 +1265,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
+	printf("  -e secs       -- expire previous GOP start-by margin (default %.3Lf)\n", previousGopStartByMargin);
 	printf("  -R            -- request ASAP receive on A/V (rtmfp send)\n");
 	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
 	printf("  -G            -- (experimental) collapse audio gaps in the timeline (only use with 48kHz AAC)\n");
@@ -1302,7 +1305,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:Rr:GEcC:MT:X:HSp:46B:u:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:e:Rr:GEcC:MT:X:HSp:46B:u:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1327,6 +1330,9 @@ int main(int argc, char **argv)
 			break;
 		case 'F':
 			finishByMargin = atof(optarg);
+			break;
+		case 'e':
+			previousGopStartByMargin = atof(optarg);
 			break;
 		case 'R':
 			mediaReceiveIntent = RO_NETWORK;
