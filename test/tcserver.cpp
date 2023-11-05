@@ -64,6 +64,7 @@ bool requireSSEQ = true;
 Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
+Time previousGopStartByMargin = 0.1;
 Time checkpointLifetime = 4.5;
 Time reorderWindowPeriod = 1.0;
 Time delaycc_delay = INFINITY;
@@ -215,6 +216,7 @@ struct NetStream : public Object {
 		m_videoLifetime = videoLifetime;
 		m_finishByMargin = finishByMargin;
 		m_expirePreviousGop = expirePreviousGop;
+		m_previousGopStartByMargin = previousGopStartByMargin;
 		m_seenKeyframe = false;
 	}
 
@@ -241,6 +243,7 @@ struct NetStream : public Object {
 		trySetTimeParam(&m_audioLifetime, params, "audioLifetime", audioLifetime);
 		trySetTimeParam(&m_videoLifetime, params, "videoLifetime", videoLifetime);
 		trySetTimeParam(&m_finishByMargin, params, "finishByMargin", finishByMargin);
+		trySetTimeParam(&m_previousGopStartByMargin, params, "previousGopStartByMargin", previousGopStartByMargin);
 
 		if(params.count("expirePreviousGop"))
 		{
@@ -281,6 +284,13 @@ struct NetStream : public Object {
 		m_lastStreamAcctTime = -INFINITY;
 	}
 
+	void expireChain()
+	{
+		m_chain.expire(
+			m_expirePreviousGop ? mainRL.getCurrentTime() + m_previousGopStartByMargin : INFINITY,
+			m_expirePreviousGop ? mainRL.getCurrentTime() + m_finishByMargin : INFINITY);
+	}
+
 	std::shared_ptr<Client> m_owner;
 	State m_state { NS_IDLE };
 	uint32_t m_streamID;
@@ -298,6 +308,7 @@ struct NetStream : public Object {
 	Time m_audioLifetime;
 	Time m_videoLifetime;
 	Time m_finishByMargin;
+	Time m_previousGopStartByMargin;
 	Time m_streamDuration { 0.0 };
 	Time m_lastStreamAcctTime { -INFINITY };
 	bool m_expirePreviousGop;
@@ -592,7 +603,7 @@ public:
 		if(isVideoCodingLayer and rv)
 		{
 			if(Message::isVideoKeyframe(payload, len))
-				netStream->m_chain.expire(netStream->m_expirePreviousGop ? mainRL.getCurrentTime() + netStream->m_finishByMargin : INFINITY);
+				netStream->expireChain();
 			netStream->m_chain.append(rv);
 		}
 
@@ -1333,6 +1344,7 @@ protected:
 		{
 			assert(m_publishingCount > 0);
 			m_publishingCount--;
+			netStream->expireChain();
 			updatePublishedDuration(netStream->updateTimeAccounting(true));
 			logStreamEvent("unpublish", netStream);
 			m_app->unpublishStream(netStream->m_hashname);
@@ -2601,6 +2613,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
+	printf("  -e secs       -- expire previous GOP start-by margin (default %.3Lf)\n", previousGopStartByMargin);
 	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
@@ -2648,7 +2661,7 @@ int main(int argc, char **argv)
 
 	pid = getpid();
 
-	while((ch = getopt(argc, argv, "V:A:F:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:cvh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:e:r:EC:T:X:xHSB:b:s:w:i:mk:K:L:l:d:Dt:cvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -2660,6 +2673,9 @@ int main(int argc, char **argv)
 			break;
 		case 'F':
 			finishByMargin = atof(optarg);
+			break;
+		case 'e':
+			previousGopStartByMargin = atof(optarg);
 			break;
 		case 'r':
 			reorderWindowPeriod = atof(optarg);

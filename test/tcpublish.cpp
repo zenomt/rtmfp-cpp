@@ -42,6 +42,7 @@ int dscp = 0;
 Time videoLifetime = 2.0;
 Time audioLifetime = 2.2;
 Time finishByMargin = 0.1;
+Time previousGopStartByMargin = 0.1;
 bool expirePreviousGop = true;
 bool hashAuthToken = false;
 bool requireHashAuthToken = false;
@@ -381,7 +382,9 @@ public:
 		auto receipt = m_publishStream->sendVideo(tag->timestamp, tag->data, startWithin, startWithin + finishByMargin);
 
 		if(Message::isVideoKeyframe(tag->data.data(), tag->data.size()))
-			m_publishStream->expireChain(expirePreviousGop ? mainRL.getCurrentTime() + finishByMargin : INFINITY);
+			m_publishStream->expireChain(
+				expirePreviousGop ? mainRL.getCurrentTime() + previousGopStartByMargin : INFINITY,
+				expirePreviousGop ? mainRL.getCurrentTime() + finishByMargin : INFINITY);
 
 		if(startWithin < INFINITY)
 			m_publishStream->chain(receipt);
@@ -480,6 +483,7 @@ int usage(const char *name, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -V secs      -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A secs      -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F secs      -- finish-by margin (default %.3Lf)\n", finishByMargin);
+	printf("  -e secs      -- expire previous GOP start-by margin (default %.3Lf)\n", previousGopStartByMargin);
 	printf("  -E           -- don't expire previous GOP\n");
 	printf("  -L           -- loop stream forever\n");
 	printf("  -R           -- send releaseStream before publish\n");
@@ -539,7 +543,7 @@ int main(int argc, char **argv)
 	const char *fingerprint = nullptr;
 	int ch;
 
-	while((ch = getopt(argc, argv, "V:A:F:ELRf:mMT:X:HS46vh")) != -1)
+	while((ch = getopt(argc, argv, "V:A:F:e:ELRf:mMT:X:HS46vh")) != -1)
 	{
 		switch(ch)
 		{
@@ -553,6 +557,10 @@ int main(int argc, char **argv)
 
 		case 'F':
 			finishByMargin = atof(optarg);
+			break;
+
+		case 'e':
+			previousGopStartByMargin = atof(optarg);
 			break;
 
 		case 'E':

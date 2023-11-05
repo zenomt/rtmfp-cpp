@@ -394,7 +394,12 @@ void TCStream::chain(std::shared_ptr<WriteReceipt> receipt)
 
 void TCStream::expireChain(Time deadline)
 {
-	m_chain.expire(deadline);
+	expireChain(deadline, deadline);
+}
+
+void TCStream::expireChain(Time startDeadline, Time finishDeadline)
+{
+	m_chain.expire(startDeadline, finishDeadline);
 }
 
 void TCStream::publish(const std::string &name, const Args &args)

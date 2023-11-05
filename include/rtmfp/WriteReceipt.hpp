@@ -72,6 +72,7 @@ public:
 	// values, then clear the chain. A deadline of INFINITY clears the chain but doesn't
 	// change any startBy or finishBy times.
 	void expire(Time deadline);
+	void expire(Time startDeadline, Time finishDeadline);
 
 protected:
 	List<std::shared_ptr<WriteReceipt>> m_receipts;

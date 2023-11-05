@@ -122,9 +122,14 @@ void WriteReceiptChain::append(std::shared_ptr<WriteReceipt> receipt)
 
 void WriteReceiptChain::expire(Time deadline)
 {
-	m_receipts.valuesDo([deadline] (std::shared_ptr<WriteReceipt> &each) {
-		each->startBy = std::min(each->startBy, deadline);
-		each->finishBy = std::min(each->finishBy, deadline);
+	expire(deadline, deadline);
+}
+
+void WriteReceiptChain::expire(Time startDeadline, Time finishDeadline)
+{
+	m_receipts.valuesDo([=] (std::shared_ptr<WriteReceipt> &each) {
+		each->startBy = std::min(each->startBy, startDeadline);
+		each->finishBy = std::min(each->finishBy, finishDeadline);
 		return true;
 	});
 	m_receipts.clear();

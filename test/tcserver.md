@@ -290,10 +290,12 @@ default settings. The following parameters are recognized:
 
 - `audioLifetime`: (Number) Audio queue lifetime (seconds).
 - `videoLifetime`: (Number) Video queue lifetime.
-- `finishByMargin`: (Number) Additional time to complete a message if transmission has started.
+- `finishByMargin`: (Number) Additional time to complete a video or audio frame if transmission has started.
 - `expirePreviousGop`: Whether to expire the previous Group of Pictures (GOP) early
   when a new GOP starts. Disabled for values `0`, `no`, or `false`; any other value
   (including blank) enables.
+- `previousGopStartByMargin`: (Number) Revised transmission start deadline
+  when expiring the previous GOP (seconds after start of new GOP).
 - `asis`: Whether to repeat the timestamps exactly as sent by the publisher as
   described above in **Streaming**. Disabled for values `0`, `no`, or `false`;
   any other value (including blank) enables.

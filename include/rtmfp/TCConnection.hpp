@@ -116,8 +116,9 @@ public:
 
 	// Update each chained receipt to startBy/finishBy the earlier of deadline or its current
 	// value, then clear the chain. A deadline of INFINITY clears the chain but doesn't
-	// change any startBy or finishBy times. Calls WriteReceiptChain::expire().
+	// change the startBy or finishBy times. Calls WriteReceiptChain::expire().
 	void expireChain(Time deadline);
+	void expireChain(Time startDeadline, Time finishDeadline);
 
 	// Queue a publish command to the server to request publishing. Watch
 	// for code `NetStream.Publish.Start` or `NetStream.Publish.BadName` in
