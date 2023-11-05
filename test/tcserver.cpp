@@ -296,6 +296,7 @@ struct NetStream : public Object {
 	uint32_t m_streamID;
 	std::string m_name;
 	std::string m_hashname;
+	std::string m_query;
 	uint32_t m_timestampOffset { 0 };
 	uint32_t m_highestTimestamp { 0 };
 	uint32_t m_minTimestamp { 0 };
@@ -1205,6 +1206,7 @@ protected:
 			{"streamID", AMF0::Number(netStream->m_streamID)},
 			{"name", AMF0::String(netStream->m_name)},
 			{"hashname", AMF0::String(netStream->m_hashname)},
+			{"query", AMF0::String(netStream->m_query)},
 			{"duration", AMF0::Number(netStream->m_streamDuration)}
 		});
 	}
@@ -1220,12 +1222,14 @@ protected:
 
 		std::string publishName = publishArgs[0];
 		std::string hashname = App::asHashName(publishName);
+		std::string publishQuery;
 
 		double publishPriority = -INFINITY;
 
 		if(publishArgs.size() > 1)
 		{
-			auto params = splitParams(publishArgs[1], "&?;");
+			publishQuery = publishArgs[1];
+			auto params = splitParams(publishQuery, "&?;");
 			if(params.count("priority"))
 				publishPriority = std::min(m_maxPublishPriority, double(paramValueToFloat(params["priority"], publishPriority)));
 		}
@@ -1249,6 +1253,7 @@ protected:
 		netStream->m_state = NetStream::NS_PUBLISHING;
 		netStream->m_name = publishName;
 		netStream->m_hashname = hashname;
+		netStream->m_query = publishQuery;
 		netStream->resetTimeAccounting();
 
 		m_publishingCount++;
@@ -1277,17 +1282,6 @@ protected:
 
 		std::string playName = playArgs[0];
 		netStream->m_name = playName;
-		if(0 == playName.compare(0, 5, "asis:"))
-		{
-			// kind of a hack for now. should this be a parameter instead?
-			// a parameter is harder to set with any existing clients.
-			playName = playName.substr(5);
-			netStream->m_adjustTimestamps = false;
-			netStream->m_timestampOffset = netStream->m_highestTimestamp = netStream->m_minTimestamp = 0;
-		}
-		else
-			netStream->m_adjustTimestamps = true;
-
 		netStream->m_hashname = App::asHashName(playName);
 
 		netStream->m_state = NetStream::NS_PLAYING;
@@ -1295,7 +1289,12 @@ protected:
 		netStream->resetTimeAccounting();
 
 		if(playArgs.size() > 1)
+		{
+			netStream->m_query = playArgs[1];
 			netStream->overridePlayParams(playArgs[1]);
+		}
+		else
+			netStream->m_query.clear();
 
 		logStreamEvent("play", netStream);
 
