@@ -256,10 +256,13 @@ struct NetStream : public Object {
 		{
 			auto v = params["asis"];
 			m_adjustTimestamps = ((v == "0") or (v == "no") or (v == "false"));
-			if(not m_adjustTimestamps)
-				m_timestampOffset = m_highestTimestamp = m_minTimestamp = 0;
 			if(verbose) printf("set asis to %s\n", m_adjustTimestamps ? "no" : "yes");
 		}
+		else
+			m_adjustTimestamps = true;
+
+		if(not m_adjustTimestamps)
+			m_timestampOffset = m_highestTimestamp = m_minTimestamp = 0;
 	}
 
 	Time updateTimeAccounting(bool wrappingUp)
