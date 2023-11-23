@@ -20,6 +20,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <math.h>
 #include <netinet/tcp.h>
 #include <time.h>
 }
@@ -370,8 +371,8 @@ public:
 			{"relaysIn", AMF0::Number(m_relaysIn)},
 			{"relaysOut", AMF0::Number(m_relaysOut)},
 			{"broadcasts", AMF0::Number(m_broadcastCount)},
-			{"playedDuration", AMF0::Number(m_playedDuration)},
-			{"publishedDuration", AMF0::Number(m_publishedDuration)}
+			{"playedDuration", AMF0::Number(::round(m_playedDuration))},
+			{"publishedDuration", AMF0::Number(::round(m_publishedDuration))}
 		});
 	}
 
@@ -497,8 +498,8 @@ public:
 			{"broadcasts", AMF0::Number(m_broadcasts)},
 			{"relaysIn", AMF0::Number(m_relaysIn)},
 			{"relaysOut", AMF0::Number(m_relaysOut)},
-			{"publishedDuration", AMF0::Number(m_publishedDuration)},
-			{"playedDuration", AMF0::Number(m_playedDuration)}
+			{"publishedDuration", AMF0::Number(::round(m_publishedDuration))},
+			{"playedDuration", AMF0::Number(::round(m_playedDuration))}
 		});
 		showStats = true;
 	}
@@ -1210,7 +1211,7 @@ protected:
 			{"name", AMF0::String(netStream->m_name)},
 			{"hashname", AMF0::String(netStream->m_hashname)},
 			{"query", AMF0::String(netStream->m_query)},
-			{"duration", AMF0::Number(netStream->m_streamDuration)}
+			{"duration", AMF0::Number(::round(netStream->m_streamDuration * 1000.0) / 1000.0)}
 		});
 	}
 
@@ -2454,8 +2455,8 @@ void printStats()
 		)},
 		{"lookups", AMF0::Number(lookupCount)},
 		{"intros", AMF0::Number(introCount)},
-		{"publishedDuration", AMF0::Number(publishedDuration)},
-		{"playedDuration", AMF0::Number(playedDuration)}
+		{"publishedDuration", AMF0::Number(::round(publishedDuration))},
+		{"playedDuration", AMF0::Number(::round(playedDuration))}
 	});
 	fflush(stdout);
 }
@@ -2615,7 +2616,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -V sec        -- video queue lifetime (default %.3Lf)\n", videoLifetime);
 	printf("  -A sec        -- audio queue lifetime (default %.3Lf)\n", audioLifetime);
 	printf("  -F sec        -- finish-by margin (default %.3Lf)\n", finishByMargin);
-	printf("  -e secs       -- expire previous GOP start-by margin (default %.3Lf)\n", previousGopStartByMargin);
+	printf("  -e sec        -- expire previous GOP start-by margin (default %.3Lf)\n", previousGopStartByMargin);
 	printf("  -r sec        -- reorder window duration (rtmfp receive, default %.3Lf)\n", reorderWindowPeriod);
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
