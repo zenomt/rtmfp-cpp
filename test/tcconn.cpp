@@ -272,7 +272,7 @@ int main(int argc, char **argv)
 	};
 
 	int lookupError = 0;
-	tcconn->addCandidateAddresses(Address::lookup(uri.host.c_str(), uri.effectivePort.c_str(), &lookupError));
+	tcconn->addCandidateAddresses(Address::lookup(URIParse::safePercentDecode(uri.host).c_str(), uri.effectivePort.c_str(), &lookupError));
 	if(lookupError)
 		return errormsg(argv[0], 1, "couldn't look up host: ", gai_strerror(lookupError));
 

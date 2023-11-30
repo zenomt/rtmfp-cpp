@@ -204,7 +204,7 @@ public:
 		m_tcconn->onStatus = [this] (std::shared_ptr<AMF0> info) { onConnectionStatus(info); };
 
 		int lookupError = 0;
-		m_tcconn->addCandidateAddresses(Address::lookup(m_uri.host.c_str(), m_uri.effectivePort.c_str(), &lookupError));
+		m_tcconn->addCandidateAddresses(Address::lookup(URIParse::safePercentDecode(m_uri.host).c_str(), m_uri.effectivePort.c_str(), &lookupError));
 		if(lookupError)
 		{
 			printf("couldn't look up hostinfo: %s\n", gai_strerror(lookupError));

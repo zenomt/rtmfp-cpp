@@ -55,7 +55,7 @@ void URIParse::parse(const std::string &uri_)
 	hostinfo = authparts[6];
 
 	std::smatch hostparts;
-	std::regex_match(hostinfo, hostparts, std::regex("^((\\[([0-9a-fA-Fv:.]*)?\\]))?([^:]*)?(:([0-9]+))?"));
+	std::regex_match(hostinfo, hostparts, std::regex("^((\\[([^\\]]*)?\\]))?([^:]*)?(:([0-9]+))?"));
 	host = std::string(hostparts[3]).empty() ? hostparts[4] : hostparts[3];
 	port = hostparts[6];
 	effectivePort = port;
