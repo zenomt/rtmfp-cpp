@@ -47,10 +47,12 @@ by per-message deadlines, or by arbitrary application logic using the
 The application can be notified by callback when a message is delivered or
 abandoned.
 
-`SendFlow`s set to [priority](include/rtmfp/Priority.hpp) `PRI_PRIORITY` (`PRI_4`)
-or higher (`PRI_IMMEDIATE`, `PRI_FLASH`, and `PRI_FLASHOVERRIDE`) are considered
-[time critical](https://www.rfc-editor.org/rfc/rfc7016#section-3.1). Sending
-messages on time critical flows affects congestion control.
+`SendFlow`s set to [priority/precedence](include/rtmfp/Priority.hpp) `PRI_PRIORITY`,
+`PRI_IMMEDIATE`, `PRI_FLASH`, or
+[`PRI_FLASHOVERRIDE`](https://www.rfc-editor.org/rfc/rfc795) are considered
+[time critical](https://www.rfc-editor.org/rfc/rfc7016#section-2.2.4).
+Sending time critical messages
+[affects congestion control](https://www.rfc-editor.org/rfc/rfc7016#appendix-A.1).
 
 When it’s done, the application can shut down the `RTMFP` in an orderly manner
 or abruptly.
