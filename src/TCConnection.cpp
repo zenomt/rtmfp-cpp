@@ -108,7 +108,7 @@ std::shared_ptr<TCStream> TCConnection::createStream()
 			netStream->deleteStream();
 			basicClose(true);
 		}
-	}, "createStream", {});
+	}, "createStream", { AMF0::Null() });
 
 	return netStream;
 }
