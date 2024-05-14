@@ -513,6 +513,10 @@ void Session::abortFlowsAndTimers()
 		m_sendFlows.at(firstName)->onSessionDidClose(myself); // should unbind, removing itself from m_sendFlows
 		assert(not m_sendFlows.has(firstName));
 	}
+	m_outstandingFrags.clear(); // safe since all SendFlow queues are empty
+
+	for(int i = 0; i < NUM_PRIORITIES; i++)
+		m_readyFlows[i].clear();
 
 	while(not m_recvFlows.empty())
 	{

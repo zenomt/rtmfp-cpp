@@ -276,7 +276,10 @@ void SendFlow::onSessionWillOpen(std::shared_ptr<Session> session)
 void SendFlow::onSessionDidClose(std::shared_ptr<Session> session)
 {
 	if((m_session == session) or ((not m_session) and (m_openingSession == session)))
+	{
 		onExceptionReport(0);
+		m_send_queue.clear();
+	}
 }
 
 void SendFlow::queueWritableNotify()
