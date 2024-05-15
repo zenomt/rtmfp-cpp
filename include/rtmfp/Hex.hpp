@@ -3,6 +3,7 @@
 // Copyright © 2021 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
