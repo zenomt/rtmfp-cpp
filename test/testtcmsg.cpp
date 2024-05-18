@@ -79,6 +79,19 @@ int main(int argc, char **argv)
 	uint8_t v2[] = { TC_VIDEO_ENHANCED_FLAG_ISEXHEADER | TC_VIDEO_FRAMETYPE_IDR | TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES, 0x68, 0x76, 0x63, 0x31, 0, 0, 0 };
 	assert(TC_VIDEO_ENH_CODEC_HEVC == Message::getVideoCodec(v2, sizeof(v2)));
 
+	// multitrack is not supported right now
+	uint8_t v3[] = {
+		TC_VIDEO_ENHANCED_FLAG_ISEXHEADER | TC_VIDEO_ENH_PACKETTYPE_MULTITRACK,
+		TC_AV_ENH_MULTITRACKTYPE_ONE_TRACK | TC_VIDEO_ENH_PACKETTYPE_SEQUENCE_START,
+		0x68, 0x76, 0x63, 0x31, // 'hvc1'
+		0x01 // track 1
+	};
+	assert(Message::isVideoEnhancedMultitrack(v3, sizeof(v3)));
+	assert(0 == Message::getVideoCodec(v3, sizeof(v3)));
+	assert(not Message::isVideoInit(v3, sizeof(v3)));
+	assert(not Message::isVideoSequenceSpecial(v3, sizeof(v3)));
+	assert(not Message::isVideoEnhancedMetadata(v3, sizeof(v3)));
+
 	uint8_t a1[] = { TC_AUDIO_CODEC_AAC | TC_AUDIO_RATE_44100 | TC_AUDIO_SOUNDSIZE_16 | TC_AUDIO_SOUND_STEREO, TC_AUDIO_AACPACKET_AUDIO_AAC };
 	assert(TC_AUDIO_CODEC_AAC == Message::getAudioCodec(a1, sizeof(a1)));
 
@@ -96,6 +109,41 @@ int main(int argc, char **argv)
 	assert(0 == eos.size());
 	assert(0 == Message::getVideoCodec(eos.data(), eos.size()));
 	assert(Message::isVideoSequenceSpecial(eos.data(), eos.size()));
+
+	uint8_t a2[] = { TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_START, 0x6d, 0x70, 0x34, 0x61 };
+	assert(TC_AUDIO_ENH_CODEC_AAC == Message::getAudioCodec(a2, sizeof(a2)));
+	assert(Message::isAudioInit(a2, sizeof(a2)));
+	assert(Message::isAudioSequenceSpecial(a2, sizeof(a2)));
+	assert(not Message::isAudioEnhancedMultichannelConfig(a2, sizeof(a2)));
+	assert(not Message::isAudioEnhancedMultitrack(a2, sizeof(a2)));
+
+	// a multichannel config, though it's invalid. we should still say that's what kind of packet it is.
+	uint8_t a3[] = { TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_MULTICHANNEL_CONFIG, 0x6d, 0x70, 0x34, 0x61 };
+	assert(TC_AUDIO_ENH_CODEC_AAC == Message::getAudioCodec(a3, sizeof(a3)));
+	assert(not Message::isAudioInit(a3, sizeof(a3)));
+	assert(Message::isAudioSequenceSpecial(a3, sizeof(a3)));
+	assert(Message::isAudioEnhancedMultichannelConfig(a3, sizeof(a3)));
+	assert(not Message::isAudioEnhancedMultitrack(a3, sizeof(a3)));
+
+	uint8_t a4[] = { TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_CODED_FRAMES, 0x6d, 0x70, 0x34, 0x61 };
+	assert(TC_AUDIO_ENH_CODEC_AAC == Message::getAudioCodec(a4, sizeof(a4)));
+	assert(not Message::isAudioInit(a4, sizeof(a4)));
+	assert(not Message::isAudioSequenceSpecial(a4, sizeof(a4)));
+	assert(not Message::isAudioEnhancedMultichannelConfig(a4, sizeof(a4)));
+	assert(not Message::isAudioEnhancedMultitrack(a4, sizeof(a4)));
+
+	// multitrack is not supported right now
+	uint8_t a5[] = {
+		TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_MULTITRACK,
+		TC_AV_ENH_MULTITRACKTYPE_ONE_TRACK | TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_START,
+		0x6d, 0x70, 0x34, 0x61, // 'mp4a'
+		0x01 // track 1
+	};
+	assert(Message::isAudioEnhancedMultitrack(a5, sizeof(a5)));
+	assert(TC_AUDIO_CODEC_EXHEADER == Message::getAudioCodec(a5, sizeof(a5))); // fallback for multitrack
+	assert(not Message::isAudioInit(a5, sizeof(a5)));
+	assert(not Message::isAudioSequenceSpecial(a5, sizeof(a5)));
+	assert(not Message::isAudioEnhancedMultichannelConfig(a5, sizeof(a5)));
 
 	return 0;
 }

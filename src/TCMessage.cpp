@@ -97,7 +97,11 @@ bool Message::isVideoSequenceSpecial(const uint8_t *payload, size_t len)
 		return false;
 
 	if(isVideoEnhanced(payload, len))
+	{
+		if(isVideoEnhancedMultitrack(payload, len))
+			return false;
 		return (TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES != (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK)) and (TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES_X != (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
+	}
 
 	return (TC_VIDEO_CODEC_AVC == (payload[0] & TC_VIDEO_CODEC_MASK)) and (TC_VIDEO_AVCPACKET_NALU != payload[1]);
 }
@@ -113,20 +117,43 @@ bool Message::isVideoEnhancedMetadata(const uint8_t *payload, size_t len)
 	return isVideoEnhanced(payload, len) and (TC_VIDEO_ENH_PACKETTYPE_METADATA == (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
 }
 
+bool Message::isVideoEnhancedMultitrack(const uint8_t *payload, size_t len)
+{
+	return isVideoEnhanced(payload, len) and (TC_VIDEO_ENH_PACKETTYPE_MULTITRACK == (*payload & TC_VIDEO_ENH_PACKETTYPE_MASK));
+}
+
 bool Message::isAudioInit(const uint8_t *payload, size_t len)
 {
+	if(isAudioEnhanced(payload, len))
+		return TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_START == (*payload & TC_AUDIO_ENH_PACKETTYPE_MASK);
+
 	return (len > 1) and (TC_AUDIO_CODEC_AAC == (payload[0] & TC_AUDIO_CODEC_MASK)) and (TC_AUDIO_AACPACKET_AUDIO_SPECIFIC_CONFIG == payload[1]);
 }
 
 bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 {
-	return (0 == len) or isAudioInit(payload, len);
+	return (0 == len) or isAudioInit(payload, len) or isAudioEnhancedMultichannelConfig(payload, len);
+}
+
+bool Message::isAudioEnhanced(const uint8_t *payload, size_t len)
+{
+	return (len >= 5) and ((*payload & TC_AUDIO_CODEC_MASK) == TC_AUDIO_CODEC_EXHEADER);
+}
+
+bool Message::isAudioEnhancedMultichannelConfig(const uint8_t *payload, size_t len)
+{
+	return isAudioEnhanced(payload, len) and (TC_AUDIO_ENH_PACKETTYPE_MULTICHANNEL_CONFIG == (*payload & TC_AUDIO_ENH_PACKETTYPE_MASK));
+}
+
+bool Message::isAudioEnhancedMultitrack(const uint8_t *payload, size_t len)
+{
+	return isAudioEnhanced(payload, len) and (TC_AUDIO_ENH_PACKETTYPE_MULTITRACK == (*payload & TC_AUDIO_ENH_PACKETTYPE_MASK));
 }
 
 uint32_t Message::getVideoCodec(const uint8_t *payload, size_t len)
 {
 	if(isVideoEnhanced(payload, len))
-		return (payload[1] << 24) + (payload[2] << 16) + (payload[3] << 8) + payload[4];
+		return isVideoEnhancedMultitrack(payload, len) ? 0 : (payload[1] << 24) + (payload[2] << 16) + (payload[3] << 8) + payload[4];
 	else if(len)
 		return *payload & TC_VIDEO_CODEC_MASK;
 	else
@@ -135,7 +162,9 @@ uint32_t Message::getVideoCodec(const uint8_t *payload, size_t len)
 
 uint32_t Message::getAudioCodec(const uint8_t *payload, size_t len)
 {
-	if(len)
+	if(isAudioEnhanced(payload, len))
+		return isAudioEnhancedMultitrack(payload, len) ? TC_AUDIO_CODEC_EXHEADER : (payload[1] << 24) + (payload[2] << 16) + (payload[3] << 8) + payload[4];
+	else if(len)
 		return *payload & TC_AUDIO_CODEC_MASK;
 	else
 		return 0;

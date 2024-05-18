@@ -74,6 +74,7 @@ enum {
 
 enum {
 	TC_VIDEO_ENH_CODEC_AV1  = 0x61763031, // 'av01'
+	TC_VIDEO_ENH_CODEC_AVC  = 0x61766331, // 'avc1'
 	TC_VIDEO_ENH_CODEC_HEVC = 0x68766331, // 'hvc1'
 	TC_VIDEO_ENH_CODEC_VP9  = 0x76703039  // 'vp09'
 };
@@ -96,6 +97,7 @@ enum {
 	TC_VIDEO_ENH_PACKETTYPE_CODED_FRAMES_X         = 3,
 	TC_VIDEO_ENH_PACKETTYPE_METADATA               = 4,
 	TC_VIDEO_ENH_PACKETTYPE_MPEG2TS_SEQUENCE_START = 5,
+	TC_VIDEO_ENH_PACKETTYPE_MULTITRACK             = 6,
 	TC_VIDEO_ENH_PACKETTYPE_MASK                   = 0x0f
 };
 
@@ -109,11 +111,21 @@ enum {
 	TC_AUDIO_CODEC_NELLYMOSER       =  6 << 4,
 	TC_AUDIO_CODEC_G711_A_LAW       =  7 << 4,
 	TC_AUDIO_CODEC_G711_MU_LAW      =  8 << 4,
+	TC_AUDIO_CODEC_EXHEADER         =  9 << 4,
 	TC_AUDIO_CODEC_AAC              = 10 << 4,
 	TC_AUDIO_CODEC_SPEEX            = 11 << 4,
 	TC_AUDIO_CODEC_MP3_8KHZ         = 14 << 4,
 	TC_AUDIO_CODEC_DEVICE_SPECIFIC  = 15 << 4,
 	TC_AUDIO_CODEC_MASK             = 0xf0
+};
+
+enum {
+	TC_AUDIO_ENH_CODEC_MP3  = 0x2e6d7033, // '.mp3'
+	TC_AUDIO_ENH_CODEC_OPUS = 0x4f707573, // 'Opus'
+	TC_AUDIO_ENH_CODEC_AC3  = 0x61632d33, // 'ac-3'
+	TC_AUDIO_ENH_CODEC_EAC3 = 0x65632d33, // 'ec-3'
+	TC_AUDIO_ENH_CODEC_FLAC = 0x664c6143, // 'fLaC'
+	TC_AUDIO_ENH_CODEC_AAC  = 0x6d703461  // 'mp4a'
 };
 
 enum {
@@ -141,6 +153,22 @@ enum {
 	TC_AUDIO_AACPACKET_AUDIO_AAC             = 1
 };
 
+enum {
+	TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_START      = 0,
+	TC_AUDIO_ENH_PACKETTYPE_CODED_FRAMES        = 1,
+
+	TC_AUDIO_ENH_PACKETTYPE_MULTICHANNEL_CONFIG = 4,
+	TC_AUDIO_ENH_PACKETTYPE_MULTITRACK          = 5,
+	TC_AUDIO_ENH_PACKETTYPE_MASK                = 0x0f
+};
+
+enum {
+	TC_AV_ENH_MULTITRACKTYPE_ONE_TRACK               = 0 << 4,
+	TC_AV_ENH_MULTITRACKTYPE_MANY_TRACKS             = 1 << 4,
+	TC_AV_ENH_MULTITRACKTYPE_MANY_TRACKS_MANY_CODECS = 2 << 4,
+	TC_AV_ENH_MULTITRACKTYPE_MASK                    = 0xf0
+};
+
 class Message {
 public:
 	// answer AMF message payload suitable for TCMSG_COMMAND (or TCMSG_COMMAND_EX with ext=true)
@@ -158,11 +186,18 @@ public:
 	static bool isVideoSequenceSpecial(const uint8_t *payload, size_t len);
 
 	// "Enhanced RTMP" see https://github.com/veovera/enhanced-rtmp
+	// note: "multitrack" is not supported at this time.
 	static bool isVideoEnhanced(const uint8_t *payload, size_t len);
 	static bool isVideoEnhancedMetadata(const uint8_t *payload, size_t len);
+	static bool isVideoEnhancedMultitrack(const uint8_t *payload, size_t len);
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
+
+	// "Enhanced RTMP"
+	static bool isAudioEnhanced(const uint8_t *payload, size_t len);
+	static bool isAudioEnhancedMultichannelConfig(const uint8_t *payload, size_t len);
+	static bool isAudioEnhancedMultitrack(const uint8_t *payload, size_t len);
 
 	static uint32_t getVideoCodec(const uint8_t *payload, size_t len);
 	static uint32_t getAudioCodec(const uint8_t *payload, size_t len);
