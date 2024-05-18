@@ -686,6 +686,7 @@ public:
 				case TC_VIDEO_CODEC_VP6_ALPHA:
 				case TC_VIDEO_CODEC_SCREEN_V2:
 				case TC_VIDEO_CODEC_AVC:
+				case TC_VIDEO_ENH_CODEC_AVC:
 					// these codecs seem to work ok though.
 					break;
 
