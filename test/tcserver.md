@@ -165,7 +165,11 @@ would reply to the `connect` command with
         "objectEncoding": 0.0,
         "authToken": "bc4e260a541aa5c6cd498f414afd7f05c76bd6d731f726df268d0b1e8bf5a58c",
         "serverFingerprint": "4e47cbb7f2b5fdcaf9593ce1feb6d6639c639cfa8fb4691e7530c5dd5b029f8f",
-        "serverInfo": "some info 12345"
+        "serverInfo": "some info 12345",
+        "capsEx": 0.0,
+        "audioFourCcInfoMap": { "*": 4.0 },
+        "videoFourCcInfoMap": { "*": 4.0 },
+        "fourCcList": [ "*" ]
     }
 
 The authentication token calculator can help you validate your implementation

@@ -330,6 +330,8 @@ struct Stream {
 	Bytes m_lastVideoKeyframe;
 	Bytes m_videoMetadataBeforeInit; // Enhanced RTMP https://github.com/veovera/enhanced-rtmp
 	Bytes m_videoMetadataLatest; // Enhanced RTMP
+	Bytes m_audioMultichannelConfigBeforeInit; // Enhanced RTMP
+	Bytes m_audioMultichannelConfigLatest; // Enhanced RTMP
 	uint32_t m_lastVideoTimestamp { 0 };
 	uint32_t m_lastVideoCodec { UINT32_C(0xffffffff) };
 	uint32_t m_lastAudioCodec { UINT32_C(0xffffffff) };
@@ -346,6 +348,8 @@ struct Stream {
 		m_lastVideoKeyframe.clear();
 		m_videoMetadataBeforeInit.clear();
 		m_videoMetadataLatest.clear();
+		m_audioMultichannelConfigBeforeInit.clear();
+		m_audioMultichannelConfigLatest.clear();
 		m_lastVideoTimestamp = 0;
 		m_lastVideoCodec = UINT32_C(0xffffffff);
 		m_lastAudioCodec = UINT32_C(0xffffffff);
@@ -651,8 +655,12 @@ public:
 		for(auto it = stream.m_dataFrames.begin(); it != stream.m_dataFrames.end(); it++)
 			relayStreamMessage(netStream, TCMSG_DATA, 0, it->second);
 
+		if(not stream.m_audioMultichannelConfigBeforeInit.empty())
+			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioMultichannelConfigBeforeInit);
 		if(not stream.m_audioInit.empty())
 			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioInit);
+		if(not stream.m_audioMultichannelConfigLatest.empty())
+			relayStreamMessage(netStream, TCMSG_AUDIO, 0, stream.m_audioMultichannelConfigLatest);
 		if(not stream.m_videoMetadataBeforeInit.empty()) // RTMP Enhanced Video Metadata that goes before Sequence Start/Init
 			relayStreamMessage(netStream, TCMSG_VIDEO, 0, stream.m_videoMetadataBeforeInit);
 		if(not stream.m_videoInit.empty())
@@ -1001,6 +1009,8 @@ protected:
 		if(not objectEncoding->isNumber())
 			objectEncoding = AMF0::Number(0);
 
+		const uint8_t CAN_FORWARD = 4;
+
 		auto resultObject = AMF0::Object();
 		resultObject
 			->putValueAtKey(AMF0::String("status"), "level")
@@ -1008,6 +1018,10 @@ protected:
 			->putValueAtKey(AMF0::String("you connected!"), "description")
 			->putValueAtKey(AMF0::String(connectionIDStr()), "connectionID")
 			->putValueAtKey(objectEncoding, "objectEncoding")
+			->putValueAtKey(AMF0::Number(0), "capsEx") // no support for multitrack or reconnect
+			->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(CAN_FORWARD), "*"), "videoFourCcInfoMap")
+			->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(CAN_FORWARD), "*"), "audioFourCcInfoMap")
+			->putValueAtKey(AMF0::Array()->appendValue(AMF0::String("*")), "fourCcList")
 			->putValueAtKey(AMF0::String(Hex::encode(flashcrypto->getFingerprint())), "serverFingerprint");
 
 		if(matchedKey >= 0)
@@ -2380,11 +2394,22 @@ void App::onStreamMessage(const std::string &hashname, uint8_t messageType, uint
 			{
 				stream.m_audioInit.clear();
 				stream.m_lastAudioCodec = codec;
+				stream.m_audioMultichannelConfigBeforeInit.clear();
+				stream.m_audioMultichannelConfigLatest.clear();
 			}
 		}
 
 		if(Message::isAudioInit(payload, len))
+		{
 			stream.m_audioInit = Bytes(payload, payload + len);
+			if(not stream.m_audioMultichannelConfigLatest.empty())
+			{
+				stream.m_audioMultichannelConfigBeforeInit = stream.m_audioMultichannelConfigLatest;
+				stream.m_audioMultichannelConfigLatest.clear();
+			}
+		}
+		else if(Message::isAudioEnhancedMultichannelConfig(payload, len))
+			stream.m_audioMultichannelConfigLatest = Bytes(payload, payload + len);
 	}
 
 	for(auto it = stream.m_subscribers.begin(); it != stream.m_subscribers.end(); it++)
