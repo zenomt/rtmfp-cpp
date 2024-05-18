@@ -366,6 +366,8 @@ const uint8_t * SimpleHttpStream::onHeaderBytes(const uint8_t *bytes, const uint
 
 void SimpleHttpStream::onHeadersComplete()
 {
+	if(onHttpHeadersReceived)
+		onHttpHeadersReceived();
 }
 
 void SimpleHttpStream::parseHeaderBlock()
@@ -399,6 +401,12 @@ void SimpleHttpStream::parseHeaderBlock()
 	}
 
 	onHeadersComplete();
+}
+
+void SimpleHttpStream::clearCallbacks()
+{
+	HeaderBodyStream::clearCallbacks();
+	onHttpHeadersReceived = nullptr;
 }
 
 void SimpleHttpStream::reset()

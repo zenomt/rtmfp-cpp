@@ -64,6 +64,8 @@ public:
 	std::string getHeader(const std::string &name) const; // for everything except "set-cookie" RFC 7230 §3.2.2
 	std::vector<std::string> getHeaderValues(const std::string &name) const; // pretty much just for "set-cookie"
 
+	Task onHttpHeadersReceived;
+
 protected:
 	const uint8_t * onHeaderBytes(const uint8_t *bytes, const uint8_t *limit) override;
 
@@ -71,6 +73,7 @@ protected:
 
 	void reset();
 	void parseHeaderBlock();
+	void clearCallbacks() override;
 
 	bool m_gotNewline { false };
 	std::string m_headerBlock;

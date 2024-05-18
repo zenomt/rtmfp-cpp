@@ -1974,6 +1974,7 @@ public:
 
 		client->m_wsMessageAdapter = share_ref(new rtws::SimpleWebSocketMessagePlatformAdapter(client->m_platformStream), false);
 		client->m_websock = share_ref(new SimpleWebSocket_OpenSSL(client->m_platformStream), false);
+		client->m_websock->onHttpHeadersReceived = [client] { client->onHttpHeadersReceived(); };
 		client->m_wsMessageAdapter->init(client->m_websock);
 		client->m_rtws = share_ref(new rtws::RTWebSocket(client->m_wsMessageAdapter), false);
 
@@ -2066,6 +2067,13 @@ protected:
 		std::set<std::shared_ptr<rtws::RecvFlow>> m_recvFlows;
 	};
 
+	void onHttpHeadersReceived()
+	{
+		auto forwardedFor = m_websock->getHeader("x-forwarded-for");
+		if(not forwardedFor.empty())
+			m_farAddressStr = m_farAddress.toPresentation() + ";" + forwardedFor;
+	}
+
 	void acceptControlFlow(std::shared_ptr<rtws::RecvFlow> flow)
 	{
 		uint32_t streamID = 0;
@@ -2084,10 +2092,6 @@ protected:
 		setOnMessage(m_controlRecv, 0);
 
 		m_controlRecv->accept();
-
-		auto forwardedFor = m_websock->getHeader("x-forwarded-for");
-		if(not forwardedFor.empty())
-			m_farAddressStr = m_farAddress.toPresentation() + ";" + forwardedFor;
 
 		clientLog("accept-control", {});
 	}
