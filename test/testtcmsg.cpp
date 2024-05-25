@@ -132,6 +132,9 @@ int main(int argc, char **argv)
 	assert(not Message::isAudioEnhancedMultichannelConfig(a4, sizeof(a4)));
 	assert(not Message::isAudioEnhancedMultitrack(a4, sizeof(a4)));
 
+	assert(Message::isAudioSequenceEnd(a4, 0)); // "silence"
+	assert(Message::isAudioSequenceSpecial(a4, 0)); // "silence"
+
 	// multitrack is not supported right now
 	uint8_t a5[] = {
 		TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_MULTITRACK,
@@ -144,6 +147,10 @@ int main(int argc, char **argv)
 	assert(not Message::isAudioInit(a5, sizeof(a5)));
 	assert(not Message::isAudioSequenceSpecial(a5, sizeof(a5)));
 	assert(not Message::isAudioEnhancedMultichannelConfig(a5, sizeof(a5)));
+
+	uint8_t a6[] = { TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_END, 0x6d, 0x70, 0x34, 0x61 };
+	assert(Message::isAudioSequenceEnd(a6, sizeof(a6)));
+	assert(Message::isAudioSequenceSpecial(a6, sizeof(a6)));
 
 	return 0;
 }

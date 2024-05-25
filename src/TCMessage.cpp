@@ -132,7 +132,12 @@ bool Message::isAudioInit(const uint8_t *payload, size_t len)
 
 bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 {
-	return (0 == len) or isAudioInit(payload, len) or isAudioEnhancedMultichannelConfig(payload, len);
+	return isAudioSequenceEnd(payload, len) or isAudioInit(payload, len) or isAudioEnhancedMultichannelConfig(payload, len);
+}
+
+bool Message::isAudioSequenceEnd(const uint8_t *payload, size_t len)
+{
+	return (0 == len) or (isAudioEnhanced(payload, len) and (TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_END == (payload[0] & TC_VIDEO_ENH_PACKETTYPE_MASK)));
 }
 
 bool Message::isAudioEnhanced(const uint8_t *payload, size_t len)

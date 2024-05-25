@@ -156,6 +156,7 @@ enum {
 enum {
 	TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_START      = 0,
 	TC_AUDIO_ENH_PACKETTYPE_CODED_FRAMES        = 1,
+	TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_END        = 2,
 
 	TC_AUDIO_ENH_PACKETTYPE_MULTICHANNEL_CONFIG = 4,
 	TC_AUDIO_ENH_PACKETTYPE_MULTITRACK          = 5,
@@ -193,6 +194,7 @@ public:
 
 	static bool isAudioInit(const uint8_t *payload, size_t len);
 	static bool isAudioSequenceSpecial(const uint8_t *payload, size_t len);
+	static bool isAudioSequenceEnd(const uint8_t *payload, size_t len);
 
 	// "Enhanced RTMP"
 	static bool isAudioEnhanced(const uint8_t *payload, size_t len);
