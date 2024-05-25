@@ -137,7 +137,7 @@ bool Message::isAudioSequenceSpecial(const uint8_t *payload, size_t len)
 
 bool Message::isAudioSequenceEnd(const uint8_t *payload, size_t len)
 {
-	return (0 == len) or (isAudioEnhanced(payload, len) and (TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_END == (payload[0] & TC_VIDEO_ENH_PACKETTYPE_MASK)));
+	return (0 == len) or (*payload == (TC_AUDIO_CODEC_EXHEADER | TC_AUDIO_ENH_PACKETTYPE_SEQUENCE_END));
 }
 
 bool Message::isAudioEnhanced(const uint8_t *payload, size_t len)
