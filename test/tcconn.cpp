@@ -259,6 +259,10 @@ int main(int argc, char **argv)
 			, AMF0::Object()
 				->putValueAtKey(AMF0::Number(0xffff), "videoCodecs") // wildcard
 				->putValueAtKey(AMF0::Number(0xffff), "audioCodecs") // wildcard
+				->putValueAtKey(AMF0::Number(3), "capsEx") // say we support multitrack and reconnect even though we don't really
+				->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(5), "*"), "videoFourCcInfoMap") // can decode and forward
+				->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(5), "*"), "audioFourCcInfoMap") // can decode and forward
+				->putValueAtKey(AMF0::Array()->appendValue(AMF0::String("*")), "fourCcList")
 			, connectArgs
 		);
 	};

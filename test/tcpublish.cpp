@@ -230,8 +230,13 @@ public:
 			m_connectArgs.back() = AMF0::String(hexHMACSHA256(m_tcconn->sessionOpt()->getFarNonce(), m_authToken->stringValue()));
 
 		m_tcconn->connect(
-			[this] (bool success, std::shared_ptr<AMF0> result) { onConnectResult(success, result); },
-			m_uri.publicUri, nullptr, m_connectArgs
+			[this] (bool success, std::shared_ptr<AMF0> result) { onConnectResult(success, result); }
+			, m_uri.publicUri
+			, AMF0::Object()
+				->putValueAtKey(AMF0::Number(0), "capsEx") // no multitrack, no reconnect
+				->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(2), "*"), "videoFourCcInfoMap") // can encode all
+				->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(2), "*"), "audioFourCcInfoMap") // can encode all
+			, m_connectArgs
 		);
 	}
 
