@@ -56,7 +56,7 @@ bool TCConnection::connect(const Handler &onResult, const std::string &tcUrl, co
 	if(not argPtr->getValueAtKey("tcUrl")->isString())
 		argPtr->putValueAtKey(AMF0::String(uri.publicUri), "tcUrl");
 	if(not argPtr->getValueAtKey("app")->isString())
-		argPtr->putValueAtKey(AMF0::String(uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path), "app");
+		argPtr->putValueAtKey(AMF0::String((uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path) + uri.queryPart), "app");
 	if(not argPtr->getValueAtKey("objectEncoding")->isNumber())
 		argPtr->putValueAtKey(AMF0::Number(0), "objectEncoding");
 

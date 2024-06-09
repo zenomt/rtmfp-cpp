@@ -970,7 +970,7 @@ protected:
 			URIParse uri(tcUrl->stringValue());
 			app = AMF0::String(uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path);
 		}
-		m_appName = app->stringValue();
+		m_appName = URIParse::split(app->stringValue(), '?', 2)[0];
 
 		int matchedKey = -1;
 		if(secrets.size())
