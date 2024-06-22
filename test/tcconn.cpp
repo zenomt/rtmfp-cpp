@@ -189,9 +189,9 @@ int main(int argc, char **argv)
 	rl.onEveryCycle = [&rtmfp] { if(interrupted) { interrupted = false; rtmfp.shutdown(true); printf("interrupted. shutting down.\n"); } };
 	platform.onShutdownCompleteCallback = [&rl] { rl.stop(); };
 
-	if(ipv4 and not addInterface(&platform, 0, AF_INET))
-		return 1;
 	if(ipv6 and not addInterface(&platform, 0, AF_INET6))
+		return 1;
+	if(ipv4 and not addInterface(&platform, 0, AF_INET))
 		return 1;
 
 	auto tcconn = share_ref(new RunLoopRTMFPTCConnection(&rl, verbose), false);

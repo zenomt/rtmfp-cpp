@@ -678,9 +678,9 @@ int main(int argc, char **argv)
 	RTMFP rtmfp(&platform, &crypto);
 	platform.setRtmfp(&rtmfp);
 
-	if(ipv4 and not addInterface(&platform, 0, AF_INET))
-		return 1;
 	if(ipv6 and not addInterface(&platform, 0, AF_INET6))
+		return 1;
+	if(ipv4 and not addInterface(&platform, 0, AF_INET))
 		return 1;
 
 	auto publisher = share_ref(new Publisher(&rtmfp, &crypto, uri, fingerprint, publishName, flvFile), false);
