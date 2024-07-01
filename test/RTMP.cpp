@@ -12,6 +12,11 @@ namespace com { namespace zenomt { namespace rtmp {
 static const size_t INITIAL_SEND_CHUNK_SIZE = 1024;
 static const size_t MAX_TCMSG_LENGTH = (1<<24) - 1;
 
+static const Time RTT_HISTORY_THRESH = 30.0;
+static const size_t RTT_HISTORY_CAPACITY = 6;
+static const size_t MIN_ACK_WINDOW = 1400 * 2;
+static const size_t MAX_ACK_WINDOW = 1400 * 8;
+
 static uint32_t _readu24(const uint8_t *cursor)
 {
 	uint32_t rv = *cursor++;
@@ -117,12 +122,16 @@ RTMP::RTMP(std::shared_ptr<IStreamPlatformAdapter> platform) :
 	m_recvChunkSize(DEFAULT_CHUNK_SIZE),
 	m_sentBytes(0),
 	m_receivedBytes(0),
-	m_windowAckSize(65536),
+	m_windowAckSize(MAX_ACK_WINDOW),
 	m_lastAckSent(0),
 	m_lastAckReceived(0),
-	m_peerBandwidth((size_t)-1),
+	m_ackedBytes(0),
+	m_peerBandwidth(SIZE_MAX),
 	m_lastPeerBandwidthType(TC_SET_PEER_BW_LIMIT_SOFT),
-	m_isPaused(false)
+	m_peerBandwidthAckSize(MAX_ACK_WINDOW),
+	m_lastAckWinSent(0),
+	m_isPaused(false),
+	m_rttAckSize(MIN_ACK_WINDOW)
 {
 }
 
@@ -266,6 +275,21 @@ void RTMP::setPaused(bool isPaused)
 	m_isPaused = isPaused;
 }
 
+Time RTMP::getRTT() const
+{
+	return m_smoothedRTT;
+}
+
+Time RTMP::getBaseRTT() const
+{
+	return m_baseRTTCache;
+}
+
+size_t RTMP::getBytesInFlight() const
+{
+	return m_sentBytes - m_ackedBytes;
+}
+
 bool RTMP::onReceiveBytes(const void *bytes_, size_t len)
 {
 	if((RT_UNKNOWN == m_state) or (RT_PROTOCOL_ERROR == m_state))
@@ -320,6 +344,7 @@ bool RTMP::writeRawOutputBuffer()
 		m_platform->writeBytes(m_rawOutputBuffer.data(), m_rawOutputBuffer.size());
 		m_sentBytes += m_rawOutputBuffer.size();
 		m_rawOutputBuffer.clear();
+		startRTT();
 		return true;
 	}
 	return false;
@@ -467,6 +492,16 @@ void RTMP::queueWindowAckSize(uint32_t newSize)
 	queueControlMessage(TCMSG_WINDOW_ACK_SIZE, buf, sizeof(buf));
 }
 
+void RTMP::refreshWindowAckSize()
+{
+	uint32_t newSize = std::min(m_rttAckSize, m_peerBandwidthAckSize);
+	if(newSize != m_lastAckWinSent)
+	{
+		queueWindowAckSize(newSize);
+		m_lastAckWinSent = newSize;
+	}
+}
+
 bool RTMP::trimSendQueues(bool abandonAll)
 {
 	Time now = getCurrentTime();
@@ -603,8 +638,8 @@ int RTMP::findChunkStream(uint32_t streamID, uint8_t type_, size_t len) const
 
 bool RTMP::checkFlowControlWritable() const
 {
-	uint32_t outstanding = (m_sentBytes & UINT32_C(0xffffffff)) - m_lastAckReceived;
-	return (outstanding < m_peerBandwidth) and ((RT_OPEN == m_state) or (RT_CLOSING == m_state));
+	uint32_t outstanding = getBytesInFlight();
+	return (outstanding < m_peerBandwidth) and (outstanding < outstandingThresh) and ((RT_OPEN == m_state) or (RT_CLOSING == m_state));
 }
 
 bool RTMP::onSetChunkSizeControlMessage(const uint8_t *payload, size_t len)
@@ -644,7 +679,11 @@ bool RTMP::onAckControlMessage(const uint8_t *payload, size_t len)
 	if(len < 4)
 		return false;
 
-	m_lastAckReceived = _readu32(payload);
+	uint32_t ack = _readu32(payload);
+	m_ackedBytes += uint32_t(ack - m_lastAckReceived);
+	m_lastAckReceived = ack;
+	measureRTT();
+
 	scheduleWrite();
 
 	return true;
@@ -655,7 +694,7 @@ bool RTMP::onWindowAckSizeControlMessage(const uint8_t *payload, size_t len)
 	if(len < 4)
 		return false;
 
-	m_windowAckSize = _readu32(payload);
+	m_windowAckSize = std::max(_readu32(payload), uint32_t(1));
 	sendAck();
 
 	return true;
@@ -678,8 +717,8 @@ bool RTMP::onSetPeerBandwidthControlMessage(const uint8_t *payload, size_t len)
 
 	m_lastPeerBandwidthType = limitType;
 
-	if(newPeerBandwidth != m_peerBandwidth)
-		queueWindowAckSize(std::max(newPeerBandwidth / 2, UINT32_C(2)));
+	m_peerBandwidthAckSize = std::max(newPeerBandwidth / 2, UINT32_C(2));
+	refreshWindowAckSize();
 
 	if((TC_SET_PEER_BW_LIMIT_HARD == limitType) or (newPeerBandwidth < m_peerBandwidth))
 		m_peerBandwidth = newPeerBandwidth;
@@ -961,6 +1000,8 @@ long RTMP::onAckSentInput(const uint8_t *, size_t remaining)
 	if(m_sendChunkSize != DEFAULT_CHUNK_SIZE)
 		queueSetChunkSize();
 
+	refreshWindowAckSize();
+
 	scheduleWrite(); // in case there are queued messages
 
 	if(onopen)
@@ -1018,6 +1059,71 @@ void RTMP::setClosedState()
 
 	if(onerror_f)
 		onerror_f();
+}
+
+void RTMP::startRTT()
+{
+	if((m_rttAnchor < 0.0) and (m_sentBytes > m_rttPosition))
+	{
+		m_rttAnchor = getCurrentTime();
+		m_rttPosition = m_sentBytes;
+
+		m_rttAckSize = std::min(MAX_ACK_WINDOW, std::max(MIN_ACK_WINDOW, (m_sentBytes - m_ackedBytes) / 4));
+		refreshWindowAckSize();
+	}
+}
+
+void RTMP::measureRTT()
+{
+	if((m_rttAnchor >= 0.0) and (m_ackedBytes > m_rttPosition))
+	{
+		Time rtt = std::max(getCurrentTime() - m_rttAnchor, Time(0.0001));
+		size_t numBytes = m_sentBytes - m_rttPreviousPosition;
+		double bandwidth = numBytes / rtt;
+
+		m_rttAnchor = -1.0;
+		m_rttPreviousPosition = m_sentBytes;
+
+		m_smoothedRTT = ((m_smoothedRTT * 7.0) + rtt) / 8.0;
+		addRTT(rtt);
+
+		size_t adjustThresh = std::max(MIN_ACK_WINDOW * 2, minOutstandingThresh);
+		if(numBytes >= adjustThresh - MIN_ACK_WINDOW)
+		{
+			outstandingThresh = std::max(minOutstandingThresh, (size_t)(bandwidth * (getBaseRTT() + maxAdditionalDelay)));
+			if(outstandingThresh == minOutstandingThresh)
+			{
+				m_rttMeasurements.clear();
+				addRTT(rtt);
+			}
+		}
+	}
+}
+
+void RTMP::addRTT(Time rtt)
+{
+	Time now = getCurrentTime();
+	if(m_rttMeasurements.empty() or (now - m_rttMeasurements.front().origin > RTT_HISTORY_THRESH))
+	{
+		m_rttMeasurements.push_front({ rtt, now });
+
+		while(not m_rttMeasurements.empty())
+		{
+			auto lastEntry = m_rttMeasurements.back();
+			if(now - lastEntry.origin > RTT_HISTORY_THRESH * RTT_HISTORY_CAPACITY)
+				m_rttMeasurements.pop_back();
+			else
+				break;
+		}
+
+		m_baseRTTCache = INFINITY;
+		for(auto it = m_rttMeasurements.begin(); it != m_rttMeasurements.end(); it++)
+			m_baseRTTCache = std::min(m_baseRTTCache, it->min_rtt);
+	}
+	else
+		m_rttMeasurements.front().min_rtt = std::min(m_rttMeasurements.front().min_rtt, rtt);
+
+	m_baseRTTCache = std::min(m_baseRTTCache, rtt);
 }
 
 } } } // namespace com::zenomt::rtmp

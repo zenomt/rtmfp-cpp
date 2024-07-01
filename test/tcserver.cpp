@@ -1895,11 +1895,14 @@ public:
 		m_adapter = share_ref(new PosixStreamPlatformAdapter(&mainRL), false);
 		m_rtmp = share_ref(new RTMP(m_adapter), false);
 		m_rtmp->init(true);
+		m_rtmp->minOutstandingThresh = 16 * 1024; // default 64KB probably too big
+		m_rtmp->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 120.0;
 
 		if(simple)
 		{
 			m_rtmp->setSimpleMode(true);
 			m_rtmp->setChunkSize(1<<24); // maximum message size
+			m_rtmp->minOutstandingThresh = m_rtmp->outstandingThresh = SIZE_MAX; // no fancy delay control for buggy clients :(
 		}
 
 		setRandomConnectionID();

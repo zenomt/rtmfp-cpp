@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <map>
 
 #include "rtmfp/List.hpp"
@@ -60,6 +61,14 @@ public:
 
 	void setPaused(bool isPaused); // suspend processing
 
+	Time getRTT() const;
+	Time getBaseRTT() const;
+
+	size_t getBytesInFlight() const;
+	size_t outstandingThresh { 1024 * 64 };
+	size_t minOutstandingThresh { 1024 * 64 };
+	Time maxAdditionalDelay { 0.1 };
+
 protected:
 	struct Message;
 	static const int NUM_CHUNKSTREAMS = 24; // must be at least NUM_PRIORITIES + 3
@@ -83,6 +92,11 @@ protected:
 		bool   m_busy { false };
 	};
 
+	struct RTTMeasurement {
+		Time min_rtt;
+		Time origin;
+	};
+
 	bool onReceiveBytes(const void *bytes, size_t len);
 	void onInterfaceDidClose();
 	bool writeRawOutputBuffer();
@@ -95,6 +109,7 @@ protected:
 	void sendAck();
 	void sendAckIfNeeded();
 	void queueWindowAckSize(uint32_t newSize);
+	void refreshWindowAckSize();
 	bool trimSendQueues(bool abandonAll);
 	void scheduleTrimSendQueues();
 	void scheduleWrite();
@@ -120,6 +135,10 @@ protected:
 	void clearCallbacks();
 	void setClosedState();
 
+	void startRTT();
+	void measureRTT();
+	void addRTT(Time rtt);
+
 	std::map<uint32_t, RecvChunkStreamState> m_recvChunkStreams; // chunkstreamID -> state
 	SendChunkStreamState m_sendChunkStreams[NUM_CHUNKSTREAMS];
 	List<std::shared_ptr<Message>> m_sendQueues[NUM_PRIORITIES];
@@ -140,9 +159,20 @@ protected:
 	size_t   m_windowAckSize;
 	size_t   m_lastAckSent;
 	uint32_t m_lastAckReceived;
+	size_t   m_ackedBytes;
 	size_t   m_peerBandwidth;
 	uint8_t  m_lastPeerBandwidthType;
+	size_t   m_peerBandwidthAckSize;
+	uint32_t m_lastAckWinSent;
 	bool     m_isPaused;
+
+	size_t   m_rttAckSize;
+	size_t   m_rttPosition { 0 };
+	size_t   m_rttPreviousPosition { 0 };
+	Time     m_rttAnchor { -1.0 };
+	Time     m_baseRTTCache { 0.1 };
+	Time     m_smoothedRTT { 0.1 };
+	std::deque<RTTMeasurement> m_rttMeasurements;
 };
 
 } } } // namespace com::zenomt::rtmp
