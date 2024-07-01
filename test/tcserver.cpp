@@ -2654,7 +2654,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -T DSCP|name  -- set DiffServ field on outgoing packets (default %d)\n", dscp);
-	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, rtws, default %.3Lf)\n", delaycc_delay);
+	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, rtws, rtmp, default %.3Lf)\n", delaycc_delay);
 	printf("  -x            -- use static Diffie-Hellman keys instead of ephemeral (rtmfp)\n");
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");

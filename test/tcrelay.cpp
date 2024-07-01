@@ -849,6 +849,8 @@ public:
 		};
 		m_rtws->onRecvFlow = [this] (std::shared_ptr<rtws::RecvFlow> flow) { acceptControl(flow); };
 		m_rtws->onError = [this, myself] { callOnError(); };
+		m_rtws->minOutstandingThresh = 1024 * 16; // default 64KB probably too big
+		m_rtws->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 120.0;
 
 		return true;
 	}
@@ -1277,7 +1279,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -M            -- don't replay previous keyframe if missing at checkpoint receive\n");
 	printf("  -T DSCP|name  -- set DiffServ field on outgoing packets (default %d)\n", dscp);
-	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, default %.3Lf)\n", delaycc_delay);
+	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, rtws, rtmp, default %.3Lf)\n", delaycc_delay);
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
 	printf("  -p port       -- port for -4/-6 (default %d)\n", port);
