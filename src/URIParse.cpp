@@ -9,14 +9,6 @@
 #include "../include/rtmfp/Hex.hpp"
 #include "../include/rtmfp/URIParse.hpp"
 
-static std::string lowercase(const std::string &s)
-{
-	std::string rv;
-	for(auto it = s.begin(); it != s.end(); it++)
-		rv.push_back(::tolower(*it)); // OK for URIs, but not IRIs
-	return rv;
-}
-
 namespace com { namespace zenomt {
 
 URIParse::URIParse(const std::string &uri_)
@@ -237,6 +229,14 @@ std::string URIParse::safePercentDecode(const std::string &str)
 {
 	std::string rv = percentDecode(str);
 	return rv.empty() ? str : rv;
+}
+
+std::string URIParse::lowercase(const std::string &s)
+{
+	std::string rv;
+	for(auto it = s.begin(); it != s.end(); it++)
+		rv.push_back(::tolower(*it)); // OK for URIs, but not IRIs
+	return rv;
 }
 
 } } // namespace com::zenomt

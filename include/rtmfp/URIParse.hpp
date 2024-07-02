@@ -33,6 +33,9 @@ struct URIParse {
 	// decode a percent-encoded string, return str on error
 	static std::string safePercentDecode(const std::string &str);
 
+	// convert ASCII string to lower case using tolower(), not for Unicode/UTF-8
+	static std::string lowercase(const std::string &str);
+
 	std::string uri;
 	std::string publicUri;
 	std::string schemePart;

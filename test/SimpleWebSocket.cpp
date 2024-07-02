@@ -1,14 +1,13 @@
 // Copyright © 2022 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
-#include "rtmfp/Hex.hpp"
-
 #include <cassert>
 #include <cctype>
 #include <cstring>
 #include <regex>
 
 #include "SimpleWebSocket.hpp"
+#include "../include/rtmfp/URIParse.hpp"
 
 namespace {
 
@@ -32,35 +31,6 @@ enum {
 std::string _replace(const std::string &s, const char *pattern, const char *fmt)
 {
 	return std::regex_replace(s, std::regex(pattern), fmt);
-}
-
-std::vector<std::string> _split(const std::string &s, const char *pattern, size_t maxParts = 0)
-{
-	std::vector<std::string> rv;
-
-	std::regex r(pattern);
-	std::regex_iterator<std::string::const_iterator> it(s.begin(), s.end(), r);
-	std::regex_iterator<std::string::const_iterator> rend;
-	size_t cursor = 0;
-	while((--maxParts) and (it != rend))
-	{
-		rv.push_back(s.substr(cursor, it->position() - cursor));
-		cursor = it->position() + it->length();
-		it++;
-	}
-
-	if(cursor <= s.size())
-		rv.push_back(s.substr(cursor));
-
-	return rv;
-}
-
-std::string _lowercase(const std::string &s)
-{
-	std::string rv;
-	for(auto it = s.begin(); it != s.end(); it++)
-		rv.push_back(::tolower(*it)); // OK for HTTP headers
-	return rv;
 }
 
 std::string _trim(const std::string &s)
@@ -99,14 +69,6 @@ bool _istchar(int c)
 	default:
 		return ::isdigit(c) or ::isalpha(c);
 	}
-}
-
-bool _istoken(const std::string &s)
-{
-	for(auto it = s.begin(); it != s.end(); it++)
-		if(not _istchar(*it))
-			return false;
-	return not s.empty();
 }
 
 std::string _base64enc(const void *bytes, size_t len, bool pad = true)
@@ -200,8 +162,6 @@ void HeaderBodyStream::shutdown()
 
 void HeaderBodyStream::writeBytes(const void *bytes, size_t len)
 {
-	// Hex::print("writing bytes", bytes, len);
-
 	const uint8_t *cursor = (const uint8_t *)bytes;
 	const uint8_t *limit = cursor + len;
 	m_rawOutputBuffer.insert(m_rawOutputBuffer.end(), cursor, limit);
@@ -313,7 +273,7 @@ std::string SimpleHttpStream::getStartLine() const
 
 bool SimpleHttpStream::hasHeader(const std::string &name) const
 {
-	return m_headers.count(_lowercase(name)) > 0;
+	return m_headers.count(URIParse::lowercase(name)) > 0;
 }
 
 std::string SimpleHttpStream::getHeader(const std::string &name) const
@@ -333,10 +293,18 @@ std::string SimpleHttpStream::getHeader(const std::string &name) const
 
 std::vector<std::string> SimpleHttpStream::getHeaderValues(const std::string &name) const
 {
-	auto it = m_headers.find(_lowercase(name));
+	auto it = m_headers.find(URIParse::lowercase(name));
 	if(it != m_headers.end())
 		return it->second;
 	return std::vector<std::string>();
+}
+
+bool SimpleHttpStream::isToken(const std::string &s)
+{
+	for(auto it = s.begin(); it != s.end(); it++)
+		if(not _istchar(*it))
+			return false;
+	return not s.empty();
 }
 
 const uint8_t * SimpleHttpStream::onHeaderBytes(const uint8_t *bytes, const uint8_t *limit)
@@ -378,7 +346,7 @@ void SimpleHttpStream::parseHeaderBlock()
 	tmp = _replace(tmp, "\r", " ");
 	tmp = _replace(tmp, "\n[ \t]", " ");
 
-	auto lines = _split(tmp, "\n");
+	auto lines = URIParse::split(tmp, "\n");
 	bool needStartLine = true;
 	for(auto it = lines.begin(); it != lines.end(); it++)
 	{
@@ -389,14 +357,14 @@ void SimpleHttpStream::parseHeaderBlock()
 		}
 		else if(it->size())
 		{
-			auto parts = _split(*it, ":", 2);
-			if((2 != parts.size()) or not _istoken(parts[0]))
+			auto parts = URIParse::split(*it, ":", 2);
+			if((2 != parts.size()) or not isToken(parts[0]))
 			{
 				setClosedState();
 				return;
 			}
 
-			m_headers[_lowercase(parts[0])].push_back(_trim(parts[1]));
+			m_headers[URIParse::lowercase(parts[0])].push_back(_trim(parts[1]));
 		}
 	}
 
@@ -443,8 +411,6 @@ void SimpleWebSocket::cleanClose()
 const uint8_t * SimpleWebSocket::onBodyBytes(const uint8_t *bytes, const uint8_t *limit)
 {
 	auto myself = share_ref(this);
-
-	// Hex::print("body bytes", bytes, limit);
 
 	m_inputBuffer.insert(m_inputBuffer.end(), bytes, limit);
 	const uint8_t *buffer = m_inputBuffer.data();
@@ -671,7 +637,7 @@ void SimpleWebSocket::onHeadersComplete()
 {
 	SimpleHttpStream::onHeadersComplete();
 
-	auto startline = _split(m_startLine, " ");
+	auto startline = URIParse::split(m_startLine, " ");
 	if((startline.size() != 3) or (0 != startline[0].compare("GET")))
 	{
 		setClosedState();
@@ -680,8 +646,8 @@ void SimpleWebSocket::onHeadersComplete()
 
 	std::string websocketKey = getHeader("sec-websocket-key");
 
-	if( (0 != _lowercase(getHeader("upgrade")).compare("websocket"))
-	 or (0 != _lowercase(getHeader("connection")).compare("upgrade"))
+	if( (0 != URIParse::lowercase(getHeader("upgrade")).compare("websocket"))
+	 or (0 != URIParse::lowercase(getHeader("connection")).compare("upgrade"))
 	 or (0 != getHeader("sec-websocket-version").compare("13"))
 	 or (websocketKey.empty())
 	)

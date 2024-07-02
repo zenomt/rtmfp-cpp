@@ -66,6 +66,8 @@ public:
 
 	Task onHttpHeadersReceived;
 
+	static bool isToken(const std::string &str); // answer if str is an RFC 9110 §5.6.2 token
+
 protected:
 	const uint8_t * onHeaderBytes(const uint8_t *bytes, const uint8_t *limit) override;
 
