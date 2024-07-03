@@ -190,6 +190,7 @@ public:
 	long      m_ts_echo_tx;
 	Time      m_mrto;
 	Time      m_erto;
+	Time      m_timeout_deadline;
 	size_t    m_rx_data_packets;
 	bool      m_ack_now;
 	std::shared_ptr<Timer> m_delack_alarm;

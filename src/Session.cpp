@@ -347,6 +347,7 @@ Session::Session(RTMFP *rtmfp, std::shared_ptr<SessionCryptoKey> cryptoKey) :
 	m_ts_echo_tx(-1),
 	m_mrto(INITIAL_MRTO),
 	m_erto(INITIAL_ERTO),
+	m_timeout_deadline(0),
 	m_rx_data_packets(0),
 	m_ack_now(false),
 	m_ts_tx(-1),
@@ -979,11 +980,12 @@ void Session::scheduleFlowForTransmission(const std::shared_ptr<SendFlow> &flow,
 void Session::rescheduleTimeoutAlarm()
 {
 	if(m_timeout_alarm)
-		m_timeout_alarm->setNextFireTime(m_rtmfp->getCurrentTime() + m_erto);
+		m_timeout_deadline = m_rtmfp->getCurrentTime() + m_erto;
 	else
 	{
 		m_timeout_alarm = m_rtmfp->scheduleRel(m_erto);
 		m_timeout_alarm->action = Timer::makeAction([this] { this->onTimeoutAlarm(); });
+		m_timeout_deadline = m_timeout_alarm->getNextFireTime();
 	}
 
 	m_retransmit_deadline_epoch = std::min(m_retransmit_deadline_epoch, m_rtmfp->getCurrentTime());
@@ -991,6 +993,13 @@ void Session::rescheduleTimeoutAlarm()
 
 void Session::onTimeoutAlarm()
 {
+	Time now = m_rtmfp->getCurrentTime();
+	if(now < m_timeout_deadline)
+	{
+		m_timeout_alarm->setNextFireTime(m_timeout_deadline);
+		return;
+	}
+
 	m_timeout_alarm.reset();
 
 	m_data_burst_limit = MAX_DATA_BYTES_BURST;
@@ -1011,7 +1020,7 @@ void Session::onTimeoutAlarm()
 	}
 	else
 	{
-		if(m_rtmfp->getCurrentTime() >= m_retransmit_deadline_epoch + m_retransmit_limit)
+		if(now >= m_retransmit_deadline_epoch + m_retransmit_limit)
 		{
 			close(true);
 			return;
