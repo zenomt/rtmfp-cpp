@@ -980,7 +980,12 @@ void Session::scheduleFlowForTransmission(const std::shared_ptr<SendFlow> &flow,
 void Session::rescheduleTimeoutAlarm()
 {
 	if(m_timeout_alarm)
-		m_timeout_deadline = m_rtmfp->getCurrentTime() + m_erto;
+	{
+		Time deadline = m_rtmfp->getCurrentTime() + m_erto;
+		if(deadline < m_timeout_deadline)
+			m_timeout_alarm->setNextFireTime(deadline);
+		m_timeout_deadline = deadline;
+	}
 	else
 	{
 		m_timeout_alarm = m_rtmfp->scheduleRel(m_erto);
