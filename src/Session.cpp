@@ -981,6 +981,14 @@ void Session::rescheduleTimeoutAlarm()
 {
 	if(m_timeout_alarm)
 	{
+		// note: this is an optimization to avoid actually rescheduling
+		// the timeout alarm each time a packet is sent, because removing
+		// and reinserting into the timer list is expensive (especially when
+		// there are a lot of timers, O(log n)). instead, so long as the timeout
+		// alarm's current fire time is before the new timeout deadline, let it
+		// fire at the old time, and then if it's too early it can reschedule
+		// itself. rescheduling is still O(log n), but we end up doing
+		// it way less often this way.
 		Time deadline = m_rtmfp->getCurrentTime() + m_erto;
 		if(deadline < m_timeout_deadline)
 			m_timeout_alarm->setNextFireTime(deadline);
@@ -1001,6 +1009,9 @@ void Session::onTimeoutAlarm()
 	Time now = m_rtmfp->getCurrentTime();
 	if(now < m_timeout_deadline)
 	{
+		// the other half of the optimization in rescheduleTimeoutAlarm().
+		// ordinarily we'd always fire right on time, but rescheduling
+		// the alarm on each packet send is expensive according to profiling.
 		m_timeout_alarm->setNextFireTime(m_timeout_deadline);
 		return;
 	}
