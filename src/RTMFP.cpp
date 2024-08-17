@@ -17,6 +17,7 @@ RTMFP::RTMFP(IPlatformAdapter *platformAdapter, ICryptoAdapter *cryptoAdapter) :
 	m_platform(platformAdapter),
 	m_crypto(cryptoAdapter),
 	m_plaintextBuf(nullptr),
+	m_ciphertextBuf(nullptr),
 	m_nextThreadNum(0),
 	m_waitingPerformCount(0),
 	m_sessionReportingTC(0),
@@ -29,21 +30,30 @@ RTMFP::RTMFP(IPlatformAdapter *platformAdapter, ICryptoAdapter *cryptoAdapter) :
 	m_shutdown(false),
 	m_shutdownComplete(false)
 {
+	m_crypto->pseudoRandomBytes(m_secret, sizeof(m_secret));
+
 	m_timers.onHowLongToSleepDidChange = [this] { m_platform->onHowLongToSleepDidChange(); };
+
+	m_startupSession = share_ref(new StartupSession(this, m_crypto->getKeyForNewSession()), false);
+
 	m_plaintextBuf = (uint8_t *)malloc(DECRYPT_BUF_LENGTH);
 	m_ciphertextBuf = (uint8_t *)malloc(ENCRYPT_BUF_LENGTH + ENCRYPT_BUF_MARGIN);
 
 	if((not m_plaintextBuf) or (not m_ciphertextBuf))
 		goto fail;
 
-	m_startupSession = share_ref(new StartupSession(this, m_crypto->getKeyForNewSession()), false);
 	m_epoch = getCurrentTime();
-
-	m_crypto->pseudoRandomBytes(m_secret, sizeof(m_secret));
 
 	return;
 
 fail:
+	if(m_startupSession)
+		m_startupSession.reset();
+	if(m_plaintextBuf)
+		free(m_plaintextBuf);
+	if(m_ciphertextBuf)
+		free(m_ciphertextBuf);
+
 #if __cpp_exceptions
 	throw std::bad_alloc();
 #else
