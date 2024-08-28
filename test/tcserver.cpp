@@ -956,10 +956,18 @@ protected:
 		}
 		m_connecting = true;
 
-		auto app = args[2]->getValueAtKey("app");
+		auto commandObject = args[2]->asObject();
+		if(not commandObject)
+		{
+			clientLog("error", {{"reason", AMF0::String("connect-missing-command-object")}});
+			close();
+			return;
+		}
+
+		auto app = commandObject->getValueAtKey("app");
 		if(not app->isString())
 		{
-			auto tcUrl = args[2]->getValueAtKey("tcUrl");
+			auto tcUrl = commandObject->getValueAtKey("tcUrl");
 			if(not tcUrl->isString())
 			{
 				clientLog("error", {{"reason", AMF0::String("connect-missing-app-and-tcUrl")}});
@@ -1006,7 +1014,7 @@ protected:
 		else if(m_disconnectAfter < INFINITY)
 			m_disconnectTimer = mainRL.scheduleRel(Timer::makeAction([this] { close(); }), m_disconnectAfter);
 
-		auto objectEncoding = args[2]->getValueAtKey("objectEncoding");
+		auto objectEncoding = commandObject->getValueAtKey("objectEncoding");
 		if(not objectEncoding->isNumber())
 			objectEncoding = AMF0::Number(0);
 
@@ -1022,8 +1030,13 @@ protected:
 			->putValueAtKey(AMF0::Number(0), "capsEx") // no support for multitrack or reconnect
 			->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(CAN_FORWARD), "*"), "videoFourCcInfoMap")
 			->putValueAtKey(AMF0::Object()->putValueAtKey(AMF0::Number(CAN_FORWARD), "*"), "audioFourCcInfoMap")
-			->putValueAtKey(AMF0::Array()->appendValue(AMF0::String("*")), "fourCcList")
 			->putValueAtKey(AMF0::String(Hex::encode(flashcrypto->getFingerprint())), "serverFingerprint");
+
+		// Amcrest cameras fail the connection if the result contains an array! :(
+		// fourCcList is superseded by the *FourCcInfoMap properties, so only include
+		// it in the response if the client included it in connect.
+		if(commandObject->has("fourCcList"))
+			resultObject->putValueAtKey(AMF0::Array()->appendValue(AMF0::String("*")), "fourCcList");
 
 		if(matchedKey >= 0)
 		{
@@ -1042,7 +1055,7 @@ protected:
 
 		m_connected = true;
 
-		clientLog("connect", {{"tcUrl", args[2]->getValueAtKey("tcUrl")}, {"connectArg", m_username.empty() ? nullptr : AMF0::String(m_username)}});
+		clientLog("connect", {{"tcUrl", commandObject->getValueAtKey("tcUrl")}, {"connectArg", m_username.empty() ? nullptr : AMF0::String(m_username)}});
 		connectCount++;
 		showStats = true;
 
