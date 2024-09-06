@@ -344,7 +344,10 @@ bool RTMP::writeRawOutputBuffer()
 		m_platform->writeBytes(m_rawOutputBuffer.data(), m_rawOutputBuffer.size());
 		m_sentBytes += m_rawOutputBuffer.size();
 		m_rawOutputBuffer.clear();
-		startRTT();
+
+		if(RT_OPEN == m_state)
+			startRTT();
+
 		return true;
 	}
 	return false;
