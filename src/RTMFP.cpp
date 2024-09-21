@@ -225,13 +225,16 @@ bool RTMFP::onReceivePacket(const void *bytes_, size_t len, int interfaceID, con
 	memmove(&sid_decode, bytes, len < sizeof(sid_decode) ? len : sizeof(sid_decode));
 	uint32_t sessionID = sid_decode[0] ^ sid_decode[1] ^ sid_decode[2];
 
-	ISession *session = nullptr;
-	if(0 == sessionID)
-		session = m_startupSession.get();
-	else if(m_sessions.has(sessionID))
-		session = m_sessions.at(sessionID).get();
+	std::shared_ptr<ISession> session;
 
-	return session ? session->onReceivePacket(bytes + sizeof(uint32_t), len - sizeof(uint32_t), interfaceID, addr, tos, m_plaintextBuf) : false;
+	if(0 == sessionID)
+		session = m_startupSession;
+	else if(m_sessions.has(sessionID))
+		session = m_sessions.at(sessionID);
+	else
+		return false;
+
+	return session->onReceivePacket(bytes + sizeof(uint32_t), len - sizeof(uint32_t), interfaceID, addr, tos, m_plaintextBuf);
 }
 
 bool RTMFP::scheduleWrite(int interfaceID, std::shared_ptr<ISession> session, int pri)

@@ -525,6 +525,8 @@ void Session::abortFlowsAndTimers()
 		it->second->abort();
 		m_recvFlows.erase(it);
 	}
+
+	m_ackFlows.clear();
 }
 
 void Session::abort()
