@@ -647,7 +647,7 @@ void SimpleWebSocket::onHeadersComplete()
 	std::string websocketKey = getHeader("sec-websocket-key");
 
 	if( (0 != URIParse::lowercase(getHeader("upgrade")).compare("websocket"))
-	 or (0 != URIParse::lowercase(getHeader("connection")).compare("upgrade"))
+	 or (std::string::npos == URIParse::lowercase(getHeader("connection")).find("upgrade"))
 	 or (0 != getHeader("sec-websocket-version").compare("13"))
 	 or (websocketKey.empty())
 	)
