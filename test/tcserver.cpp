@@ -76,6 +76,7 @@ bool allowMultipleConnections = false;
 bool interrupted = false;
 bool stopping = false;
 bool showStats = false;
+bool showClients = false;
 bool unregister = false;
 bool shuttingDown = false;
 bool allowConnectDuringShutdown = false;
@@ -184,12 +185,25 @@ Time unixCurrentTime()
 	return Time(tp.tv_sec) + Time(tp.tv_nsec) / Time(1000000000.0);
 }
 
-void jsonLog(const std::string &type, const LogAttributes &attrlist)
+AMF0Object * putLogAttributes(const std::shared_ptr<AMF0Object> &dst, const LogAttributes &attrlist)
+{
+	for(auto it = attrlist.begin(); it != attrlist.end(); it++)
+		dst->putValueAtKey(it->second, it->first);
+	return dst.get();
+}
+
+LogAttributes catLogAttributes(const LogAttributes &l, const LogAttributes &r)
+{
+	auto rv = l;
+	rv.insert(rv.end(), r.begin(), r.end());
+	return rv;
+}
+
+void jsonLog(const std::string &type, const LogAttributes &attrlist, bool pretty = false)
 {
 	auto attrs = AMF0::Object();
 
-	for(auto it = attrlist.begin(); it != attrlist.end(); it++)
-		attrs->putValueAtKey(it->second, it->first);
+	putLogAttributes(attrs, attrlist);
 
 	attrs
 		->putValueAtKey(AMF0::Number(pid), "@pid")
@@ -198,7 +212,7 @@ void jsonLog(const std::string &type, const LogAttributes &attrlist)
 		->putValueAtKey(AMF0::String(type), "@type")
 	;
 
-	printf("%s\n", attrs->toJSON(0).c_str());
+	printf("%s\n", attrs->toJSON(pretty ? 4 : 0).c_str());
 }
 
 struct NetStream : public Object {
@@ -293,6 +307,18 @@ struct NetStream : public Object {
 		m_chain.expire(
 			m_expirePreviousGop ? mainRL.getCurrentTime() + m_previousGopStartByMargin : INFINITY,
 			m_expirePreviousGop ? mainRL.getCurrentTime() + m_finishByMargin : INFINITY);
+	}
+
+	LogAttributes stats() const
+	{
+		return {
+			{"streamID", AMF0::Number(m_streamID)},
+			{"name", AMF0::String(m_name)},
+			{"hashname", AMF0::String(m_hashname)},
+			{"query", AMF0::String(m_query)},
+			{"duration", AMF0::Number(::round(m_streamDuration * 1000.0) / 1000.0)},
+			{"state", AMF0::String(NS_PUBLISHING == m_state ? "publishing" : (NS_PLAYING == m_state ? "playing" : "idle"))}
+		};
 	}
 
 	std::shared_ptr<Client> m_owner;
@@ -469,6 +495,19 @@ public:
 	{
 	}
 
+	LogAttributes stats() const
+	{
+		return {
+			{"publishes", AMF0::Number(m_publishes)},
+			{"plays", AMF0::Number(m_subscribes)},
+			{"broadcasts", AMF0::Number(m_broadcasts)},
+			{"relaysIn", AMF0::Number(m_relaysIn)},
+			{"relaysOut", AMF0::Number(m_relaysOut)},
+			{"publishedDuration", AMF0::Number(::round(m_publishedDuration))},
+			{"playedDuration", AMF0::Number(::round(m_playedDuration))}
+		};
+	}
+
 	virtual void close()
 	{
 		clientLog("closing", {});
@@ -496,15 +535,7 @@ public:
 		m_app.reset();
 
 		// log after tearing everything down to catch all accounting
-		clientLog("close", {
-			{"publishes", AMF0::Number(m_publishes)},
-			{"plays", AMF0::Number(m_subscribes)},
-			{"broadcasts", AMF0::Number(m_broadcasts)},
-			{"relaysIn", AMF0::Number(m_relaysIn)},
-			{"relaysOut", AMF0::Number(m_relaysOut)},
-			{"publishedDuration", AMF0::Number(::round(m_publishedDuration))},
-			{"playedDuration", AMF0::Number(::round(m_playedDuration))}
-		});
+		clientLog("close", stats());
 		showStats = true;
 	}
 
@@ -751,6 +782,21 @@ public:
 				->putValueAtKey(AMF0::String("NetConnection.Shutdown.Notify"), "code") // not NetConnection.Connect.AppShutdown
 				->putValueAtKey(AMF0::String("server is shutting down, please clean up"), "description")
 			), INFINITY, INFINITY);
+	}
+
+	std::shared_ptr<AMF0Object> dump() const
+	{
+		auto rv = AMF0::Object();
+		putLogAttributes(rv, connectionAttributes());
+		putLogAttributes(rv, stats());
+
+		auto streams = AMF0::Array();
+		for(auto it = m_netStreams.begin(); it != m_netStreams.end(); it++)
+			streams->appendValue(putLogAttributes(AMF0::Object(), it->second->stats()));
+
+		rv->putValueAtKey(streams, "streams");
+
+		return rv;
 	}
 
 protected:
@@ -1234,13 +1280,7 @@ protected:
 
 	void logStreamEvent(const char *name, std::shared_ptr<NetStream> netStream)
 	{
-		clientLog(name, {
-			{"streamID", AMF0::Number(netStream->m_streamID)},
-			{"name", AMF0::String(netStream->m_name)},
-			{"hashname", AMF0::String(netStream->m_hashname)},
-			{"query", AMF0::String(netStream->m_query)},
-			{"duration", AMF0::Number(::round(netStream->m_streamDuration * 1000.0) / 1000.0)}
-		});
+		clientLog(name, netStream->stats());
 	}
 
 	void onPublishCommand(std::shared_ptr<NetStream> netStream, const Args &args)
@@ -1514,15 +1554,20 @@ protected:
 		m_app->m_playedDuration += delta;
 	}
 
+	LogAttributes connectionAttributes() const
+	{
+		return {
+			{"connectionID", AMF0::String(connectionIDStr())},
+			{"address", AMF0::String(m_farAddressStr)},
+			{"app", m_connected ? AMF0::String(m_appName) : nullptr},
+			{"proto", AMF0::String(protocol())},
+			{"username", m_publishUsername.empty() ? nullptr : AMF0::String(m_publishUsername)},
+		};
+	}
+
 	void clientLog(const std::string &type, const LogAttributes &attrs)
 	{
-		auto clientAttrs = attrs;
-		clientAttrs.push_back({"connectionID", AMF0::String(connectionIDStr())});
-		clientAttrs.push_back({"address", AMF0::String(m_farAddressStr)});
-		clientAttrs.push_back({"app", m_connected ? AMF0::String(m_appName) : nullptr});
-		clientAttrs.push_back({"proto", AMF0::String(protocol())});
-		clientAttrs.push_back({"username", m_publishUsername.empty() ? nullptr : AMF0::String(m_publishUsername)});
-		jsonLog(type, clientAttrs);
+		jsonLog(type, catLogAttributes(attrs, connectionAttributes()));
 	}
 
 	virtual std::string protocol() const = 0;
@@ -2474,6 +2519,11 @@ void stats_signal_handler(int param)
 	showStats = true;
 }
 
+void show_clients_signal_handler(int param)
+{
+	showClients = true;
+}
+
 void unregister_signal_handler(int param)
 {
 	unregister = true;
@@ -2504,6 +2554,18 @@ void printStats()
 		{"publishedDuration", AMF0::Number(::round(publishedDuration))},
 		{"playedDuration", AMF0::Number(::round(playedDuration))}
 	});
+
+	fflush(stdout);
+}
+
+void printClients()
+{
+	auto clientDumps = AMF0::Array();
+	for(auto it = clients.begin(); it != clients.end(); it++)
+		clientDumps->appendValue(it->second->dump());
+	jsonLog("clients", {{"clients", clientDumps}}, isatty(fileno(stdout)));
+	showClients = false;
+
 	fflush(stdout);
 }
 
@@ -2690,6 +2752,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  SIGINFO -- print stats\n");
 #endif
 	printf("  SIGUSR1 -- print stats\n");
+	printf("  SIGUSR2 -- show all clients and streams\n");
 	return rv;
 }
 
@@ -2949,6 +3012,8 @@ int main(int argc, char **argv)
 	::signal(SIGINFO, stats_signal_handler); // not POSIX, very common but not on Linux
 #endif
 
+	::signal(SIGUSR2, show_clients_signal_handler);
+
 	mainRL.onEveryCycle = [&rtmfp, &rtmfpShutdownComplete, &listenFds] {
 		if(unregister and shuttingDown)
 			interrupted = true;
@@ -2983,6 +3048,9 @@ int main(int argc, char **argv)
 
 		if(showStats)
 			printStats();
+
+		if(showClients)
+			printClients();
 
 		if(unregister)
 		{
