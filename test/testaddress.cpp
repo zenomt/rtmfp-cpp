@@ -52,6 +52,22 @@ static void _testAddress(const char *src, bool withPort, bool shouldWork)
 
 int main(int argc, char *argv[])
 {
+	if(argc > 1)
+	{
+		int ai_err = 0;
+		auto addrs = Address::lookup(argv[1], "1935", &ai_err);
+		if(ai_err)
+		{
+			printf("err: %d %s\n", ai_err, gai_strerror(ai_err));
+			return ai_err;
+		}
+
+		for(auto it = addrs.begin(); it != addrs.end(); it++)
+			printf("%s\n", it->toPresentation(false).c_str());
+
+		return 0;
+	}
+
 	uint8_t dst[Address::MAX_ENCODED_SIZE] = { 0 };
 	size_t dstLen;
 
