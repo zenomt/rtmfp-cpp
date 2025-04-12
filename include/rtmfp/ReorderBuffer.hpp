@@ -10,13 +10,13 @@ namespace com { namespace zenomt { namespace rtmfp {
 
 class ReorderBuffer : public Object {
 public:
-	ReorderBuffer(Time windowPeriod = INFINITY);
+	ReorderBuffer(Duration windowPeriod = INFINITY);
 	~ReorderBuffer();
 
 	void close();
 
-	void setReorderWindowPeriod(Time val);
-	Time getReorderWindowPeriod() const;
+	void     setReorderWindowPeriod(Duration val);
+	Duration getReorderWindowPeriod() const;
 
 	void insert(const uint8_t *bytes, size_t len, uintmax_t sequenceNumber, size_t fragmentCount);
 	void deliverThrough(uintmax_t sequenceNumber);
@@ -46,7 +46,7 @@ protected:
 	void scheduleDelivery();
 	void findCSN(Time now);
 
-	Time m_reorderPeriod;
+	Duration m_reorderPeriod;
 	uintmax_t m_csn;
 	uintmax_t m_deliveredThrough;
 	uintmax_t m_highestSeen;
@@ -57,7 +57,7 @@ protected:
 
 class RunLoopReorderBuffer : public ReorderBuffer {
 public:
-	RunLoopReorderBuffer(RunLoop *runloop, Time windowPeriod = INFINITY) :
+	RunLoopReorderBuffer(RunLoop *runloop, Duration windowPeriod = INFINITY) :
 		ReorderBuffer(windowPeriod),
 		m_runloop(runloop)
 	{}

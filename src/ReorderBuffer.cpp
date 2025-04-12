@@ -19,11 +19,11 @@ ReorderBuffer::Message::Message(const uint8_t *payload, size_t len, uintmax_t se
 	m_rxTime(now)
 {}
 
-ReorderBuffer::ReorderBuffer(Time windowPeriod) :
+ReorderBuffer::ReorderBuffer(Duration windowPeriod) :
 	m_csn(0),
 	m_deliveredThrough(0)
 {
-	m_reorderPeriod = std::max(windowPeriod, Time(0));
+	m_reorderPeriod = std::max(windowPeriod, Duration(0));
 }
 
 ReorderBuffer::~ReorderBuffer()
@@ -44,7 +44,7 @@ void ReorderBuffer::close()
 	release();
 }
 
-void ReorderBuffer::setReorderWindowPeriod(Time val)
+void ReorderBuffer::setReorderWindowPeriod(Duration val)
 {
 	if(val < 0.0)
 		val = 0;
@@ -57,7 +57,7 @@ void ReorderBuffer::setReorderWindowPeriod(Time val)
 	}
 }
 
-Time ReorderBuffer::getReorderWindowPeriod() const
+Duration ReorderBuffer::getReorderWindowPeriod() const
 {
 	return m_reorderPeriod;
 }
