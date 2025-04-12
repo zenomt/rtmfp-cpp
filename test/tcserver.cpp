@@ -62,15 +62,15 @@ enum {
 int verbose = 0;
 bool requireHMAC = true;
 bool requireSSEQ = true;
-Time videoLifetime = 2.0;
-Time audioLifetime = 2.2;
-Time finishByMargin = 0.1;
-Time previousGopStartByMargin = 0.1;
-Time checkpointLifetime = 4.5;
-Time reorderWindowPeriod = 1.0;
-Time delaycc_delay = INFINITY;
-Time shutdownTimeout = 10.0;
-Time gracefulShutdownTimeout = 300.0;
+Duration videoLifetime = 2.0;
+Duration audioLifetime = 2.2;
+Duration finishByMargin = 0.1;
+Duration previousGopStartByMargin = 0.1;
+Duration checkpointLifetime = 4.5;
+Duration reorderWindowPeriod = 1.0;
+Duration delaycc_delay = INFINITY;
+Duration shutdownTimeout = 10.0;
+Duration gracefulShutdownTimeout = 300.0;
 bool expirePreviousGop = true;
 bool allowMultipleConnections = false;
 bool interrupted = false;
@@ -88,8 +88,8 @@ const char *serverInfo = nullptr;
 std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 pid_t pid;
 std::string serverId;
-Time streamAccountingMin = 1.0;
-Time streamAccountingMax = 2.0;
+Duration streamAccountingMin = 1.0;
+Duration streamAccountingMax = 2.0;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);
@@ -113,8 +113,8 @@ size_t relaysIn = 0;
 size_t relaysOut = 0;
 size_t lookupCount = 0;
 size_t introCount = 0;
-Time   publishedDuration = 0.0;
-Time   playedDuration = 0.0;
+Duration publishedDuration = 0.0;
+Duration playedDuration = 0.0;
 
 std::string protocolDescription(Protocol protocol)
 {
@@ -174,7 +174,7 @@ long double paramValueToFloat(const std::string &str, long double defaultValue)
 	return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
 }
 
-Time unixCurrentTime()
+long double unixCurrentTime()
 {
 	// note: C++20 guarantees that std::chrono::system_clock measures
 	// Unix time, but we're C++11 right now, which doesn't.
@@ -182,7 +182,7 @@ Time unixCurrentTime()
 	struct timespec tp;
 	if(::clock_gettime(CLOCK_REALTIME, &tp))
 		return -1.0;
-	return Time(tp.tv_sec) + Time(tp.tv_nsec) / Time(1000000000.0);
+	return (long double)(tp.tv_sec) + (((long double)tp.tv_nsec) / ((long double)1000000000.0));
 }
 
 AMF0Object * putLogAttributes(const std::shared_ptr<AMF0Object> &dst, const LogAttributes &attrlist)
@@ -235,15 +235,15 @@ struct NetStream : public Object {
 		m_seenKeyframe = false;
 	}
 
-	static void trySetTimeParam(Time *dst, const std::map<std::string, std::string> &params, const std::string &key, Time defaultSetting)
+	static void trySetTimeParam(Time *dst, const std::map<std::string, std::string> &params, const std::string &key, Duration defaultSetting)
 	{
 		auto it = params.find(key);
 		if(it != params.end())
 		{
-			Time timeValue = paramValueToFloat(it->second, -1);
+			Duration timeValue = paramValueToFloat(it->second, -1);
 			if(timeValue >= 0.0)
 			{
-				Time max = std::max(Time(10.0), defaultSetting * 2); // safety to avoid buffering too much
+				Duration max = std::max(Duration(10.0), defaultSetting * 2); // safety to avoid buffering too much
 				*dst = std::min(timeValue, max);
 
 				if(verbose) printf("set play param %s to %f\n", key.c_str(), (double)*dst);
@@ -280,10 +280,10 @@ struct NetStream : public Object {
 			m_timestampOffset = m_highestTimestamp = m_minTimestamp = 0;
 	}
 
-	Time updateTimeAccounting(bool wrappingUp)
+	Duration updateTimeAccounting(bool wrappingUp)
 	{
 		Time now = mainRL.getCurrentTime();
-		Time delta = now - m_lastStreamAcctTime;
+		Duration delta = now - m_lastStreamAcctTime;
 		if((delta >= streamAccountingMin) or wrappingUp)
 		{
 			m_lastStreamAcctTime = wrappingUp ? -INFINITY : now;
@@ -336,11 +336,11 @@ struct NetStream : public Object {
 	bool m_paused { false };
 	bool m_receiveVideo { true };
 	bool m_receiveAudio { true };
-	Time m_audioLifetime;
-	Time m_videoLifetime;
-	Time m_finishByMargin;
-	Time m_previousGopStartByMargin;
-	Time m_streamDuration { 0.0 };
+	Duration m_audioLifetime;
+	Duration m_videoLifetime;
+	Duration m_finishByMargin;
+	Duration m_previousGopStartByMargin;
+	Duration m_streamDuration { 0.0 };
 	Time m_lastStreamAcctTime { -INFINITY };
 	bool m_expirePreviousGop;
 	WriteReceiptChain m_chain;
@@ -443,8 +443,8 @@ public:
 
 	size_t m_relaysIn { 0 };
 	size_t m_relaysOut { 0 };
-	Time   m_publishedDuration { 0.0 };
-	Time   m_playedDuration { 0.0 };
+	Duration m_publishedDuration { 0.0 };
+	Duration m_playedDuration { 0.0 };
 protected:
 	void cleanupStream(const std::string &hashname);
 
@@ -539,9 +539,9 @@ public:
 		showStats = true;
 	}
 
-	virtual std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) = 0;
+	virtual std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) = 0;
 
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin, Time finishWithin)
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin, Duration finishWithin)
 	{
 		return write(streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 	}
@@ -597,7 +597,7 @@ public:
 
 		netStream->m_restarted = false;
 
-		Time startWithin = INFINITY;
+		Duration startWithin = INFINITY;
 		bool isVideoCodingLayer = false;
 
 		switch(messageType)
@@ -1540,14 +1540,14 @@ protected:
 			m_disconnectAfter = std::min(expiration - unixNow, expiresIn);
 	}
 
-	void updatePublishedDuration(Time delta)
+	void updatePublishedDuration(Duration delta)
 	{
 		publishedDuration += delta;
 		m_publishedDuration += delta;
 		m_app->m_publishedDuration += delta;
 	}
 
-	void updatePlayedDuration(Time delta)
+	void updatePlayedDuration(Duration delta)
 	{
 		playedDuration += delta;
 		m_playedDuration += delta;
@@ -1581,7 +1581,7 @@ protected:
 	double m_maxPublishPriority { 0 };
 	size_t m_maxPublishingCount { SIZE_MAX };
 	size_t m_publishingCount { 0 };
-	Time m_disconnectAfter { INFINITY };
+	Duration m_disconnectAfter { INFINITY };
 	std::string m_publishUsername;
 	std::string m_username;
 	std::string m_appName;
@@ -1590,8 +1590,8 @@ protected:
 	size_t m_broadcasts { 0 };
 	size_t m_relaysIn { 0 };
 	size_t m_relaysOut { 0 };
-	Time m_publishedDuration { 0.0 };
-	Time m_playedDuration { 0.0 };
+	Duration m_publishedDuration { 0.0 };
+	Duration m_playedDuration { 0.0 };
 	Bytes m_connectionID;
 	Address m_farAddress;
 	std::string m_farAddressStr;
@@ -1673,7 +1673,7 @@ public:
 
 	using Client::write;
 
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, (const uint8_t *)payload, len), startWithin, finishWithin);
@@ -1724,7 +1724,7 @@ protected:
 			return flowRef->get();
 		}
 
-		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin)
 		{
 			SendFlow *flow = openFlowForType(control, streamID, messageType);
 			if(not flow)
@@ -1991,7 +1991,7 @@ public:
 		m_rtmp->onopen = nullptr;
 	}
 
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		Priority pri = PRI_ROUTINE;
 		switch(messageType)
@@ -2078,7 +2078,7 @@ public:
 		onShutdownComplete();
 	}
 
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, (const uint8_t *)payload, len), startWithin, finishWithin);
@@ -2119,7 +2119,7 @@ protected:
 			return flowRef->get();
 		}
 
-		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin)
 		{
 			rtws::SendFlow *flow = openFlowForType(control, streamID, messageType);
 			if(not flow)

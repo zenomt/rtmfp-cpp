@@ -64,13 +64,13 @@ bool interleave = false;
 bool sendVideoCheckpoint = false;
 bool replayCheckpointFrame = true;
 bool collapseAudioGaps = false;
-Time videoLifetime = 2.0;
-Time audioLifetime = 2.2;
-Time finishByMargin = 0.1;
-Time previousGopStartByMargin = 0.1;
-Time checkpointLifetime = 4.5;
-Time reorderWindowPeriod = 1.0;
-Time delaycc_delay = INFINITY;
+Duration videoLifetime = 2.0;
+Duration audioLifetime = 2.2;
+Duration finishByMargin = 0.1;
+Duration previousGopStartByMargin = 0.1;
+Duration checkpointLifetime = 4.5;
+Duration reorderWindowPeriod = 1.0;
+Duration delaycc_delay = INFINITY;
 ReceiveOrder mediaReceiveIntent = RO_SEQUENCE;
 bool expirePreviousGop = true;
 bool interrupted = false;
@@ -127,7 +127,7 @@ public:
 	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len)
 	{
 		const uint8_t *data = (const uint8_t *)payload;
-		Time startWithin = INFINITY;
+		Duration startWithin = INFINITY;
 		bool isVideoCodingLayer = false;
 		auto &streamState = m_streamStates[streamID];
 
@@ -181,7 +181,7 @@ public:
 			break;
 		}
 
-		Time finishWithin = startWithin + finishByMargin;
+		Duration finishWithin = startWithin + finishByMargin;
 
 		auto rv = basicWrite(streamID, messageType, timestamp, data, len, startWithin, finishWithin);
 
@@ -243,7 +243,7 @@ public:
 	Task onShutdownCompleteCallback;
 
 protected:
-	virtual std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) = 0;
+	virtual std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin) = 0;
 
 	void callOnError()
 	{
@@ -431,7 +431,7 @@ error:
 	}
 
 protected:
-	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(not m_connectionOpen)
 			openConnection(); // lazy open outgoing connections so we know client is talking RTMP
@@ -553,7 +553,7 @@ protected:
 			return flowRef->get();
 		}
 
-		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin)
 		{
 			if(not control)
 				return nullptr; // connection must be open before we can write to NetStream flows
@@ -570,7 +570,7 @@ protected:
 		std::shared_ptr<SendFlow> m_data;
 	};
 
-	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, payload, len), startWithin, finishWithin);
@@ -799,7 +799,7 @@ notfound:
 		});
 	}
 
-	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(not m_controlSend)
 			openConnection(findConnectUri(streamID, messageType, payload, len));
@@ -922,7 +922,7 @@ protected:
 			return flowRef->get();
 		}
 
-		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<rtws::RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin)
 		{
 			auto flow = openFlowForType(control, streamID, messageType);
 			if(not flow)
@@ -936,7 +936,7 @@ protected:
 		std::shared_ptr<rtws::SendFlow> m_data;
 	};
 
-	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin) override
+	std::shared_ptr<WriteReceipt> basicWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, payload, len), startWithin, finishWithin);
