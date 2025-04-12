@@ -59,7 +59,7 @@ public:
 	std::shared_ptr<TCStream> createStream();
 
 	bool ignoreSetKeepaliveUserCommand { false }; // If true, ignore TC_USERCONTROL_SET_KEEPALIVE from the server.
-	Time reorderWindowPeriod { 1.0 }; // For transports that can receive out-of-order, like RTMFP.
+	Duration reorderWindowPeriod { 1.0 }; // For transports that can receive out-of-order, like RTMFP.
 	Task onTransportOpen; // Called when the transport layer is open (e.g. RTMFP session to the server is connected).
 	Task onClose;
 	std::function<void(std::shared_ptr<AMF0> info)> onStatus; // Called with NetStatusEvents from the server.
@@ -71,8 +71,8 @@ public:
 protected:
 	friend class TCStream;
 
-	virtual std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) = 0;
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin, Time finishWithin);
+	virtual std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) = 0;
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin, Duration finishWithin);
 
 	void onMessage(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len);
 	void onCommandMessage(uint32_t streamID, uint8_t messageType, const uint8_t *payload, size_t len);
@@ -130,11 +130,11 @@ public:
 	std::shared_ptr<WriteReceipt> send(const std::string &command, const Args &args = {});
 	std::shared_ptr<WriteReceipt> send(uint32_t timestamp, const std::string &command, const Args &args = {});
 
-	std::shared_ptr<WriteReceipt> sendAudio(uint32_t timestamp, const void *bytes, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
-	std::shared_ptr<WriteReceipt> sendAudio(uint32_t timestamp, const Bytes &bytes, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> sendAudio(uint32_t timestamp, const void *bytes, size_t len, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> sendAudio(uint32_t timestamp, const Bytes &bytes, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
 
-	std::shared_ptr<WriteReceipt> sendVideo(uint32_t timestamp, const void *bytes, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
-	std::shared_ptr<WriteReceipt> sendVideo(uint32_t timestamp, const Bytes &bytes, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> sendVideo(uint32_t timestamp, const void *bytes, size_t len, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> sendVideo(uint32_t timestamp, const Bytes &bytes, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
 
 	// Align delivery of all video, audio, and data messages sent so far.
 	// See RFC 7425 §5.2. Synchronization can cause a priority inversion; use with care.
@@ -193,8 +193,8 @@ public:
 	bool init(RTMFP *rtmfp, const Bytes &epd);
 
 	// Add candidate addresses for establishing a session to epd.
-	void addCandidateAddress(const Address &addr, Time delay = 0);
-	void addCandidateAddress(const struct sockaddr *addr, Time delay = 0);
+	void addCandidateAddress(const Address &addr, Duration delay = 0);
+	void addCandidateAddress(const struct sockaddr *addr, Duration delay = 0);
 	void addCandidateAddresses(const std::vector<Address> &addrs);
 
 	bool refreshSession(); // Send a pre-abandoned message, for example to hasten detection of an address change.
@@ -210,7 +210,7 @@ protected:
 	struct NetStreamTransport {
 		~NetStreamTransport();
 		SendFlow * openFlowForType(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType);
-		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin);
+		std::shared_ptr<WriteReceipt> write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin);
 		void sync(uint32_t syncID);
 
 		std::shared_ptr<SendFlow> m_video;
@@ -220,9 +220,9 @@ protected:
 	};
 
 	using rtmp::TCConnection::write;
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin) override;
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) override;
 
-	virtual std::shared_ptr<ReorderBuffer> reorderBufferFactory(Time windowPeriod) = 0;
+	virtual std::shared_ptr<ReorderBuffer> reorderBufferFactory(Duration windowPeriod) = 0;
 	void acceptFlow(std::shared_ptr<RecvFlow> flow);
 	void setOnMessage(std::shared_ptr<RecvFlow> flow, uint32_t streamID, std::shared_ptr<ReorderBuffer> reorderBuffer);
 	void deliverMessage(uint32_t streamID, const uint8_t *bytes, size_t len);
@@ -252,7 +252,7 @@ public:
 	{}
 
 protected:
-	std::shared_ptr<ReorderBuffer> reorderBufferFactory(Time windowPeriod) override
+	std::shared_ptr<ReorderBuffer> reorderBufferFactory(Duration windowPeriod) override
 	{
 		return share_ref(new RunLoopReorderBuffer(m_runloop, windowPeriod), false);
 	}

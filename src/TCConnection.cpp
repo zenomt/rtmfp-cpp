@@ -125,7 +125,7 @@ std::shared_ptr<AMF0> TCConnection::safeFirstArg(const Args &args)
 
 // ---
 
-std::shared_ptr<WriteReceipt> TCConnection::write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> TCConnection::write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin, Duration finishWithin)
 {
 	return write(streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 }
@@ -423,26 +423,26 @@ std::shared_ptr<WriteReceipt> TCStream::send(uint32_t timestamp, const std::stri
 	return m_owner->write(m_streamID, TCMSG_DATA, 0, msg, INFINITY, INFINITY);
 }
 
-std::shared_ptr<WriteReceipt> TCStream::sendAudio(uint32_t timestamp, const void *bytes, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> TCStream::sendAudio(uint32_t timestamp, const void *bytes, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(0 == m_streamID)
 		return nullptr;
 	return m_owner->write(m_streamID, TCMSG_AUDIO, timestamp, bytes, len, startWithin, finishWithin);
 }
 
-std::shared_ptr<WriteReceipt> TCStream::sendAudio(uint32_t timestamp, const Bytes &bytes, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> TCStream::sendAudio(uint32_t timestamp, const Bytes &bytes, Duration startWithin, Duration finishWithin)
 {
 	return sendAudio(timestamp, bytes.data(), bytes.size(), startWithin, finishWithin);
 }
 
-std::shared_ptr<WriteReceipt> TCStream::sendVideo(uint32_t timestamp, const void *bytes, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> TCStream::sendVideo(uint32_t timestamp, const void *bytes, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(0 == m_streamID)
 		return nullptr;
 	return m_owner->write(m_streamID, TCMSG_VIDEO, timestamp, bytes, len, startWithin, finishWithin);
 }
 
-std::shared_ptr<WriteReceipt> TCStream::sendVideo(uint32_t timestamp, const Bytes &bytes, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> TCStream::sendVideo(uint32_t timestamp, const Bytes &bytes, Duration startWithin, Duration finishWithin)
 {
 	return sendVideo(timestamp, bytes.data(), bytes.size(), startWithin, finishWithin);
 }
@@ -621,13 +621,13 @@ bool RTMFPTCConnection::init(RTMFP *rtmfp, const Bytes &epd)
 	return true;
 }
 
-void RTMFPTCConnection::addCandidateAddress(const Address &addr, Time delay)
+void RTMFPTCConnection::addCandidateAddress(const Address &addr, Duration delay)
 {
 	if(m_controlSend)
 		m_controlSend->addCandidateAddress(addr, delay);
 }
 
-void RTMFPTCConnection::addCandidateAddress(const struct sockaddr *addr, Time delay)
+void RTMFPTCConnection::addCandidateAddress(const struct sockaddr *addr, Duration delay)
 {
 	if(m_controlSend)
 		m_controlSend->addCandidateAddress(addr, delay);
@@ -663,7 +663,7 @@ Bytes RTMFPTCConnection::getServerFingerprint() const
 
 // ---
 
-std::shared_ptr<WriteReceipt> RTMFPTCConnection::write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> RTMFPTCConnection::write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(m_debugLevel > 1)
 		printf("RTMFPTCConnection %p write streamID %u type %d timestamp %u len %zu\n", (void *)this, (unsigned)streamID, messageType, (unsigned)timestamp, len);
@@ -866,7 +866,7 @@ SendFlow * RTMFPTCConnection::NetStreamTransport::openFlowForType(const std::sha
 	return flowRef->get();
 }
 
-std::shared_ptr<WriteReceipt> RTMFPTCConnection::NetStreamTransport::write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> RTMFPTCConnection::NetStreamTransport::write(const std::shared_ptr<RecvFlow> &control, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len, Duration startWithin, Duration finishWithin)
 {
 	SendFlow *flow = openFlowForType(control, streamID, messageType);
 	if(not flow)

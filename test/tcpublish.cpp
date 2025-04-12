@@ -36,13 +36,13 @@ using namespace com::zenomt::rtmp;
 namespace {
 
 int verbose = 0;
-Time delaycc_delay = INFINITY;
+Duration delaycc_delay = INFINITY;
 bool interrupted = false;
 int dscp = 0;
-Time videoLifetime = 2.0;
-Time audioLifetime = 2.2;
-Time finishByMargin = 0.1;
-Time previousGopStartByMargin = 0.1;
+Duration videoLifetime = 2.0;
+Duration audioLifetime = 2.2;
+Duration finishByMargin = 0.1;
+Duration previousGopStartByMargin = 0.1;
 bool expirePreviousGop = true;
 bool hashAuthToken = false;
 bool requireHashAuthToken = false;
@@ -383,7 +383,7 @@ public:
 
 	void onVideoTag(std::shared_ptr<FLVReader::Tag> tag)
 	{
-		Time startWithin = Message::isVideoSequenceSpecial(tag->data.data(), tag->data.size()) ? INFINITY : videoLifetime;
+		Duration startWithin = Message::isVideoSequenceSpecial(tag->data.data(), tag->data.size()) ? INFINITY : videoLifetime;
 		auto receipt = m_publishStream->sendVideo(tag->timestamp, tag->data, startWithin, startWithin + finishByMargin);
 
 		if(Message::isVideoKeyframe(tag->data.data(), tag->data.size()))
@@ -400,7 +400,7 @@ public:
 
 	void onAudioTag(std::shared_ptr<FLVReader::Tag> tag)
 	{
-		Time startWithin = Message::isAudioSequenceSpecial(tag->data.data(), tag->data.size()) ? INFINITY : audioLifetime;
+		Duration startWithin = Message::isAudioSequenceSpecial(tag->data.data(), tag->data.size()) ? INFINITY : audioLifetime;
 		auto receipt = m_publishStream->sendAudio(tag->timestamp, tag->data, startWithin, startWithin + finishByMargin);
 		if(verbose and receipt)
 			receipt->onFinished = [] (bool abandoned) { if(abandoned) { printf("_"); fflush(stdout); } };

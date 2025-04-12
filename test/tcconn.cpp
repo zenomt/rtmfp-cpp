@@ -26,7 +26,7 @@ using Args = std::vector<std::shared_ptr<AMF0>>;
 namespace {
 
 int verbose = 0;
-Time delaycc_delay = INFINITY;
+Duration delaycc_delay = INFINITY;
 bool interrupted = false;
 int tos = 0;
 
