@@ -24,22 +24,22 @@ void RunLoop::unregisterDescriptor(int fd)
 	unregisterDescriptor(fd, EXCEPTION);
 }
 
-std::shared_ptr<Timer> RunLoop::schedule(Time when, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> RunLoop::schedule(Time when, Duration recurInterval, bool catchup)
 {
 	return m_timers.schedule(when, recurInterval, catchup);
 }
 
-std::shared_ptr<Timer> RunLoop::schedule(const Timer::Action &action, Time when, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> RunLoop::schedule(const Timer::Action &action, Time when, Duration recurInterval, bool catchup)
 {
 	return m_timers.schedule(action, when, recurInterval, catchup);
 }
 
-std::shared_ptr<Timer> RunLoop::scheduleRel(Time delta, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> RunLoop::scheduleRel(Duration delta, Duration recurInterval, bool catchup)
 {
 	return schedule(getCurrentTime() + delta, recurInterval, catchup);
 }
 
-std::shared_ptr<Timer> RunLoop::scheduleRel(const Timer::Action &action, Time delta, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> RunLoop::scheduleRel(const Timer::Action &action, Duration delta, Duration recurInterval, bool catchup)
 {
 	return schedule(action, getCurrentTime() + delta, recurInterval, catchup);
 }

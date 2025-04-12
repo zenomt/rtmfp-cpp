@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
 	tracker.setWindowPeriod(2);
 	tracker.reset();
-	Time interval = 1024.0/48000.0;
+	Duration interval = 1024.0/48000.0;
 	for(Time now = 0; now < 5; now += interval)
 	{
 		if(now > 4)

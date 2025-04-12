@@ -8,7 +8,7 @@
 
 namespace com { namespace zenomt {
 
-RateTracker::RateTracker(Time windowPeriod) :
+RateTracker::RateTracker(Duration windowPeriod) :
 	m_windowPeriod(windowPeriod),
 	m_windowBegin(-INFINITY),
 	m_count(0),
@@ -17,7 +17,7 @@ RateTracker::RateTracker(Time windowPeriod) :
 
 void RateTracker::update(size_t count, Time now)
 {
-	Time delta = now - m_windowBegin;
+	Duration delta = now - m_windowBegin;
 	if(delta < 0)
 		return;
 
@@ -33,11 +33,11 @@ void RateTracker::update(size_t count, Time now)
 
 double RateTracker::getRate(Time now) const
 {
-	Time delta = now - m_windowBegin;
+	Duration delta = now - m_windowBegin;
 	if(delta < 0)
 		delta = 0;
 
-	const Time twoWindows = m_windowPeriod * 2.0;
+	const Duration twoWindows = m_windowPeriod * 2.0;
 
 	if(delta >= twoWindows)
 		return 0.0;
@@ -58,12 +58,12 @@ double RateTracker::getRate(Time now) const
 		return m_count / m_windowPeriod;
 }
 
-void RateTracker::setWindowPeriod(Time windowPeriod)
+void RateTracker::setWindowPeriod(Duration windowPeriod)
 {
-	m_windowPeriod = std::max(windowPeriod, Time(0.000001)); // 1 µs
+	m_windowPeriod = std::max(windowPeriod, Duration(0.000001)); // 1 µs
 }
 
-Time RateTracker::getWindowPeriod() const
+Duration RateTracker::getWindowPeriod() const
 {
 	return m_windowPeriod;
 }

@@ -66,7 +66,7 @@ static void getActivatedItemsToQueue(fd_set *fdset, const std::map<int, std::sha
 			queue.push(it->second);
 }
 
-void SelectRunLoop::run(Time runInterval, Time minSleep)
+void SelectRunLoop::run(Duration runInterval, Duration minSleep)
 {
 	std::queue<std::shared_ptr<Item> > activatedItems;
 
@@ -79,10 +79,10 @@ void SelectRunLoop::run(Time runInterval, Time minSleep)
 
 	do {
 		struct timeval timeout;
-		Time sleepTime =  hasDoLaters() ? 0 : m_timers.howLongToNextFire(getCurrentTime());
+		Duration sleepTime =  hasDoLaters() ? 0 : m_timers.howLongToNextFire(getCurrentTime());
 		if(sleepTime < minSleep)
 			sleepTime = minSleep;
-		sleepTime += 0.0000005; // 1/2 µs
+		sleepTime += Duration(0.0000005); // 1/2 µs
 		timeout.tv_sec = sleepTime;
 		timeout.tv_usec = (sleepTime - timeout.tv_sec) * 1000000;
 

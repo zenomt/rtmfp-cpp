@@ -11,7 +11,7 @@ namespace com { namespace zenomt {
 // --- Timer
 
 
-Timer::Timer(Time when, Time recurInterval, bool catchup) :
+Timer::Timer(Time when, Duration recurInterval, bool catchup) :
 	m_when(when),
 	m_timerList(nullptr),
 	m_canceled(false),
@@ -51,12 +51,12 @@ void Timer::setNextFireTime(Time when)
 	m_rescheduled = true;
 }
 
-Time Timer::getRecurInterval() const
+Duration Timer::getRecurInterval() const
 {
 	return m_recurInterval;
 }
 
-void Timer::setRecurInterval(Time interval)
+void Timer::setRecurInterval(Duration interval)
 {
 	if((interval > 0) and (interval < MIN_RECUR_INTERVAL))
 		interval = MIN_RECUR_INTERVAL;
@@ -169,21 +169,21 @@ TimerList::~TimerList()
 	}
 }
 
-std::shared_ptr<Timer> TimerList::schedule(Time when, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> TimerList::schedule(Time when, Duration recurInterval, bool catchup)
 {
 	auto rv = share_ref<Timer>(new Timer(when, recurInterval, catchup), false);
 	addTimer(rv);
 	return rv;
 }
 
-std::shared_ptr<Timer> TimerList::schedule(const Timer::Action &action, Time when, Time recurInterval, bool catchup)
+std::shared_ptr<Timer> TimerList::schedule(const Timer::Action &action, Time when, Duration recurInterval, bool catchup)
 {
 	auto rv = schedule(when, recurInterval, catchup);
 	rv->action = action;
 	return rv;
 }
 
-Time TimerList::howLongToNextFire(Time now, Time maxInterval) const
+Duration TimerList::howLongToNextFire(Time now, Duration maxInterval) const
 {
 	if(m_timers.empty())
 		return maxInterval;

@@ -22,7 +22,7 @@ public:
 	void registerDescriptor(int fd, Condition cond, const Action &action) override;
 	void unregisterDescriptor(int fd, Condition cond) override;
 
-	void run(Time runInterval = INFINITY, Time minSleep = 0) override;
+	void run(Duration runInterval = INFINITY, Duration minSleep = 0) override;
 	bool isRunningInThisThread() const override;
 
 	void clear() override;

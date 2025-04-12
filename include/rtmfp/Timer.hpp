@@ -13,12 +13,13 @@ namespace com { namespace zenomt {
 
 class TimerList;
 using Time = long double;
+using Duration = long double;
 
 class Timer : public Object {
 public:
-	const Time MIN_RECUR_INTERVAL = 0.000001; // 1 µs, esp important for catchup=false
+	const Duration MIN_RECUR_INTERVAL = 0.000001; // 1 µs, esp important for catchup=false
 
-	Timer(Time when, Time recurInterval, bool catchup);
+	Timer(Time when, Duration recurInterval, bool catchup);
 	Timer() = delete;
 
 	using Action = std::function<void(const std::shared_ptr<Timer> &sender, Time now)>;
@@ -28,9 +29,9 @@ public:
 	Time getNextFireTime() const;
 	void setNextFireTime(Time when);
 
-	Time getRecurInterval() const;
-	void setRecurInterval(Time interval);
-	bool doesRecur() const;
+	Duration getRecurInterval() const;
+	void     setRecurInterval(Duration interval);
+	bool     doesRecur() const;
 
 	void cancel();
 	bool isCanceled() const;
@@ -49,7 +50,7 @@ protected:
 	void         basicFire(const std::shared_ptr<Timer> &myself, Time now);
 
 	Time       m_when;
-	Time       m_recurInterval;
+	Duration   m_recurInterval;
 	TimerList *m_timerList;
 	bool       m_canceled    :1;
 	bool       m_rescheduled :1; // to override recurInterval
@@ -62,10 +63,10 @@ public:
 	TimerList();
 	~TimerList();
 
-	std::shared_ptr<Timer> schedule(Time when, Time recurInterval = 0, bool catchup = true);
-	std::shared_ptr<Timer> schedule(const Timer::Action &action, Time when, Time recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> schedule(Time when, Duration recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> schedule(const Timer::Action &action, Time when, Duration recurInterval = 0, bool catchup = true);
 
-	Time howLongToNextFire(Time now, Time maxInterval = 5) const;
+	Duration howLongToNextFire(Time now, Duration maxInterval = 5) const;
 
 	size_t fireDueTimers(Time now); // answer number of timers fired
 

@@ -10,7 +10,7 @@ namespace com { namespace zenomt {
 
 class WriteReceipt : public Object {
 public:
-	WriteReceipt(Time origin, Time startWithin, Time finishWithin);
+	WriteReceipt(Time origin, Duration startWithin, Duration finishWithin);
 
 	void abandon(); // Abandon the message if not finished already.
 
@@ -31,8 +31,8 @@ public:
 	// can't be decoded if the previous one is not received).
 	std::shared_ptr<WriteReceipt> parent;
 
-	void setStartWithin(Time age); // Set startBy to createdAt() + age.
-	void setFinishWithin(Time age); // Set finishBy to createdAt() + age.
+	void setStartWithin(Duration age); // Set startBy to createdAt() + age.
+	void setFinishWithin(Duration age); // Set finishBy to createdAt() + age.
 
 	Time createdAt()   const; // The time at which this message was queued.
 	bool isAbandoned() const; // True if this message was abandoned before finishing.

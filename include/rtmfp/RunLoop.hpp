@@ -27,15 +27,15 @@ public:
 	virtual void unregisterDescriptor(int fd, Condition cond) = 0;
 	virtual void unregisterDescriptor(int fd); // unregister any actions for fd
 
-	std::shared_ptr<Timer> schedule(Time when, Time recurInterval = 0, bool catchup = true);
-	std::shared_ptr<Timer> schedule(const Timer::Action &action, Time when, Time recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> schedule(Time when, Duration recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> schedule(const Timer::Action &action, Time when, Duration recurInterval = 0, bool catchup = true);
 
-	std::shared_ptr<Timer> scheduleRel(Time delta, Time recurInterval = 0, bool catchup = true);
-	std::shared_ptr<Timer> scheduleRel(const Timer::Action &action, Time delta, Time recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> scheduleRel(Duration delta, Duration recurInterval = 0, bool catchup = true);
+	std::shared_ptr<Timer> scheduleRel(const Timer::Action &action, Duration delta, Duration recurInterval = 0, bool catchup = true);
 
 	virtual void doLater(const Task &task);
 
-	virtual void run(Time runInterval = INFINITY, Time minSleep = 0) = 0;
+	virtual void run(Duration runInterval = INFINITY, Duration minSleep = 0) = 0;
 	virtual void stop();
 	virtual bool isRunningInThisThread() const = 0;
 

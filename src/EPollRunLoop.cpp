@@ -117,7 +117,7 @@ void EPollRunLoop::unregisterDescriptor(int fd, Condition cond)
 		m_descriptors.erase(fd);
 }
 
-void EPollRunLoop::run(Time runInterval, Time minSleep)
+void EPollRunLoop::run(Duration runInterval, Duration minSleep)
 {
 	std::shared_ptr<Timer> stopTimer = schedule(Timer::makeAction([&] { stop(); }), getCurrentTimeNoCache() + runInterval);
 	const int maxEvents = 64; // this many file descriptors per loop, epoll_wait will round-robin
@@ -133,14 +133,14 @@ void EPollRunLoop::run(Time runInterval, Time minSleep)
 	m_runningInThread = std::this_thread::get_id();
 
 	do {
-		Time sleepTime = hasDoLaters() ? 0.0 : m_timers.howLongToNextFire(getCurrentTime());
+		Duration sleepTime = hasDoLaters() ? 0.0 : m_timers.howLongToNextFire(getCurrentTime());
 		if(sleepTime < minSleep)
 			sleepTime = minSleep;
 		if(sleepTime > 0.0)
 		{
-			sleepTime += Time(0.0009999999); // ceil-ish, epoll timeout resolution is ms, epoll_pwait2 (ns) is too new
-			if(sleepTime < Time(0.001))
-				sleepTime = Time(0.001); // be sure to sleep at all so we don't spin
+			sleepTime += Duration(0.0009999999); // ceil-ish, epoll timeout resolution is ms, epoll_pwait2 (ns) is too new
+			if(sleepTime < Duration(0.001))
+				sleepTime = Duration(0.001); // be sure to sleep at all so we don't spin
 		}
 
 		uncacheTime();

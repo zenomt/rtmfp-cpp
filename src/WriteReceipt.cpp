@@ -7,7 +7,7 @@
 
 namespace com { namespace zenomt {
 
-WriteReceipt::WriteReceipt(Time origin, Time startWithin, Time finishWithin) :
+WriteReceipt::WriteReceipt(Time origin, Duration startWithin, Duration finishWithin) :
 	startBy(origin + startWithin),
 	finishBy(origin + finishWithin),
 	retransmit(true),
@@ -42,12 +42,12 @@ void WriteReceipt::abandonIfNeeded(Time now)
 		abandon();
 }
 
-void WriteReceipt::setStartWithin(Time age)
+void WriteReceipt::setStartWithin(Duration age)
 {
 	startBy = m_origin + age;
 }
 
-void WriteReceipt::setFinishWithin(Time age)
+void WriteReceipt::setFinishWithin(Duration age)
 {
 	finishBy = m_origin + age;
 }
