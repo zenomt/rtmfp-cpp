@@ -7,7 +7,7 @@
 using namespace com::zenomt::rtmfp;
 using namespace com::zenomt;
 
-static void check_message(const Media &media, const Bytes &message, bool isRAI, int messageType, Time dts, Time pts, Time slop, size_t optionListLen, size_t payloadLen)
+static void check_message(const Media &media, const Bytes &message, bool isRAI, int messageType, Time dts, Time pts, Duration slop, size_t optionListLen, size_t payloadLen)
 {
 	bool actualRAI = false;
 	int actualMessageType = -1;
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 	assert(0 != m1.track_compare(*m2));
 	assert(m1.track_compare(*m2) != m2->track_compare(m1));
 	auto m3 = Media::fromMetadata(m2->toMetadata());
-	printf("m3 tick duration %.8Lf should be %.8Lf\n", m3->getTickDuration(), Time(1.0/90000.0));
+	printf("m3 tick duration %.8Lf should be %.8Lf\n", m3->getTickDuration(), Duration(1.0/90000.0));
 	Hex::print("m3", m3->toMetadata());
 	assert(m3->getTickDuration() < 1./89999);
 	assert(m3->getTickDuration() > 1./90001);
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	auto m5md = m5->toMetadata();
 	Hex::print("m5", m5md);
 	printf("m5 trackName %s\n", m5->trackName.c_str());
-	printf("m5 reorderSuggestion %.8Lf should be %.8Lf\n", m5->reorderSuggestion, Time(5.3));
+	printf("m5 reorderSuggestion %.8Lf should be %.8Lf\n", m5->reorderSuggestion, Duration(5.3));
 	printf("m5 trackID %lu\n", (unsigned long)m5->getTrackID());
 	printf("m5 receiveIntent: %s\n", m5->getReceiveIntent() == RO_NETWORK ? "RO_NETWORK" : "RO_SEQUENCE");
 	assert(0 == m5->trackName.compare("Front"));

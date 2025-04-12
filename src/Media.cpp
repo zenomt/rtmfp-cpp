@@ -205,7 +205,7 @@ Bytes Media::toMetadata() const
 		Option::append(OPTION_RECEIVE_INTENT_NETWORK, rv);
 
 	if((reorderSuggestion >= 0) and std::isfinite(reorderSuggestion))
-		Option::append(OPTION_REORDER_SUGGESTION, (uintmax_t)((reorderSuggestion + getTickDuration() / Time(2.0)) / getTickDuration()), rv);
+		Option::append(OPTION_REORDER_SUGGESTION, (uintmax_t)((reorderSuggestion + getTickDuration() / Duration(2.0)) / getTickDuration()), rv);
 
 	if(trackName.size())
 		Option::append(OPTION_TRACK_NAME, trackName.data(), trackName.size(), rv);
@@ -266,9 +266,9 @@ void Media::getTimescale(uintmax_t *ticks, uintmax_t *perSeconds) const
 		*perSeconds = m_timescale_perSeconds;
 }
 
-Time Media::getTickDuration() const
+Duration Media::getTickDuration() const
 {
-	return Time(m_timescale_perSeconds) / Time(m_timescale_ticks);
+	return Duration(m_timescale_perSeconds) / Duration(m_timescale_ticks);
 }
 
 bool Media::setReceiveIntent(ReceiveOrder intent)
@@ -446,7 +446,7 @@ uintmax_t Media::timeToTicks(Time t) const
 	if((t < m_origin) or not std::isfinite(t))
 		t = m_origin;
 
-	Time rounding = getTickDuration() / Time(2.0);
+	Duration rounding = getTickDuration() / Duration(2.0);
 	return uintmax_t((t + rounding - m_origin) / getTickDuration());
 }
 

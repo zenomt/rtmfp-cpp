@@ -30,7 +30,7 @@ public:
 	std::string codec;
 	std::string mediaType; // "audio", "video", "text", "application", "message", "image", ...
 	std::string trackName;
-	Time        reorderSuggestion { -1.0 }; // < 0 means no suggestion
+	Duration    reorderSuggestion { -1.0 }; // < 0 means no suggestion
 
 	/* [[deprecated]] */ void      setTrackID(uintmax_t trackID);
 	/* [[deprecated]] */ uintmax_t getTrackID() const;
@@ -41,7 +41,7 @@ public:
 	Time getOrigin() const;
 	bool setTimescale(uintmax_t ticks, uintmax_t perSeconds);
 	void getTimescale(uintmax_t *ticks, uintmax_t *perSeconds) const;
-	Time getTickDuration() const;
+	Duration getTickDuration() const;
 
 	bool         setReceiveIntent(ReceiveOrder intent); // intent must be RO_SEQUENCE or RO_NETWORK
 	ReceiveOrder getReceiveIntent() const;
