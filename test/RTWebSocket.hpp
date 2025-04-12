@@ -61,13 +61,13 @@ public:
 
 	Task onError;
 
-	Time getRTT() const;
-	Time getBaseRTT() const;
+	Duration getRTT() const;
+	Duration getBaseRTT() const;
 
 	size_t getBytesInFlight() const;
 	size_t outstandingThresh { 1024 * 64 };
 	size_t minOutstandingThresh { 1024 * 64 };
-	Time maxAdditionalDelay { 0.050 };
+	Duration maxAdditionalDelay { 0.050 };
 
 	size_t chunkSize { 1400 };
 
@@ -99,7 +99,7 @@ protected:
 	bool transmit();
 	void startRTT();
 	void measureRTT();
-	void addRTT(Time rtt);
+	void addRTT(Duration rtt);
 
 	void safeDoLater(Object *retainThis, const Task &task);
 	void closeWithError();
@@ -116,8 +116,8 @@ protected:
 	size_t m_rttPosition { 0 };
 	size_t m_rttPreviousPosition { 0 };
 	Time m_rttAnchor { -1.0 };
-	Time m_baseRTTCache { 0.1 };
-	Time m_smoothedRTT { 0.1 };
+	Duration m_baseRTTCache { 0.1 };
+	Duration m_smoothedRTT { 0.1 };
 	List<std::shared_ptr<SendFlow>> m_sendFlows;
 	std::map<uintmax_t, std::shared_ptr<RecvFlow>> m_recvFlows;
 	std::set<std::shared_ptr<RecvFlow>> m_ackFlows;
@@ -125,8 +125,8 @@ protected:
 
 	// base rtt measurements
 	struct RTTMeasurement {
-		Time min_rtt;
-		Time origin;
+		Duration min_rtt;
+		Time     origin;
 	};
 	std::deque<RTTMeasurement> m_rttMeasurements;
 };
@@ -137,8 +137,8 @@ public:
 	~SendFlow();
 
 	// using RTMFP-style names instead of (Javascript) RTWebSocket ones.
-	std::shared_ptr<WriteReceipt> write(const void *message, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
-	std::shared_ptr<WriteReceipt> write(const Bytes &message, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(const void *message, size_t len, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(const Bytes &message, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
 
 	bool isOpen() const;
 	void close();
@@ -153,7 +153,7 @@ public:
 	size_t getBufferCapacity() const;
 	size_t getBufferedSize() const;
 	size_t getRecvBufferBytesAvailable() const; // The last received window advertisement.
-	Time getUnsentAge() const; // The age of the oldest unsent message in the transmit queue.
+	Duration getUnsentAge() const; // The age of the oldest unsent message in the transmit queue.
 
 	// Called if this flow is rejected by the receiver.
 	using onException_f = std::function<void(uintmax_t reason, const std::string &description)>;

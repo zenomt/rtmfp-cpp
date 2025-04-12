@@ -7,7 +7,7 @@
 
 namespace com { namespace zenomt { namespace rtws {
 
-constexpr Time RTT_HISTORY_THRESH = 30.0;
+constexpr Duration RTT_HISTORY_THRESH = 30.0;
 constexpr size_t RTT_HISTORY_CAPACITY = 6;
 
 // --- RTWebSocket
@@ -89,12 +89,12 @@ bool RTWebSocket::isOpen() const
 	return m_open;
 }
 
-Time RTWebSocket::getRTT() const
+Duration RTWebSocket::getRTT() const
 {
 	return m_smoothedRTT;
 }
 
-Time RTWebSocket::getBaseRTT() const
+Duration RTWebSocket::getBaseRTT() const
 {
 	return m_baseRTTCache;
 }
@@ -523,7 +523,7 @@ void RTWebSocket::measureRTT()
 {
 	if((m_rttAnchor >= 0.0) and (m_flowBytesAcked > m_rttPosition))
 	{
-		Time rtt = std::max(getCurrentTime() - m_rttAnchor, Time(0.0001));
+		Duration rtt = std::max(getCurrentTime() - m_rttAnchor, Duration(0.0001));
 		size_t numBytes = m_flowBytesSent - m_rttPreviousPosition;
 		double bandwidth = numBytes / rtt;
 
@@ -546,7 +546,7 @@ void RTWebSocket::measureRTT()
 	}
 }
 
-void RTWebSocket::addRTT(Time rtt)
+void RTWebSocket::addRTT(Duration rtt)
 {
 	Time now = getCurrentTime();
 	if(m_rttMeasurements.empty() or (now - m_rttMeasurements.front().origin > RTT_HISTORY_THRESH))
@@ -632,7 +632,7 @@ SendFlow::SendFlow(std::shared_ptr<RTWebSocket> owner, uintmax_t flowID, uintmax
 	m_flowOpenMessage->insert(m_flowOpenMessage->end(), metadataBytes, metadataBytes + metadataLen);
 }
 
-std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(not m_open)
 		return nullptr;
@@ -649,7 +649,7 @@ std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, T
 	return receipt;
 }
 
-std::shared_ptr<WriteReceipt> SendFlow::write(const Bytes &message, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> SendFlow::write(const Bytes &message, Duration startWithin, Duration finishWithin)
 {
 	return write(message.data(), message.size(), startWithin, finishWithin);
 }
@@ -721,7 +721,7 @@ size_t SendFlow::getRecvBufferBytesAvailable() const
 	return m_recvBufferBytesAvailable;
 }
 
-Time SendFlow::getUnsentAge() const
+Duration SendFlow::getUnsentAge() const
 {
 	for(long name = m_sendBuffer.first(); name > m_sendBuffer.SENTINEL; name = m_sendBuffer.next(name))
 	{
