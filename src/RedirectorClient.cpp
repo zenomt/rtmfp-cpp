@@ -9,7 +9,7 @@
 namespace {
 
 const uint8_t signature[] = "http://zenomt.com/ns/rtmfp#redirector";
-const com::zenomt::Time minimumReconnectIntervalLimit = 5.0;
+const com::zenomt::Duration minimumReconnectIntervalLimit = 5.0;
 
 }
 
@@ -52,19 +52,19 @@ void RedirectorClient::close()
 	onUserData = nullptr;
 }
 
-void RedirectorClient::setRetransmitLimit(Time t)
+void RedirectorClient::setRetransmitLimit(Duration t)
 {
 	m_retransmitLimit = t;
 	if(isConnected())
 		m_send->setSessionRetransmitLimit(m_retransmitLimit);
 }
 
-Time RedirectorClient::getRetransmitLimit() const
+Duration RedirectorClient::getRetransmitLimit() const
 {
 	return m_retransmitLimit;
 }
 
-void RedirectorClient::setKeepalivePeriod(Time t)
+void RedirectorClient::setKeepalivePeriod(Duration t)
 {
 	m_keepalivePeriod = t;
 	if(isConnected())
@@ -112,14 +112,14 @@ uintmax_t RedirectorClient::getLoadFactor() const
 	return m_loadFactor;
 }
 
-void RedirectorClient::setLoadFactorUpdateInterval(Time t)
+void RedirectorClient::setLoadFactorUpdateInterval(Duration t)
 {
-	m_loadFactorUpdateInterval = std::max(t, Time(0.0));;
+	m_loadFactorUpdateInterval = std::max(t, Duration(0.0));;
 	if(m_loadFactorUpdateTimer)
 		m_loadFactorUpdateTimer->setNextFireTime(m_rtmfp->getCurrentTime());
 }
 
-Time RedirectorClient::getLoadFactorUpdateInterval() const
+Duration RedirectorClient::getLoadFactorUpdateInterval() const
 {
 	return m_loadFactorUpdateInterval;
 }

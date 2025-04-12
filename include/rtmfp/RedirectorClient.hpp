@@ -20,12 +20,12 @@ public:
 	bool isConnected() const;
 	void close();
 
-	Time minimumReconnectInterval { 30.0 };
+	Duration minimumReconnectInterval { 30.0 };
 
-	void setRetransmitLimit(Time t);
-	Time getRetransmitLimit() const;
-	void setKeepalivePeriod(Time t);
-	Time getKeepalivePeriod() const;
+	void     setRetransmitLimit(Duration t);
+	Duration getRetransmitLimit() const;
+	void     setKeepalivePeriod(Duration t);
+	Duration getKeepalivePeriod() const;
 
 	void setActive(bool active); // default true, set to false to unregister
 	bool isActive() const;
@@ -35,8 +35,8 @@ public:
 	void setLoadFactor(uintmax_t factor);
 	uintmax_t getLoadFactor() const;
 
-	void setLoadFactorUpdateInterval(Time t);
-	Time getLoadFactorUpdateInterval() const;
+	void     setLoadFactorUpdateInterval(Duration t);
+	Duration getLoadFactorUpdateInterval() const;
 
 	void addRedirectorAddress(const Address &addr);
 
@@ -128,15 +128,15 @@ protected:
 	FIHelloResponseMode       m_responseMode { FI_SEND_RHELLO };
 	bool                      m_advertiseReflexiveAddress { true };
 	uintmax_t                 m_loadFactor { 0 };
-	Time                      m_loadFactorUpdateInterval { 0.0 };
+	Duration                  m_loadFactorUpdateInterval { 0.0 };
 	bool                      m_loadFactorChanged { false };
 	std::shared_ptr<Timer>    m_loadFactorUpdateTimer;
 	std::set<Address>         m_redirectorAddresses;
 	std::set<Address>         m_additionalAddresses;
 	Address                   m_reflexiveAddress;
 	bool                      m_reflexiveAddressValid { false };
-	Time                      m_retransmitLimit { 10.0 };
-	Time                      m_keepalivePeriod { 10.0 };
+	Duration                  m_retransmitLimit { 10.0 };
+	Duration                  m_keepalivePeriod { 10.0 };
 	std::map<Bytes, Bytes>    m_simpleAuth;
 
 	std::shared_ptr<SendFlow> m_send;
