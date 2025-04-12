@@ -66,28 +66,28 @@ Address Flow::getFarAddress() const
 	return m_session ? m_session->m_destAddr : Address();
 }
 
-Time Flow::getSRTT() const
+Duration Flow::getSRTT() const
 {
 	return m_session ? m_session->m_srtt : INFINITY;
 }
 
-Time Flow::getSafeSRTT() const
+Duration Flow::getSafeSRTT() const
 {
-	Time srtt = getSRTT();
+	Duration srtt = getSRTT();
 	return srtt >= 0.0 ? srtt : SAFE_RTT;
 }
 
-Time Flow::getRTTVariance() const
+Duration Flow::getRTTVariance() const
 {
 	return m_session ? m_session->m_rttvar : INFINITY;
 }
 
-Time Flow::getLastRTT() const
+Duration Flow::getLastRTT() const
 {
 	return m_session ? m_session->m_last_rtt : INFINITY;
 }
 
-Time Flow::getBaseRTT() const
+Duration Flow::getBaseRTT() const
 {
 	return m_session ? m_session->m_base_rtt : INFINITY;
 }
@@ -97,45 +97,45 @@ size_t Flow::getCongestionWindow() const
 	return m_session ? m_session->m_cwnd : 0;
 }
 
-Time Flow::getERTO() const
+Duration Flow::getERTO() const
 {
 	return m_session ? m_session->m_erto : INFINITY;
 }
 
-Time Flow::getMRTO() const
+Duration Flow::getMRTO() const
 {
 	return m_session ? m_session->m_mrto : INFINITY;
 }
 
-void Flow::setSessionKeepalivePeriod(Time keepalive)
+void Flow::setSessionKeepalivePeriod(Duration keepalive)
 {
 	if(m_session)
 		m_session->setKeepalivePeriod(keepalive);
 }
 
-Time Flow::getSessionKeepalivePeriod() const
+Duration Flow::getSessionKeepalivePeriod() const
 {
 	return m_session ? m_session->getKeepalivePeriod() : INFINITY;
 }
 
-void Flow::setSessionRetransmitLimit(Time limit)
+void Flow::setSessionRetransmitLimit(Duration limit)
 {
 	if(m_session)
 		m_session->setRetransmitLimit(limit);
 }
 
-Time Flow::getSessionRetransmitLimit() const
+Duration Flow::getSessionRetransmitLimit() const
 {
 	return m_session ? m_session->getRetransmitLimit() : INFINITY;
 }
 
-void Flow::setSessionIdleLimit(Time limit)
+void Flow::setSessionIdleLimit(Duration limit)
 {
 	if(m_session)
 		m_session->setIdleLimit(limit);
 }
 
-Time Flow::getSessionIdleLimit() const
+Duration Flow::getSessionIdleLimit() const
 {
 	return m_session ? m_session->getIdleLimit() : INFINITY;
 }
@@ -185,13 +185,13 @@ FIHelloResponseMode Flow::getSessionFIHelloMode() const
 	return m_session ? m_session->m_fihelloMode : FI_IGNORE;
 }
 
-void Flow::setSessionCongestionDelay(Time delay)
+void Flow::setSessionCongestionDelay(Duration delay)
 {
 	if(m_session)
 		m_session->m_delaycc_congestion_delay = delay;
 }
 
-Time Flow::getSessionCongestionDelay() const
+Duration Flow::getSessionCongestionDelay() const
 {
 	return m_session ? m_session->m_delaycc_congestion_delay : INFINITY;
 }

@@ -183,28 +183,28 @@ public:
 	void    closeSession(); // Close the session to which this flow belongs. Does not count as closing this flow.
 
 	// These are all properties of the session.
-	Bytes   getNearNonce()        const; // §3.5
-	Bytes   getFarNonce()         const;
-	Bytes   getFarCertificate()   const;
-	Bytes   getFarCanonicalEPD()  const; // §3.2
-	Address getFarAddress()       const; // §3.5 DESTADDR. Is there any need for the interface ID?
-	Time    getSRTT()             const; // Smoothed round-trip time per §3.5.2.2.
-	Time    getSafeSRTT()         const; // Returns a default value if no RTT measurement has been made yet.
-	Time    getRTTVariance()      const; // Round-trip time variance §3.5.2.2.
-	Time    getLastRTT()          const; // Most recent RTT measurement.
-	Time    getBaseRTT()          const; // Baseline (minimum recently observed) RTT.
-	size_t  getCongestionWindow() const;
-	Time    getERTO()             const; // Effective Retransmission Timeout §3.5.2.2
-	Time    getMRTO()             const; // Measured Retransmission Timeout §3.5.2.2
+	Bytes    getNearNonce()        const; // §3.5
+	Bytes    getFarNonce()         const;
+	Bytes    getFarCertificate()   const;
+	Bytes    getFarCanonicalEPD()  const; // §3.2
+	Address  getFarAddress()       const; // §3.5 DESTADDR. Is there any need for the interface ID?
+	Duration getSRTT()             const; // Smoothed round-trip time per §3.5.2.2.
+	Duration getSafeSRTT()         const; // Returns a default value if no RTT measurement has been made yet.
+	Duration getRTTVariance()      const; // Round-trip time variance §3.5.2.2.
+	Duration getLastRTT()          const; // Most recent RTT measurement.
+	Duration getBaseRTT()          const; // Baseline (minimum recently observed) RTT.
+	size_t   getCongestionWindow() const;
+	Duration getERTO()             const; // Effective Retransmission Timeout §3.5.2.2
+	Duration getMRTO()             const; // Measured Retransmission Timeout §3.5.2.2
 
-	void    setSessionKeepalivePeriod(Time keepalive); // Idle time before a keepalive check is performed.
-	Time    getSessionKeepalivePeriod() const;
-	void    setSessionRetransmitLimit(Time limit); // Time after which a retransmitting session will terminate.
-	Time    getSessionRetransmitLimit() const;
-	void    setSessionIdleLimit(Time limit); // Time after which a quiescent session with no flows will terminate.
-	Time    getSessionIdleLimit() const;
-	void    setSessionTrafficClass(int tos); // Set Traffic Class (aka Type of Service) for IPlatformAdapter::writePacket()
-	int     getSessionTrafficClass() const; // Note: ECN (2 LSB) is masked off
+	void     setSessionKeepalivePeriod(Duration keepalive); // Idle time before a keepalive check is performed.
+	Duration getSessionKeepalivePeriod() const;
+	void     setSessionRetransmitLimit(Duration limit); // Time after which a retransmitting session will terminate.
+	Duration getSessionRetransmitLimit() const;
+	void     setSessionIdleLimit(Duration limit); // Time after which a quiescent session with no flows will terminate.
+	Duration getSessionIdleLimit() const;
+	void     setSessionTrafficClass(int tos); // Set Traffic Class (aka Type of Service) for IPlatformAdapter::writePacket()
+	int      getSessionTrafficClass() const; // Note: ECN (2 LSB) is masked off
 
 	// Send an FIHello §2.3.3, §3.5.1.5
 	bool forwardIHello(const void *epd, size_t epdLen, const Address &replyAddress, const void *tag, size_t tagLen);
@@ -215,8 +215,8 @@ public:
 	Task onFarAddressDidChange; // Called after DESTADDR change verified §3.5.4.2.
 
 	// Delay-based congestion detection
-	void setSessionCongestionDelay(Time delay); // Treat rtt > baseRTT + delay as congestion. Default INFINITY.
-	Time getSessionCongestionDelay() const;
+	void     setSessionCongestionDelay(Duration delay); // Treat rtt > baseRTT + delay as congestion. Default INFINITY.
+	Duration getSessionCongestionDelay() const;
 
 protected:
 	Flow(RTMFP *rtmfp);
