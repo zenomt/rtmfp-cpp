@@ -84,12 +84,12 @@ int port = 1935;
 int numTargets = 2;
 bool interrupted = false;
 std::map<Bytes, Bytes> passwords;
-Time badAuthDisconnectDelay = 2.0;
+Duration badAuthDisconnectDelay = 2.0;
 std::vector<Address> staticAddresses;
 bool crossFamilyForward = false;
 bool crossFamilyRedirect = true;
 Time lastShuffle = -INFINITY;
-Time shuffleInterval = 5.0;
+Duration shuffleInterval = 5.0;
 
 PreferredRunLoop mainRL;
 Performer mainPerformer(&mainRL);

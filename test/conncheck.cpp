@@ -106,9 +106,9 @@ namespace {
 int verbose = 0;
 bool requireHMAC = true;
 bool requireSSEQ = true;
-Time testOffset = 0.020;
+Duration testOffset = 0.020;
 size_t tries = 5;
-Time connectionTimeout = 120.0;
+Duration connectionTimeout = 120.0;
 bool interrupted = false;
 bool stopping = false;
 
@@ -202,14 +202,14 @@ public:
 	}
 
 protected:
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin)
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin)
 	{
 		if(0 == streamID)
 			return m_controlSend->write(TCMessage::message(messageType, timestamp, (const uint8_t *)payload, len), startWithin, finishWithin);
 		return nullptr;
 	}
 
-	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin, Time finishWithin)
+	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin, Duration finishWithin)
 	{
 		return write(streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 	}
@@ -439,7 +439,7 @@ protected:
 			return;
 		m_testsStarted = true;
 
-		Time rto = m_controlRecv->getERTO();
+		Duration rto = m_controlRecv->getERTO();
 
 		m_differentPortTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
 			if(verbose) printf("%s,send-probe,same-address-different-port\n", m_farAddressStr.c_str());
