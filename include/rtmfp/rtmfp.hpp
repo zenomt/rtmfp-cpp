@@ -199,9 +199,9 @@ public:
 
 	void     setSessionKeepalivePeriod(Duration keepalive); // Idle time before a keepalive check is performed.
 	Duration getSessionKeepalivePeriod() const;
-	void     setSessionRetransmitLimit(Duration limit); // Time after which a retransmitting session will terminate.
+	void     setSessionRetransmitLimit(Duration limit); // Period after which a retransmitting session will terminate.
 	Duration getSessionRetransmitLimit() const;
-	void     setSessionIdleLimit(Duration limit); // Time after which a quiescent session with no flows will terminate.
+	void     setSessionIdleLimit(Duration limit); // Period after which a quiescent session with no flows will terminate.
 	Duration getSessionIdleLimit() const;
 	void     setSessionTrafficClass(int tos); // Set Traffic Class (aka Type of Service) for IPlatformAdapter::writePacket()
 	int      getSessionTrafficClass() const; // Note: ECN (2 LSB) is masked off
@@ -233,8 +233,8 @@ class SendFlow : public Flow {
 public:
 	// If this flow triggered a new opening session, use these methods to add a
 	// candidate endpoint address for the responder.
-	void addCandidateAddress(const Address &addr, Time delay = 0);
-	void addCandidateAddress(const struct sockaddr *addr, Time delay = 0);
+	void addCandidateAddress(const Address &addr, Duration delay = 0);
+	void addCandidateAddress(const struct sockaddr *addr, Duration delay = 0);
 
 	// Answers true if the flow is open, bound to an S_OPEN session, and buffered size is less than capacity.
 	bool isWritable() const;
@@ -251,8 +251,8 @@ public:
 	// flow is bound to a session.
 	// Answers a WriteReceipt on success or an empty shared_ptr on error.
 	// startWithin and finishWithin are the initial values for the WriteReceipt, which can be changed later.
-	std::shared_ptr<WriteReceipt> write(const void *message, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
-	std::shared_ptr<WriteReceipt> write(const Bytes &message, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(const void *message, size_t len, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(const Bytes &message, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
 
 	void close() override;
 
@@ -280,7 +280,7 @@ protected:
 	SendFlow(RTMFP *rtmfp, const Bytes &epd, const Bytes &metadata, RecvFlow *assoc, Priority pri);
 	~SendFlow();
 
-	std::shared_ptr<WriteReceipt> basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin);
+	std::shared_ptr<WriteReceipt> basicWrite(const void *message, size_t len, Duration startWithin, Duration finishWithin);
 	void onSessionDidOpen(std::shared_ptr<SendFlow> myself, std::shared_ptr<Session> session);
 	void onSessionWillOpen(std::shared_ptr<Session> session);
 	void onSessionDidClose(std::shared_ptr<Session> session);

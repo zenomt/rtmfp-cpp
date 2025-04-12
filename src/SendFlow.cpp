@@ -69,13 +69,13 @@ SendFlow::~SendFlow()
 {
 }
 
-void SendFlow::addCandidateAddress(const Address &addr, Time delay)
+void SendFlow::addCandidateAddress(const Address &addr, Duration delay)
 {
 	if(m_openingSession)
 		m_openingSession->addCandidateAddress(addr, delay, false);
 }
 
-void SendFlow::addCandidateAddress(const struct sockaddr *addr, Time delay)
+void SendFlow::addCandidateAddress(const struct sockaddr *addr, Duration delay)
 {
 	addCandidateAddress(Address(addr), delay);
 }
@@ -125,7 +125,7 @@ size_t SendFlow::getOutstandingBytes() const
 	return m_outstanding_bytes;
 }
 
-std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(not isOpen())
 		return std::shared_ptr<WriteReceipt>();
@@ -133,7 +133,7 @@ std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, T
 	return basicWrite(message, len, startWithin, finishWithin);
 }
 
-std::shared_ptr<WriteReceipt> SendFlow::write(const Bytes &message, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> SendFlow::write(const Bytes &message, Duration startWithin, Duration finishWithin)
 {
 	return write(message.data(), message.size(), startWithin, finishWithin);
 }
@@ -188,7 +188,7 @@ void SendFlow::setPriority(Priority pri)
 
 // ---
 
-std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> SendFlow::basicWrite(const void *message, size_t len, Duration startWithin, Duration finishWithin)
 {
 	Time now = m_rtmfp->getCurrentTime();
 	auto rv = share_ref(new IssuerWriteReceipt(now, startWithin, finishWithin), false);
@@ -608,7 +608,7 @@ void SendFlow::setPersistTimer()
 	if(m_persistTimer)
 		return;
 
-	Time interval = std::max(F_PERSIST_INITIAL_PERIOD, m_session->m_erto);
+	Duration interval = std::max(F_PERSIST_INITIAL_PERIOD, m_session->m_erto);
 	m_persistTimer = m_rtmfp->scheduleRel(interval, interval);
 	auto myself = share_ref(this);
 	m_persistTimer->action = [myself] (const std::shared_ptr<Timer> &sender, Time now) { myself->onPersistTimer(sender, now); };
@@ -632,7 +632,7 @@ void SendFlow::onPersistTimer(const std::shared_ptr<Timer> &sender, Time now)
 	probe.commitChunk();
 	m_session->sendPacket(probe.toVector());
 
-	Time nextInterval = sender->getRecurInterval();
+	Duration nextInterval = sender->getRecurInterval();
 	nextInterval = std::min(nextInterval * F_PERSIST_BACKOFF_FACTOR, F_PERSIST_MAX_PERIOD);
 	nextInterval = std::max(nextInterval, m_session->m_erto);
 	sender->setRecurInterval(nextInterval);
