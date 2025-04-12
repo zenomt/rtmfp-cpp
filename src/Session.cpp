@@ -583,7 +583,7 @@ void Session::setFarcloseLinger()
 	m_rtmfp->onSessionDidClose(myself, false);
 }
 
-void Session::setKeepalivePeriod(Time keepalive)
+void Session::setKeepalivePeriod(Duration keepalive)
 {
 	m_keepalive_period = std::max(keepalive, MIN_KEEPALIVE_PERIOD);
 	setKeepaliveAlarm();
@@ -600,22 +600,22 @@ void Session::setKeepaliveAlarm()
 	m_keepalive_timer->action = [this] (const std::shared_ptr<Timer> &sender, Time now) { onKeepaliveAlarm(now); };
 }
 
-Time Session::getKeepalivePeriod() const
+Duration Session::getKeepalivePeriod() const
 {
 	return m_keepalive_period;
 }
 
-void Session::setRetransmitLimit(Time limit)
+void Session::setRetransmitLimit(Duration limit)
 {
 	m_retransmit_limit = std::max(limit, MIN_RTX_PERIOD);
 }
 
-Time Session::getRetransmitLimit() const
+Duration Session::getRetransmitLimit() const
 {
 	return m_retransmit_limit;
 }
 
-void Session::setIdleLimit(Time limit)
+void Session::setIdleLimit(Duration limit)
 {
 	m_idle_limit = std::max(limit, MIN_IDLE_PERIOD);
 
@@ -630,7 +630,7 @@ void Session::setIdleLimit(Time limit)
 	}
 }
 
-Time Session::getIdleLimit() const
+Duration Session::getIdleLimit() const
 {
 	return m_idle_limit;
 }
@@ -754,7 +754,7 @@ void Session::interestDown()
 		abort();
 }
 
-void Session::addCandidateAddress(const Address &addr, Time delay, bool fromRedirect)
+void Session::addCandidateAddress(const Address &addr, Duration delay, bool fromRedirect)
 {
 	if( (S_IHELLO_SENT != m_state)
 	 or (fromRedirect and (m_openingAddresses.size() >= REDIRECT_THRESHOLD))
@@ -774,7 +774,7 @@ void Session::addCandidateAddress(const Address &addr, Time delay, bool fromRedi
 
 		m_rtmfp->sendIHello(m_epd.data(), m_epd.size(), m_tag.data(), m_tag.size(), INTERFACE_ID_ALL, addr.getSockaddr());
 
-		Time interval = sender->getRecurInterval();
+		Duration interval = sender->getRecurInterval();
 		interval = (interval < IHELLO_INITIAL_RTX) ? IHELLO_INITIAL_RTX : interval + IHELLO_BACKOFF_INTERVAL;
 		sender->setRecurInterval(interval);
 
@@ -834,7 +834,7 @@ void Session::startIIKeying(const Bytes &iikeyingChunk)
 		}
 
 		myself->m_rtmfp->m_startupSession->sendPacket(iikeyingChunk, 0, myself->m_destInterfaceID, myself->m_destAddr.getSockaddr());
-		Time interval = sender->getRecurInterval();
+		Duration interval = sender->getRecurInterval();
 		interval = (interval < IIKEYING_INITIAL_RTX) ? IIKEYING_INITIAL_RTX : interval + IIKEYING_BACKOFF_INTERVAL;
 		sender->setRecurInterval(interval);
 	};
@@ -871,7 +871,7 @@ long Session::getTimestampIfNew()
 
 long Session::getTimestampEcho()
 {
-	Time ts_rx_elapsed = m_rtmfp->getCurrentTime() - m_ts_rx_time;
+	Duration ts_rx_elapsed = m_rtmfp->getCurrentTime() - m_ts_rx_time;
 	if(ts_rx_elapsed > MAX_TS_ECHO_ELAPSED)
 	{
 		m_ts_rx = -1;
@@ -1228,7 +1228,7 @@ void Session::scheduleBurstAlarm()
 
 		if(m_srtt >= BURST_RTT_THRESH)
 		{
-			Time overslept = now - sender->getNextFireTime();
+			Duration overslept = now - sender->getNextFireTime();
 			if(overslept > 0)
 				m_data_burst_limit += long((overslept / m_srtt) * m_cwnd);
 		}
@@ -1595,11 +1595,11 @@ bool Session::onPacketHeader(uint8_t flags, long timestamp, long timestampEcho, 
 			uint16_t rtt_ticks = uint16_t(m_rtmfp->getCurrentTimestamp() - timestampEcho);
 			if(rtt_ticks < 32768)
 			{
-				Time rtt = rtt_ticks;
+				Duration rtt = rtt_ticks;
 				rtt *= HEADER_TIMESTAMP_PERIOD;
 				if(m_srtt >= 0.0)
 				{
-					Time rtt_delta = m_srtt - rtt;
+					Duration rtt_delta = m_srtt - rtt;
 					if(rtt_delta < 0.0)
 						rtt_delta = -rtt_delta;
 					m_rttvar = ((3.0 * m_rttvar) + rtt_delta) / 4.0;
@@ -2115,7 +2115,7 @@ void Session::onCloseAckChunk(uint8_t mode, uint8_t chunkType, const uint8_t *ch
 	}
 }
 
-void Session::checkBaseRTT(Time rtt, Time now)
+void Session::checkBaseRTT(Duration rtt, Time now)
 {
 	auto prev_base_rtt = m_base_rtt;
 

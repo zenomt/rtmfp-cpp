@@ -80,13 +80,13 @@ public:
 	void setOpen(std::shared_ptr<Session> myself, uint32_t txSessionID);
 	void setNearclose();
 	void setFarcloseLinger();
-	void setKeepalivePeriod(Time keepalive);
+	void setKeepalivePeriod(Duration keepalive);
 	void setKeepaliveAlarm();
-	Time getKeepalivePeriod() const;
-	void setRetransmitLimit(Time limit);
-	Time getRetransmitLimit() const;
-	void setIdleLimit(Time limit);
-	Time getIdleLimit() const;
+	Duration getKeepalivePeriod() const;
+	void setRetransmitLimit(Duration limit);
+	Duration getRetransmitLimit() const;
+	void setIdleLimit(Duration limit);
+	Duration getIdleLimit() const;
 	void setTrafficClass(int tos);
 	int getTrafficClass() const;
 	void onKeepaliveAlarm(Time now);
@@ -98,7 +98,7 @@ public:
 	void sendRIKeying();
 	void interestUp();
 	void interestDown();
-	void addCandidateAddress(const Address &addr, Time delay, bool fromRedirect);
+	void addCandidateAddress(const Address &addr, Duration delay, bool fromRedirect);
 	void replayEarlyPackets();
 	void bindFlow(std::shared_ptr<SendFlow> flow);
 	void unbindFlow(long flowID, SendFlow *flow);
@@ -188,8 +188,8 @@ public:
 	long      m_ts_rx;
 	Time      m_ts_rx_time;
 	long      m_ts_echo_tx;
-	Time      m_mrto;
-	Time      m_erto;
+	Duration  m_mrto;
+	Duration  m_erto;
 	Time      m_timeout_deadline;
 	size_t    m_rx_data_packets;
 	bool      m_ack_now;
@@ -198,9 +198,9 @@ public:
 	std::shared_ptr<Timer> m_burst_alarm;
 	long      m_ts_tx;
 	long      m_ts_echo_rx;
-	Time      m_srtt;
-	Time      m_rttvar;
-	Time      m_last_rtt;
+	Duration  m_srtt;
+	Duration  m_rttvar;
+	Duration  m_last_rtt;
 	Time      m_last_rtt_time;
 
 	size_t    m_cwnd;
@@ -218,10 +218,10 @@ public:
 
 	// keepalive
 	Time      m_last_keepalive_tx_time;
-	Time      m_keepalive_period;
-	Time      m_retransmit_limit;
+	Duration  m_keepalive_period;
+	Duration  m_retransmit_limit;
 	Time      m_retransmit_deadline_epoch;
-	Time      m_idle_limit;
+	Duration  m_idle_limit;
 	Time      m_last_idle_time;
 	bool      m_keepalive_outstanding;
 	std::shared_ptr<Timer> m_keepalive_timer;
@@ -242,15 +242,15 @@ public:
 
 	// keep track of minimum RTT over a sliding window RTT_HISTORY_CAPACITY buckets each RTT_HISTORY_THRESH long.
 	struct RTTMeasurement {
-		Time min_rtt;
-		Time origin;
+		Duration min_rtt;
+		Time     origin;
 	};
 	std::deque<RTTMeasurement> m_rttMeasurements;
-	Time      m_base_rtt { INFINITY };
+	Duration  m_base_rtt { INFINITY };
 	Time      m_last_minrtt_probe { INFINITY };
 	Time      m_last_delaycc_action { -INFINITY };
-	Time      m_delaycc_congestion_delay { INFINITY };
-	void checkBaseRTT(Time rtt, Time now);
+	Duration  m_delaycc_congestion_delay { INFINITY };
+	void checkBaseRTT(Duration rtt, Time now);
 	void resetBaseRTT();
 
 protected:
