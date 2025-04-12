@@ -73,22 +73,22 @@ public:
 	void sendIHello(const void *epd, size_t epdLen, const void *tag, size_t tagLen, int interfaceID, const struct sockaddr *dstAddr);
 
 	// New sessions inherit these values when transitioning to S_OPEN.
-	void setDefaultSessionKeepalivePeriod(Time keepalive);
-	Time getDefaultSessionKeepalivePeriod() const;
+	void     setDefaultSessionKeepalivePeriod(Duration keepalive);
+	Duration getDefaultSessionKeepalivePeriod() const;
 
-	void setDefaultSessionRetransmitLimit(Time limit);
-	Time getDefaultSessionRetransmitLimit() const;
+	void     setDefaultSessionRetransmitLimit(Duration limit);
+	Duration getDefaultSessionRetransmitLimit() const;
 
-	void setDefaultSessionIdleLimit(Time limit);
-	Time getDefaultSessionIdleLimit() const;
+	void     setDefaultSessionIdleLimit(Duration limit);
+	Duration getDefaultSessionIdleLimit() const;
 
-	Time getCurrentTime() const; // Convenience method calls the platform adapter.
-	Time getInstanceAge() const; // Answer how many seconds since this RTMFP was created.
+	Time     getCurrentTime() const; // Convenience method calls the platform adapter.
+	Duration getInstanceAge() const; // Answer how many seconds since this RTMFP was created.
 
 	// --- Used by the Platform Adapter
 
 	// Answers how long until doTimerWork() should be called.
-	Time howLongToSleep() const;
+	Duration howLongToSleep() const;
 
 	// The platform must call this function ASAP after howLongToSleep() seconds.
 	void doTimerWork();
@@ -113,7 +113,7 @@ protected:
 
 	bool scheduleWrite(int interfaceID, std::shared_ptr<ISession> session, int pri);
 	unsigned long getNextThreadNum();
-	std::shared_ptr<Timer> scheduleRel(Time delta, Time recurInterval = 0);
+	std::shared_ptr<Timer> scheduleRel(Duration delta, Duration recurInterval = 0);
 	uint16_t getCurrentTimestamp() const;
 	Bytes makeCookie(const struct sockaddr *addr) const;
 	enum CookieCheck { COOKIE_BAD, COOKIE_MISMATCH, COOKIE_OK };
@@ -156,9 +156,9 @@ protected:
 	Time              m_previous_sessionTC_time;
 	Time              m_tc_sent_time;
 
-	Time              m_default_session_keepalive_period;
-	Time              m_default_session_retransmit_limit;
-	Time              m_default_session_idle_limit;
+	Duration          m_default_session_keepalive_period;
+	Duration          m_default_session_retransmit_limit;
+	Duration          m_default_session_idle_limit;
 	bool              m_shutdown;
 	bool              m_shutdownComplete;
 

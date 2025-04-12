@@ -159,32 +159,32 @@ void RTMFP::sendIHello(const void *epd, size_t epdLen, const void *tag, size_t t
 	}
 }
 
-void RTMFP::setDefaultSessionKeepalivePeriod(Time keepalive)
+void RTMFP::setDefaultSessionKeepalivePeriod(Duration keepalive)
 {
 	m_default_session_keepalive_period = keepalive;
 }
 
-Time RTMFP::getDefaultSessionKeepalivePeriod() const
+Duration RTMFP::getDefaultSessionKeepalivePeriod() const
 {
 	return m_default_session_keepalive_period;
 }
 
-void RTMFP::setDefaultSessionRetransmitLimit(Time limit)
+void RTMFP::setDefaultSessionRetransmitLimit(Duration limit)
 {
 	m_default_session_retransmit_limit = limit;
 }
 
-Time RTMFP::getDefaultSessionRetransmitLimit() const
+Duration RTMFP::getDefaultSessionRetransmitLimit() const
 {
 	return m_default_session_retransmit_limit;;
 }
 
-void RTMFP::setDefaultSessionIdleLimit(Time limit)
+void RTMFP::setDefaultSessionIdleLimit(Duration limit)
 {
 	m_default_session_idle_limit = limit;
 }
 
-Time RTMFP::getDefaultSessionIdleLimit() const
+Duration RTMFP::getDefaultSessionIdleLimit() const
 {
 	return m_default_session_idle_limit;;
 }
@@ -194,12 +194,12 @@ Time RTMFP::getCurrentTime() const
 	return m_platform->getCurrentTime();
 }
 
-Time RTMFP::getInstanceAge() const
+Duration RTMFP::getInstanceAge() const
 {
 	return getCurrentTime() - m_epoch;
 }
 
-Time RTMFP::howLongToSleep() const
+Duration RTMFP::howLongToSleep() const
 {
 	return m_timers.howLongToNextFire(getCurrentTime());
 }
@@ -255,7 +255,7 @@ unsigned long RTMFP::getNextThreadNum()
 	return m_nextThreadNum++;
 }
 
-std::shared_ptr<Timer> RTMFP::scheduleRel(Time delta, Time recurInterval)
+std::shared_ptr<Timer> RTMFP::scheduleRel(Duration delta, Duration recurInterval)
 {
 	return m_timers.schedule(delta + getCurrentTime(), recurInterval);
 }
