@@ -42,11 +42,11 @@ public:
 	void   setChunkSize(size_t newSize);
 	size_t getChunkSize() const;
 
-	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin = INFINITY, Time finishWithin = INFINITY);
-	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin = INFINITY, Time finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
+	std::shared_ptr<WriteReceipt> write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin = INFINITY, Duration finishWithin = INFINITY);
 
-	Time getUnsentAge(Priority pri) const; // answer the age of the oldest unfinished message at pri or higher
-	Time getInstanceAge() const;
+	Duration getUnsentAge(Priority pri) const; // answer the age of the oldest unfinished message at pri or higher
+	Duration getInstanceAge() const;
 	Time getCurrentTime() const;
 	uint32_t timeAsTimestamp(Time t) const;
 
@@ -61,13 +61,13 @@ public:
 
 	void setPaused(bool isPaused); // suspend processing
 
-	Time getRTT() const;
-	Time getBaseRTT() const;
+	Duration getRTT() const;
+	Duration getBaseRTT() const;
 
 	size_t getBytesInFlight() const;
 	size_t outstandingThresh { 1024 * 64 };
 	size_t minOutstandingThresh { 1024 * 64 };
-	Time maxAdditionalDelay { 0.1 };
+	Duration maxAdditionalDelay { 0.1 };
 
 protected:
 	struct Message;
@@ -93,8 +93,8 @@ protected:
 	};
 
 	struct RTTMeasurement {
-		Time min_rtt;
-		Time origin;
+		Duration min_rtt;
+		Time     origin;
 	};
 
 	bool onReceiveBytes(const void *bytes, size_t len);
@@ -137,7 +137,7 @@ protected:
 
 	void startRTT();
 	void measureRTT();
-	void addRTT(Time rtt);
+	void addRTT(Duration rtt);
 
 	std::map<uint32_t, RecvChunkStreamState> m_recvChunkStreams; // chunkstreamID -> state
 	SendChunkStreamState m_sendChunkStreams[NUM_CHUNKSTREAMS];
@@ -170,8 +170,8 @@ protected:
 	size_t   m_rttPosition { 0 };
 	size_t   m_rttPreviousPosition { 0 };
 	Time     m_rttAnchor { -1.0 };
-	Time     m_baseRTTCache { 0.1 };
-	Time     m_smoothedRTT { 0.1 };
+	Duration m_baseRTTCache { 0.1 };
+	Duration m_smoothedRTT { 0.1 };
 	std::deque<RTTMeasurement> m_rttMeasurements;
 };
 

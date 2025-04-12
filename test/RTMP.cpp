@@ -12,7 +12,7 @@ namespace com { namespace zenomt { namespace rtmp {
 static const size_t INITIAL_SEND_CHUNK_SIZE = 1024;
 static const size_t MAX_TCMSG_LENGTH = (1<<24) - 1;
 
-static const Time RTT_HISTORY_THRESH = 30.0;
+static const Duration RTT_HISTORY_THRESH = 30.0;
 static const size_t RTT_HISTORY_CAPACITY = 6;
 static const size_t MIN_ACK_WINDOW = 1400 * 2;
 static const size_t MAX_ACK_WINDOW = 1400 * 8;
@@ -182,7 +182,7 @@ size_t RTMP::getChunkSize() const
 	return m_sendChunkSize;
 }
 
-std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if((m_state >= RT_CLOSING) or (len > MAX_TCMSG_LENGTH))
 		return nullptr;
@@ -212,15 +212,15 @@ std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8
 	return receipt;
 }
 
-std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Time startWithin, Time finishWithin)
+std::shared_ptr<WriteReceipt> RTMP::write(Priority pri, uint32_t streamID, uint8_t messageType, uint32_t timestamp, const Bytes &payload, Duration startWithin, Duration finishWithin)
 {
 	return write(pri, streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 }
 
-Time RTMP::getUnsentAge(Priority pri_) const
+Duration RTMP::getUnsentAge(Priority pri_) const
 {
 	Time now = getCurrentTime();
-	Time rv = 0.0;
+	Duration rv = 0.0;
 
 	for(int pri = pri_; pri < NUM_PRIORITIES; pri++)
 	{
@@ -232,7 +232,7 @@ Time RTMP::getUnsentAge(Priority pri_) const
 	return rv;
 }
 
-Time RTMP::getInstanceAge() const
+Duration RTMP::getInstanceAge() const
 {
 	return getCurrentTime() - m_epoch;
 }
@@ -275,12 +275,12 @@ void RTMP::setPaused(bool isPaused)
 	m_isPaused = isPaused;
 }
 
-Time RTMP::getRTT() const
+Duration RTMP::getRTT() const
 {
 	return m_smoothedRTT;
 }
 
-Time RTMP::getBaseRTT() const
+Duration RTMP::getBaseRTT() const
 {
 	return m_baseRTTCache;
 }
@@ -1080,7 +1080,7 @@ void RTMP::measureRTT()
 {
 	if((m_rttAnchor >= 0.0) and (m_ackedBytes > m_rttPosition))
 	{
-		Time rtt = std::max(getCurrentTime() - m_rttAnchor, Time(0.0001));
+		Duration rtt = std::max(getCurrentTime() - m_rttAnchor, Duration(0.0001));
 		size_t numBytes = m_sentBytes - m_rttPreviousPosition;
 		double bandwidth = numBytes / rtt;
 
@@ -1103,7 +1103,7 @@ void RTMP::measureRTT()
 	}
 }
 
-void RTMP::addRTT(Time rtt)
+void RTMP::addRTT(Duration rtt)
 {
 	Time now = getCurrentTime();
 	if(m_rttMeasurements.empty() or (now - m_rttMeasurements.front().origin > RTT_HISTORY_THRESH))
