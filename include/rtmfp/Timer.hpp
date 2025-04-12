@@ -12,8 +12,9 @@
 namespace com { namespace zenomt {
 
 class TimerList;
-using Time = long double;
-using Duration = long double;
+
+using Time = long double; // A point in time, as seconds since an epoch.
+using Duration = long double; // A period of time in seconds.
 
 class Timer : public Object {
 public:
