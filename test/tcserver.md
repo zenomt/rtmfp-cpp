@@ -55,7 +55,6 @@ in the `tcUrl`. Parameters are specified as “`<name>=<value>`” and are separ
 by `&`, `?`, or `;` characters. If there are multiple parameters with the
 same name, a later one overrides the previous value.
 
-Query parameters in the `tcUrl` override their corresponding default settings.
 The following parameter is recognized:
 
 * `delaycc`: (Number) Infer congestion if the round-trip time exceeds
