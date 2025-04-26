@@ -48,6 +48,20 @@ the App name will be derived from the `tcUrl` member in the conventional way.
 If neither the `app` nor `tcUrl` members are present, the connection will be
 rejected.
 
+### Connection Parameters
+
+Default settings for the connection can be overridden with query parameters
+in the `tcUrl`. Parameters are specified as “`<name>=<value>`” and are separated
+by `&`, `?`, or `;` characters. If there are multiple parameters with the
+same name, a later one overrides the previous value.
+
+Query parameters in the `tcUrl` override their corresponding default settings.
+The following parameter is recognized:
+
+* `delaycc`: (Number) Infer congestion if the round-trip time exceeds
+  the baseline/minimum observed round-trip time by at least this many
+  seconds. Overrides the `-X` command-line setting.
+
 ## Authentication
 
 One or more _authentication master keys_ can be set with the `-k` and `-K`

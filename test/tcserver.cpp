@@ -68,7 +68,7 @@ Duration finishByMargin = 0.1;
 Duration previousGopStartByMargin = 0.1;
 Duration checkpointLifetime = 4.5;
 Duration reorderWindowPeriod = 1.0;
-Duration delaycc_delay = INFINITY;
+Duration delaycc_default = 30.0;
 Duration shutdownTimeout = 10.0;
 Duration gracefulShutdownTimeout = 300.0;
 bool expirePreviousGop = true;
@@ -157,7 +157,7 @@ std::map<std::string, std::string> splitParams(const std::string &str, const std
 	for(auto it = params.begin(); it != params.end(); it++)
 	{
 		auto parts = URIParse::split(*it, "=", 2);
-		rv[parts[0]] = parts.size() > 1 ? parts[1] : "";
+		rv[URIParse::safePercentDecode(parts[0])] = URIParse::safePercentDecode(parts.size() > 1 ? parts[1] : "");
 	}
 
 	return rv;
@@ -172,6 +172,20 @@ long double paramValueToFloat(const std::string &str, long double defaultValue)
 	char *endptr = nullptr;
 	long double rv = strtold(valueStr, &endptr);
 	return ((endptr == valueStr) or std::isnan(rv)) ? defaultValue : rv;
+}
+
+void trySetTimeParam(Duration *dst, const std::map<std::string, std::string> &params, const std::string &key, Duration defaultSetting)
+{
+	auto it = params.find(key);
+	if(it != params.end())
+	{
+		Duration timeValue = paramValueToFloat(it->second, -1);
+		if(timeValue >= 0.0)
+		{
+			*dst = std::min(timeValue, std::max(Duration(10), defaultSetting * 2));
+			if(verbose) printf("set param %s to %f\n", key.c_str(), (double)*dst);
+		}
+	}
 }
 
 long double unixCurrentTime()
@@ -233,22 +247,6 @@ struct NetStream : public Object {
 		m_expirePreviousGop = expirePreviousGop;
 		m_previousGopStartByMargin = previousGopStartByMargin;
 		m_seenKeyframe = false;
-	}
-
-	static void trySetTimeParam(Time *dst, const std::map<std::string, std::string> &params, const std::string &key, Duration defaultSetting)
-	{
-		auto it = params.find(key);
-		if(it != params.end())
-		{
-			Duration timeValue = paramValueToFloat(it->second, -1);
-			if(timeValue >= 0.0)
-			{
-				Duration max = std::max(Duration(10.0), defaultSetting * 2); // safety to avoid buffering too much
-				*dst = std::min(timeValue, max);
-
-				if(verbose) printf("set play param %s to %f\n", key.c_str(), (double)*dst);
-			}
-		}
 	}
 
 	void overridePlayParams(const std::string &queryStr)
@@ -813,6 +811,8 @@ protected:
 		return Hex::encode(m_connectionID);
 	}
 
+	virtual void setCongestionDelay(Duration delay) = 0;
+
 	void onShutdownComplete()
 	{
 		m_finished = true;
@@ -1010,10 +1010,12 @@ protected:
 			return;
 		}
 
+		auto tcUrl = commandObject->getValueAtKey("tcUrl");
+		URIParse uri(tcUrl->isString() ? tcUrl->stringValue() : "");
+
 		auto app = commandObject->getValueAtKey("app");
 		if(not app->isString())
 		{
-			auto tcUrl = commandObject->getValueAtKey("tcUrl");
 			if(not tcUrl->isString())
 			{
 				clientLog("error", {{"reason", AMF0::String("connect-missing-app-and-tcUrl")}});
@@ -1021,10 +1023,20 @@ protected:
 				return;
 			}
 
-			URIParse uri(tcUrl->stringValue());
 			app = AMF0::String(uri.path.substr(0, 1) == "/" ? uri.path.substr(1) : uri.path);
 		}
 		m_appName = URIParse::safePercentDecode(URIParse::split(app->stringValue(), '?', 2)[0]);
+
+		Duration delaycc = delaycc_default;
+
+		if(not uri.query.empty())
+		{
+			auto params = splitParams(uri.query, "&?;");
+
+			trySetTimeParam(&delaycc, params, "delaycc", 60.0);
+		}
+
+		setCongestionDelay(delaycc);
 
 		int matchedKey = -1;
 		if(secrets.size())
@@ -1748,6 +1760,11 @@ protected:
 		std::set<std::shared_ptr<RecvFlow>> m_recvFlows;
 	};
 
+	void setCongestionDelay(Duration delay) override
+	{
+		m_controlRecv->setSessionCongestionDelay(delay);
+	}
+
 	void onSetPeerInfoCommand(const Args &args) override
 	{
 		Client::onSetPeerInfoCommand(args);
@@ -1788,7 +1805,6 @@ protected:
 		m_controlSend->onRecvFlow = [this] (std::shared_ptr<RecvFlow> flow) { acceptOtherFlow(flow); };
 
 		m_controlRecv->onComplete = [this] (bool error) { close(); };
-		m_controlRecv->setSessionCongestionDelay(delaycc_delay);
 		m_controlRecv->setSessionTrafficClass(dscp << 2);
 		m_controlRecv->onFarAddressDidChange = [this] { onFarAddressDidChange(); };
 		setOnMessage(m_controlRecv, 0, nullptr);
@@ -1954,7 +1970,6 @@ public:
 		m_rtmp = share_ref(new RTMP(m_adapter), false);
 		m_rtmp->init(true);
 		m_rtmp->minOutstandingThresh = 16 * 1024; // default 64KB probably too big
-		m_rtmp->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 120.0;
 
 		if(simple)
 		{
@@ -2016,6 +2031,11 @@ public:
 protected:
 	std::string protocol() const override { return m_simple ? "rtmp-simple" : "rtmp"; }
 
+	void setCongestionDelay(Duration delay) override
+	{
+		m_rtmp->maxAdditionalDelay = delay;
+	}
+
 	std::shared_ptr<PosixStreamPlatformAdapter> m_adapter;
 	std::shared_ptr<RTMP> m_rtmp;
 	bool m_simple;
@@ -2057,7 +2077,6 @@ public:
 		client->m_wsMessageAdapter->onOpen = [client] { client->m_rtws->init(); };
 		client->m_rtws->onRecvFlow = [client] (std::shared_ptr<rtws::RecvFlow> flow) { client->acceptControlFlow(flow); };
 		client->m_rtws->onError = [client] { client->close(); };
-		client->m_rtws->maxAdditionalDelay = (delaycc_delay < INFINITY) ? delaycc_delay : 0.25; // TODO tune default
 		client->m_rtws->minOutstandingThresh = 16 * 1024; // default is 64KB, probably too big
 
 		clients[client->m_connectionID] = client;
@@ -2142,6 +2161,11 @@ protected:
 		std::shared_ptr<rtws::SendFlow> m_data;
 		std::set<std::shared_ptr<rtws::RecvFlow>> m_recvFlows;
 	};
+
+	void setCongestionDelay(Duration delay) override
+	{
+		m_rtws->maxAdditionalDelay = delay;
+	}
 
 	void onHttpHeadersReceived()
 	{
@@ -2729,7 +2753,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -E            -- don't expire previous GOP\n");
 	printf("  -C sec        -- checkpoint queue lifetime (default %.3Lf)\n", checkpointLifetime);
 	printf("  -T DSCP|name  -- set DiffServ field on outgoing packets (default %d)\n", dscp);
-	printf("  -X sec        -- set congestion extra delay threshold (rtmfp, rtws, rtmp, default %.3Lf)\n", delaycc_delay);
+	printf("  -X sec        -- set congestion extra delay threshold (default %.3Lf)\n", delaycc_default);
 	printf("  -x            -- use static Diffie-Hellman keys instead of ephemeral (rtmfp)\n");
 	printf("  -H            -- don't require HMAC (rtmfp)\n");
 	printf("  -S            -- don't require session sequence numbers (rtmfp)\n");
@@ -2810,7 +2834,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'X':
-			delaycc_delay = atof(optarg);
+			delaycc_default = atof(optarg);
 			break;
 		case 'x':
 			ephemeralDH = false;
