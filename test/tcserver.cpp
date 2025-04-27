@@ -3101,7 +3101,7 @@ int main(int argc, char **argv)
 	};
 
 	mainRL.scheduleRel(Timer::makeAction([] { fflush(stdout); }), 0, 5);
-	mainRL.scheduleRel(Timer::makeAction([] { showStats = true; }), 300, 300);
+	mainRL.scheduleRel(Timer::makeAction([] { showStats = true; }), 0, 3600);
 
 	auto workerThread = std::thread([] { workerRL.run(); });
 
