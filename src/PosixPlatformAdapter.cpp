@@ -72,16 +72,14 @@ std::shared_ptr<Address> PosixPlatformAdapter::addUdpInterface(const struct sock
 		return rv;
 
 	{
-		// try to turn on receive of TOS/TCLASS for both families. depending
-		// on OS, this might work for combo sockets (and be necessary to get
-		// TOS from mapped senders). it shouldn't hurt.
 		int on = 1;
-		setsockopt(uif.m_fd, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on));
-		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on));
-
-		// (for IPv6 sockets) set IPV6_V6ONLY for cross-platform consistency.
-		// the safe and portable thing is to always have separate sockets for each family.
-		setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+		if(AF_INET == uif.m_family)
+			setsockopt(uif.m_fd, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on));
+		else
+		{
+			setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on));
+			setsockopt(uif.m_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+		}
 	}
 
 	{
@@ -271,6 +269,16 @@ long PosixPlatformAdapter::receiveOnePacket(int fd, int interfaceID)
 				memcpy(&tos, CMSG_DATA(cmsg), sizeof(tos));
 				break;
 			}
+
+#ifdef __APPLE__
+			// Mac OS X seems to receive the IPv4 type of service this way, which is a bug.
+			else if((IPPROTO_IP == cmsg->cmsg_level) and (IP_RECVTOS == cmsg->cmsg_type) and (1 == cmsg->cmsg_len - CMSG_LEN(0)))
+			{
+				tos = *CMSG_DATA(cmsg);
+				break;
+			}
+#endif // __APPLE__
+
 		}
 
 		m_rtmfp->onReceivePacket(buf, rv, interfaceID, &addr_u.s, tos);
