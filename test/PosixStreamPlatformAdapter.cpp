@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "rtmfp/Retainer.hpp"
+
 #include "PosixStreamPlatformAdapter.hpp"
 
 namespace com { namespace zenomt {
@@ -168,6 +170,8 @@ void PosixStreamPlatformAdapter::onClientClosed()
 
 void PosixStreamPlatformAdapter::onInterfaceReadable()
 {
+	auto myself = retain_ref(this);
+
 	if(m_clientOpen and not m_onreceivebytes)
 	{
 		m_runloop->unregisterDescriptor(m_fd, RunLoop::READABLE);
@@ -205,6 +209,8 @@ error:
 
 void PosixStreamPlatformAdapter::onInterfaceWritable()
 {
+	auto myself = retain_ref(this);
+
 	while(m_onwritable and (m_outputBuffer.size() < m_writeSizePerSelect))
 	{
 		if(not m_onwritable())

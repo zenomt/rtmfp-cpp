@@ -6,8 +6,10 @@
 #include <cstring>
 #include <regex>
 
+#include "rtmfp/Retainer.hpp"
+#include "rtmfp/URIParse.hpp"
+
 #include "SimpleWebSocket.hpp"
-#include "../include/rtmfp/URIParse.hpp"
 
 namespace {
 
@@ -180,6 +182,8 @@ void HeaderBodyStream::writeBytes(const std::string &s)
 
 bool HeaderBodyStream::onReceiveBytes(const void *bytes, size_t len)
 {
+	auto myself = retain_ref(this);
+
 	const uint8_t *cursor = (const uint8_t *)bytes;
 	const uint8_t *limit = cursor + len;
 
