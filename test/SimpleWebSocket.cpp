@@ -139,7 +139,7 @@ Time HeaderBodyStream::getCurrentTime()
 
 bool HeaderBodyStream::init()
 {
-	auto myself = share_ref(this);
+	auto myself = retain_ref(this);
 	m_platform->setOnReceiveBytesCallback([myself] (const void *bytes, size_t len) { return myself->onReceiveBytes(bytes, len); });
 	m_platform->setOnStreamDidCloseCallback([myself] { myself->setClosedState(); });
 	return true;
@@ -230,7 +230,7 @@ void HeaderBodyStream::scheduleWrite()
 {
 	if((m_state < S_ERROR) and not m_writeScheduled)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_platform->notifyWhenWritable([myself] { return myself->onWritable(); });
 		m_writeScheduled = true;
 	}
@@ -414,7 +414,7 @@ void SimpleWebSocket::cleanClose()
 
 const uint8_t * SimpleWebSocket::onBodyBytes(const uint8_t *bytes, const uint8_t *limit)
 {
-	auto myself = share_ref(this);
+	auto myself = retain_ref(this);
 
 	m_inputBuffer.insert(m_inputBuffer.end(), bytes, limit);
 	const uint8_t *buffer = m_inputBuffer.data();

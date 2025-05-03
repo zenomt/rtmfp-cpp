@@ -266,7 +266,7 @@ void PosixStreamPlatformAdapter::tryRegisterReadable()
 {
 	if(m_runloop and (m_fd >= 0) and m_onreceivebytes)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_runloop->registerDescriptor(m_fd, RunLoop::READABLE, [myself] { myself->onInterfaceReadable(); });
 	}
 }
@@ -275,7 +275,7 @@ void PosixStreamPlatformAdapter::tryRegisterWritable()
 {
 	if(m_runloop and (m_fd >= 0) and m_onwritable)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_runloop->registerDescriptor(m_fd, RunLoop::WRITABLE, [myself] { myself->onInterfaceWritable(); });
 	}
 }

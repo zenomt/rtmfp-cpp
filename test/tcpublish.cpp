@@ -21,6 +21,7 @@
 #include <netdb.h>
 
 #include "rtmfp/rtmfp.hpp"
+#include "rtmfp/Retainer.hpp"
 #include "rtmfp/RunLoops.hpp"
 #include "rtmfp/FlashCryptoAdapter_OpenSSL.hpp"
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
@@ -307,7 +308,7 @@ public:
 
 		printf("publish start.\n");
 
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		workerPerformer.perform([this, myself] { workerPublishStart(); });
 	}
 
@@ -325,7 +326,7 @@ public:
 
 	void workerScheduleNextFrame(bool stopOnEmpty)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		auto tag = m_flvReader->getNextTag();
 		if(not tag)
 		{
@@ -357,7 +358,7 @@ public:
 
 	void workerOnTagAlarm(std::shared_ptr<FLVReader::Tag> tag)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		mainPerformer.perform([this, myself, tag] { onTag(tag); });
 
 		workerScheduleNextFrame(false);

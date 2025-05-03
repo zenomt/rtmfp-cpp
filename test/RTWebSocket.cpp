@@ -1,6 +1,7 @@
 // Copyright © 2022 Michael Thornburgh
 // SPDX-License-Identifier: MIT
 
+#include "rtmfp/Retainer.hpp"
 #include "rtmfp/VLU.hpp"
 
 #include "RTWebSocket.hpp"
@@ -576,7 +577,7 @@ void RTWebSocket::safeDoLater(Object *retainThis, const Task &task)
 {
 	if(m_open)
 	{
-		auto retaining = share_ref(retainThis);
+		auto retaining = retain_ref(retainThis);
 		m_adapter->doLater([retaining, task] {
 			task();
 			(void)retaining;
@@ -661,7 +662,7 @@ bool SendFlow::isOpen() const
 
 void SendFlow::close()
 {
-	auto myself = share_ref(this);
+	auto myself = retain_ref(this);
 
 	if(not m_open)
 		return;
@@ -942,7 +943,7 @@ void RecvFlow::close(uintmax_t reason)
 
 void RecvFlow::close(uintmax_t reason, const std::string &description)
 {
-	auto myself = share_ref(this);
+	auto myself = retain_ref(this);
 
 	if(not m_open)
 		return;
