@@ -6,6 +6,7 @@
 namespace com { namespace zenomt {
 
 RunLoop::RunLoop(bool sharedTimeOrigin) :
+	m_timeCache(0),
 	m_timeIsCached(false),
 	m_stopping(false)
 {

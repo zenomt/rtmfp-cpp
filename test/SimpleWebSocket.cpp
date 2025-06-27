@@ -710,7 +710,7 @@ void SimpleWebSocket::writeFrame(int opcode, const void *bytes_, size_t len)
 		frame.push_back((len      ) & 0xff);
 	}
 
-	if(len)
+	if(len and bytes)
 		frame.insert(frame.end(), bytes, bytes + len);
 
 	writeBytes(frame);

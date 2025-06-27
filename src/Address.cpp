@@ -323,9 +323,9 @@ void Address::toPresentation(char *dst, bool withPort) const
 	else
 	{
 		if(AF_INET == getFamily())
-			snprintf(dst, MAX_PRESENTATION_LENGTH, "%s:%d", buf, getPort());
+			snprintf(dst, MAX_PRESENTATION_LENGTH, "%s:%u", buf, getPort());
 		else
-			snprintf(dst, MAX_PRESENTATION_LENGTH, "[%s]:%d", buf, getPort());
+			snprintf(dst, MAX_PRESENTATION_LENGTH, "[%s]:%u", buf, getPort());
 	}
 }
 

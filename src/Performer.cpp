@@ -103,7 +103,7 @@ void Performer::perform(const Task &task, bool wait)
 
 	if(not m_signaled)
 	{
-		uint8_t buf[1];
+		uint8_t buf[1] {};
 		m_signaled = true;
 		(void)write(m_pipe[WRITE_PIPE_IDX], buf, sizeof(buf));
 	}
