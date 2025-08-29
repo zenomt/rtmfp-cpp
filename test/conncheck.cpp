@@ -85,6 +85,7 @@ Example usage:
 #include <cstring>
 
 extern "C" {
+#include <time.h>
 #include <unistd.h>
 }
 
@@ -94,12 +95,16 @@ extern "C" {
 #include "rtmfp/PerformerPosixPlatformAdapter.hpp"
 #include "rtmfp/TCMessage.hpp"
 #include "rtmfp/Hex.hpp"
+#include "rtmfp/RedirectorClient.hpp"
+
+#include "redirectorspec.hpp"
 
 using namespace com::zenomt;
 using namespace com::zenomt::rtmfp;
 using namespace com::zenomt::rtmp;
 
 using Args = std::vector<std::shared_ptr<AMF0>>;
+using LogAttributes = std::vector<std::pair<const char *, std::shared_ptr<AMF0>>>;
 
 namespace {
 
@@ -111,6 +116,8 @@ size_t tries = 5;
 Duration connectionTimeout = 120.0;
 bool interrupted = false;
 bool stopping = false;
+pid_t pid;
+std::string serverId;
 
 Address introReplyAddress;
 const char *serverInfo = nullptr;
@@ -128,6 +135,65 @@ RTMFP *probeRtmfpPtr = nullptr;
 
 class Client;
 std::map<Bytes, std::shared_ptr<Client>> clients;
+std::vector<std::shared_ptr<RedirectorClient>> redirectors;
+
+std::string redirectorStatusDescription(RedirectorClient::Status status)
+{
+	switch(status)
+	{
+	case RedirectorClient::STATUS_IDLE:                  return "idle";
+	case RedirectorClient::STATUS_CONNECTING:            return "connecting";
+	case RedirectorClient::STATUS_CONNECTED:             return "connected";
+	case RedirectorClient::STATUS_DISCONNECTED:          return "disconnected";
+	case RedirectorClient::STATUS_DISCONNECTED_BAD_AUTH: return "disconnected-bad-auth";
+	case RedirectorClient::STATUS_CLOSED:                return "closed";
+	default: return "unknown-status";
+	}
+}
+
+long double unixCurrentTime()
+{
+	// note: C++20 guarantees that std::chrono::system_clock measures
+	// Unix time, but we're C++11 right now, which doesn't.
+
+	struct timespec tp;
+	if(::clock_gettime(CLOCK_REALTIME, &tp))
+		return -1.0;
+	return (long double)(tp.tv_sec) + (((long double)tp.tv_nsec) / ((long double)1000000000.0));
+}
+
+AMF0Object * putLogAttributes(const std::shared_ptr<AMF0Object> &dst, const LogAttributes &attrlist)
+{
+	for(auto it = attrlist.begin(); it != attrlist.end(); it++)
+		dst->putValueAtKey(it->second, it->first);
+	return dst.get();
+}
+
+/*
+// will use later
+LogAttributes catLogAttributes(const LogAttributes &l, const LogAttributes &r)
+{
+	auto rv = l;
+	rv.insert(rv.end(), r.begin(), r.end());
+	return rv;
+}
+*/
+
+void jsonLog(const std::string &type, const LogAttributes &attrlist, bool pretty = false)
+{
+	auto attrs = AMF0::Object();
+
+	putLogAttributes(attrs, attrlist);
+
+	attrs
+		->putValueAtKey(AMF0::Number(pid), "@pid")
+		->putValueAtKey(AMF0::String(serverId), "@server")
+		->putValueAtKey(AMF0::Number(unixCurrentTime()), "@timestamp")
+		->putValueAtKey(AMF0::String(type), "@type")
+	;
+
+	printf("%s\n", attrs->toJSON(pretty ? 4 : 0).c_str());
+}
 
 class NotMeFlashCryptoAdapter : public FlashCryptoAdapter_OpenSSL {
 public:
@@ -613,6 +679,15 @@ bool setAddressFromPresentation(const char *presentationForm, Address &dst)
 	return true;
 }
 
+bool appendAddress(const char *presentationForm, std::vector<Address> &dst)
+{
+    Address addr;
+    if(not addr.setFromPresentation(presentationForm))
+        return false;
+    dst.push_back(addr);
+    return true;
+}
+
 int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg = nullptr)
 {
 	if(msg)
@@ -632,6 +707,10 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -t tries      -- send up to tries probes (default %zu)\n", tries);
 	printf("  -T timeout    -- close connection after timeout (default %.3Lf)\n", connectionTimeout);
 	printf("  -o offset     -- stagger probes by offset (default %.3Lf)\n", testOffset);
+	printf("  -L redir-spec -- add redirector/LB spec <name>@<ip:port>,[ip:port...]\n");
+	printf("  -l user:passw -- add redirector username:password\n");
+	printf("  -d addr:port  -- advertise addr:port at redirector\n");
+	printf("  -D            -- suppress redirector advertising reflexive (derived) address\n");
 	printf("  -H            -- don't require HMAC\n");
 	printf("  -S            -- don't require session sequence numbers\n");
 	printf("  -v            -- increase verbose output\n");
@@ -656,8 +735,14 @@ int main(int argc, char **argv)
 	Address differentPortBindAddress;
 	Address differentAddressBindAddress;
 	Address introReplyBindAddress;
+	std::map<std::string, std::string> redirectAuth;
+	std::map<std::string, std::vector<Address>> redirectorSpecs;
+	std::vector<Address> advertiseAddresses;
+	bool advertiseReflexive = true;
 
-	while((ch = getopt(argc, argv, "B:p:a:i:I:m:t:T:o:HSvh")) != -1)
+	pid = getpid();
+
+	while((ch = getopt(argc, argv, "B:p:a:i:I:m:t:T:o:L:l:d:DHSvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -713,6 +798,31 @@ int main(int argc, char **argv)
 			testOffset = atof(optarg);
 			break;
 
+		case 'L':
+			if(not parse_redirector_spec(optarg, redirectorSpecs))
+				return usage(argv[0], 1, "unrecognized redirector spec: ", optarg);
+			break;
+
+		case 'l':
+			{
+				std::string str = optarg;
+				memset(optarg, '#', strlen(optarg));
+				auto pos = str.find(":");
+				if(std::string::npos == pos)
+					return usage(argv[0], 1, "unrecognized redirector username:password");
+				redirectAuth[str.substr(0, pos)] = str.substr(pos + 1);
+			}
+			break;
+
+		case 'd':
+			if(not appendAddress(optarg, advertiseAddresses))
+				return usage(argv[0], 1, "can't parse address to advertise at redirector: ", optarg);
+			break;
+
+		case 'D':
+			advertiseReflexive = false;
+			break;
+
 		case 'v':
 			verbose++;
 			break;
@@ -764,6 +874,8 @@ int main(int argc, char **argv)
 	crypto.setSSeqSendAlways(requireSSEQ);
 	crypto.setSSeqRecvRequired(requireSSEQ);
 	flashcrypto = &crypto;
+
+	serverId = std::string(Hex::encode(crypto.getFingerprint()), 0, 10);
 
 	PerformerPosixPlatformAdapter platform(&mainRL, &mainPerformer, &workerPerformer);
 
@@ -818,6 +930,35 @@ int main(int argc, char **argv)
 	printf(",probe-advertise,intro-reply-address,%s\n", introReplyAddress.toPresentation().c_str());
 
 	probeRtmfp.onUnmatchedRHello = Client::onUnmatchedRHello;
+
+	for(auto it = redirectorSpecs.begin(); it != redirectorSpecs.end(); it++)
+	{
+		auto hostname = it->first;
+		Bytes epd = crypto.makeEPD(nullptr, nullptr, hostname.c_str());
+		auto redirectorClient = share_ref(new FlashCryptoRunLoopRedirectorClient(&rtmfp, epd, &mainRL, &crypto), false);
+		redirectors.push_back(redirectorClient);
+		auto redirectorClient_ptr = redirectorClient.get();
+		config_redirector_client(redirectorClient_ptr, redirectAuth, it->second, advertiseAddresses, advertiseReflexive);
+
+		redirectorClient->setLoadFactorUpdateInterval(1);
+
+		redirectorClient->onReflexiveAddress = [hostname, redirectorClient_ptr] (const Address &addr) {
+			jsonLog("redirector-reflexive", {
+				{"redirector", AMF0::String(hostname)},
+				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
+				{"reflexiveAddress", AMF0::String(addr.toPresentation())}
+			});
+		};
+		redirectorClient->onStatus = [hostname, redirectorClient_ptr] (RedirectorClient::Status status) {
+			jsonLog("redirector-status", {
+				{"redirector", AMF0::String(hostname)},
+				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
+				{"status", AMF0::String(redirectorStatusDescription(status))}
+			});
+		};
+
+		redirectorClient->connect();
+	}
 
 	::signal(SIGINT, signal_handler);
 	::signal(SIGTERM, signal_handler);
