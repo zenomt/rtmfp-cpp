@@ -169,15 +169,12 @@ AMF0Object * putLogAttributes(const std::shared_ptr<AMF0Object> &dst, const LogA
 	return dst.get();
 }
 
-/*
-// will use later
 LogAttributes catLogAttributes(const LogAttributes &l, const LogAttributes &r)
 {
 	auto rv = l;
 	rv.insert(rv.end(), r.begin(), r.end());
 	return rv;
 }
-*/
 
 void jsonLog(const std::string &type, const LogAttributes &attrlist, bool pretty = false)
 {
@@ -211,6 +208,19 @@ public:
 			printf("~Client %p\n", (void *)this);
 	}
 
+	LogAttributes connectionLogAttrs() const
+	{
+		return {
+			{"epd", AMF0::String(Hex::encode(m_epd))},
+			{"address", AMF0::String(m_farAddressStr)}
+		};
+	}
+
+	void clientLog(const std::string &type, const LogAttributes &attrs)
+	{
+		jsonLog(type, catLogAttributes(attrs, connectionLogAttrs()));
+	}
+
 	static void newClient(std::shared_ptr<RecvFlow> controlRecv)
 	{
 		uint32_t streamID = 0;
@@ -240,7 +250,7 @@ public:
 	{
 		retain();
 
-		if(verbose) printf("%s,close\n", m_farAddressStr.c_str());
+		if(verbose) clientLog("close", {});
 		m_open = false;
 
 		if(m_controlSend)
@@ -298,7 +308,7 @@ protected:
 
 		m_farAddress = m_controlRecv->getFarAddress();
 		m_farAddressStr = m_farAddress.toPresentation();
-		if(verbose) printf("%s,accept,rtmfp\n", m_farAddressStr.c_str());
+		if(verbose) clientLog("accept", {});
 		m_controlRecv->accept();
 
 		m_probeTag.resize(32);
@@ -345,10 +355,12 @@ protected:
 	void onMessage(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len)
 	{
 		if(verbose > 1)
-		{
-			printf("%s,debug-stream,streamID,%u,type,%d,timestamp,%u,len,%lu\n", m_farAddressStr.c_str(), streamID, messageType, timestamp, (unsigned long)len);
-			fflush(stdout);
-		}
+			clientLog("debug-stream", {
+				{"streamID", AMF0::Number(streamID)},
+				{"messageType", AMF0::Number(messageType)},
+				{"timestamp", AMF0::Number(timestamp)},
+				{"length", AMF0::Number(len)}
+			});
 
 		switch(messageType)
 		{
@@ -396,7 +408,7 @@ protected:
 		 or (not args[1]->isNumber()) // transaction ID
 		)
 		{
-			printf("%s,error,invalid-command-format\n", m_farAddressStr.c_str());
+			clientLog("error", {{"description", AMF0::String("invalid command format")}});
 			close();
 			return;
 		}
@@ -417,7 +429,7 @@ protected:
 
 		if(not m_connected)
 		{
-			printf("%s,error,command-before-connect\n", m_farAddressStr.c_str());
+			clientLog("error", {{"description", AMF0::String("command before connect")}});
 			close();
 			return;
 		}
@@ -430,14 +442,14 @@ protected:
 	{
 		if(args.size() < 3)
 		{
-			printf("%s,error,connect-missing-arg\n", m_farAddressStr.c_str());
+			clientLog("error", {{"description", AMF0::String("connect missing arg")}});
 			close();
 			return;
 		}
 
 		if(m_connecting)
 		{
-			printf("%s,error,connect-after-connect\n", m_farAddressStr.c_str());
+			clientLog("error", {{"description", AMF0::String("connect after connect")}});
 			close();
 			return;
 		}
@@ -458,7 +470,7 @@ protected:
 			resultObject->putValueAtKey(AMF0::String(serverInfo), "motd");
 		}
 
-		if(verbose) printf("%s,connect\n", m_farAddressStr.c_str());
+		if(verbose) clientLog("connect", {});
 
 		write(0, TCMSG_COMMAND, 0, Message::command("_result", args[1]->doubleValue(), nullptr, resultObject), INFINITY, INFINITY);
 
@@ -471,7 +483,7 @@ protected:
 		m_publicAddressIsLocal = false;
 		m_publicPortMatchesLocalPort = false;
 
-		if(verbose) printf("%s,setPeerInfo,rtmfp", m_farAddressStr.c_str());
+		auto addresses = AMF0::Array();
 
 		for(size_t x = 3; x < args.size(); x++)
 		{
@@ -482,7 +494,7 @@ protected:
 				if(each.setFromPresentation(args[x]->stringValue()))
 				{
 					m_additionalAddresses.push_back(each);
-					if(verbose) printf(",%s", each.toPresentation().c_str());
+					if(verbose) addresses->appendValue(AMF0::String(each.toPresentation().c_str()));
 
 					if(m_farAddress == each)
 						m_publicAddressIsLocal = true;
@@ -492,7 +504,7 @@ protected:
 			}
 		}
 
-		if(verbose) printf("\n");
+		if(verbose) clientLog("setPeerInfo", {{"addresses", addresses}});
 
 		startTests();
 
@@ -508,17 +520,17 @@ protected:
 		Duration rto = m_controlRecv->getERTO();
 
 		m_differentPortTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
-			if(verbose) printf("%s,send-probe,same-address-different-port\n", m_farAddressStr.c_str());
+			if(verbose) clientLog("send-probe", {{"probe", AMF0::String("same-address-different-port")}});
 			probeRtmfpPtr->sendIHello(m_epd.data(), m_epd.size(), m_probeTag.data(), m_probeTag.size(), differentPortInterface, m_farAddress.getSockaddr());
 		}, testOffset, rto);
 
 		m_differentAddressTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
-			if(verbose) printf("%s,send-probe,different-address\n", m_farAddressStr.c_str());
+			if(verbose) clientLog("send-probe", {{"probe", AMF0::String("different-address")}});
 			probeRtmfpPtr->sendIHello(m_epd.data(), m_epd.size(), m_probeTag.data(), m_probeTag.size(), differentAddressInterface, m_farAddress.getSockaddr());
 		}, testOffset * 2.0, rto);
 
 		m_introTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
-			if(verbose) printf("%s,send-probe,intro\n", m_farAddressStr.c_str());
+			if(verbose) clientLog("send-probe", {{"probe", AMF0::String("intro")}});
 			m_controlRecv->forwardIHello(m_epd.data(), m_epd.size(), introReplyAddress.getSockaddr(), m_probeTag.data(), m_probeTag.size());
 		}, testOffset * 3.0, rto);
 
@@ -536,10 +548,10 @@ protected:
 
 	void onFarAddressDidChange()
 	{
-		if(verbose) printf("%s,address-change,rtmfp", m_farAddressStr.c_str());
+		auto oldAddress = m_farAddressStr;
 		m_farAddress = m_controlRecv->getFarAddress();
 		m_farAddressStr = m_farAddress.toPresentation();
-		if(verbose) printf("%s\n", m_farAddressStr.c_str());
+		if(verbose) clientLog("address-change", {{"oldAddress", AMF0::String(oldAddress)}});
 		write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr,
 			AMF0::Object()
 				->putValueAtKey(AMF0::String("status"), "level")
@@ -564,7 +576,7 @@ protected:
 
 		m_receiveSameAddressDifferentPortAllowed = true;
 
-		if(verbose) printf("%s,probe-returned,same-address-different-port,%s\n", m_farAddressStr.c_str(), address.toPresentation().c_str());
+		if(verbose) clientLog("probe-returned", {{"probe", AMF0::String("same-address-different-port")}, {"from", AMF0::String(address.toPresentation().c_str())}});
 
 		sendTestResultsIfDone();
 	}
@@ -576,7 +588,7 @@ protected:
 
 		m_receiveDifferentAddressDifferentPortAllowed = true;
 
-		if(verbose) printf("%s,probe-returned,different-address,%s\n", m_farAddressStr.c_str(), address.toPresentation().c_str());
+		if(verbose) clientLog("probe-returned", {{"probe", AMF0::String("different-address")}, {"from", AMF0::String(address.toPresentation().c_str())}});
 
 		sendTestResultsIfDone();
 	}
@@ -590,7 +602,7 @@ protected:
 		m_sendAfterIntroductionPreservesSourceAddress = address == m_farAddress;
 		m_sendAfterIntroductionPreservesSourcePort = address.getPort() == m_farAddress.getPort();
 
-		if(verbose) printf("%s,probe-returned,intro,%s\n", m_farAddressStr.c_str(), address.toPresentation().c_str());
+		if(verbose) clientLog("probe-returned", {{"probe", AMF0::String("intro")}, {"from", AMF0::String(address.toPresentation().c_str())}});
 
 		sendTestResultsIfDone();
 	}
@@ -606,7 +618,7 @@ protected:
 			std::shared_ptr<AMF0> publicPortMatchesLocalPort = AMF0::Boolean(m_publicPortMatchesLocalPort);
 
 			if(m_additionalAddresses.empty())
-				publicAddressIsLocal = publicPortMatchesLocalPort = AMF0::Undefined();
+				publicAddressIsLocal = publicPortMatchesLocalPort = AMF0::Null();
 
 			write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr, AMF0::Object()
 				->putValueAtKey(AMF0::String("status"), "level")
@@ -622,15 +634,15 @@ protected:
 				->putValueAtKey(AMF0::Boolean(m_sendAfterIntroductionPreservesSourcePort), "sendAfterIntroductionPreservesSourcePort")
 			), INFINITY, INFINITY);
 
-			printf("%s,results,publicAddressIsLocal,%s,publicPortMatchesLocalPort,%s,receiveSameAddressDifferentPortAllowed,%s,receiveDifferentAddressDifferentPortAllowed,%s,sendAfterIntroductionAllowed,%s,sendAfterIntroductionPreservesSourceAddress,%s,sendAfterIntroductionPreservesSourcePort,%s\n",
-				m_farAddressStr.c_str(),
-				publicAddressIsLocal->repr().c_str(),
-				publicPortMatchesLocalPort->repr().c_str(),
-				m_receiveSameAddressDifferentPortAllowed ? "true" : "false",
-				m_receiveDifferentAddressDifferentPortAllowed ? "true" : "false",
-				m_sendAfterIntroductionAllowed ? "true" : "false",
-				m_sendAfterIntroductionPreservesSourceAddress ? "true" : "false",
-				m_sendAfterIntroductionPreservesSourcePort ? "true" : "false");
+			clientLog("results", {
+				{"publicAddressIsLocal", publicAddressIsLocal},
+				{"publicPortMatchesLocalPort", publicPortMatchesLocalPort},
+				{"receiveSameAddressDifferentPortAllowed", AMF0::Boolean(m_receiveSameAddressDifferentPortAllowed)},
+				{"receiveDifferentAddressDifferentPortAllowed", AMF0::Boolean(m_receiveDifferentAddressDifferentPortAllowed)},
+				{"sendAfterIntroductionAllowed", AMF0::Boolean(m_sendAfterIntroductionAllowed)},
+				{"sendAfterIntroductionPreservesSourceAddress", AMF0::Boolean(m_sendAfterIntroductionPreservesSourceAddress)},
+				{"sendAfterIntroductionPreservesSourcePort", AMF0::Boolean(m_sendAfterIntroductionPreservesSourcePort)}
+			});
 
 			m_timeoutTimer->cancel();
 			m_controlSend->close();
@@ -721,7 +733,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 
 int errorBindingAddress(const char *kind, const Address &address)
 {
-	printf("can't bind %s for %s\n", address.toPresentation().c_str(), kind);
+	jsonLog("error", {{"address", AMF0::String(address.toPresentation().c_str())}, {"bind", AMF0::String(kind)}});
 	return 1;
 }
 
@@ -858,10 +870,10 @@ int main(int argc, char **argv)
 		return usage(argv[0], 1, "error: intro reply IP address must be different from -a address: ", introReplyAddress.toPresentation(false).c_str());
 
 	if(introReplyBindAddress.getFamily() != introReplyAddress.getFamily())
-		printf("warning: public intro reply address isn't in the same family as local intro reply address.\n");
+		jsonLog("warning", {{"description", AMF0::String("public intro reply address isn't in the same family as local intro reply address")}});
 
 	if((bindAddress.getFamily() != differentAddressBindAddress.getFamily()) or (bindAddress.getFamily() != introReplyAddress.getFamily()))
-		printf("warning: addresses are not all in the same family; connectivity check will be inconclusive.\n");
+		jsonLog("warning", {{"description", AMF0::String("addresses are not all in the same family; connectivity check will be inconclusive")}});
 
 	FlashCryptoAdapter_OpenSSL crypto;
 	if(not crypto.init(true, false, nullptr))
@@ -892,8 +904,8 @@ int main(int argc, char **argv)
 	std::shared_ptr<Address> boundAddr;
 	boundAddr = platform.addUdpInterface(bindAddress.getSockaddr());
 	if(not boundAddr)
-		return errorBindingAddress("listen address", bindAddress);
-	printf(",listen,rtmfp,%s\n", boundAddr->toPresentation().c_str());
+		return errorBindingAddress("listen", bindAddress);
+	jsonLog("bind", {{"bind", AMF0::String("listen")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
 	rtmfp.onRecvFlow = Client::newClient;
 
@@ -911,23 +923,23 @@ int main(int argc, char **argv)
 
 	boundAddr = probePlatform.addUdpInterface(differentPortBindAddress.getSockaddr(), &differentPortInterface);
 	if(not boundAddr)
-		return errorBindingAddress("same address different port", differentPortBindAddress);
-	printf(",probe-bind,same-address-different-port,%s\n", boundAddr->toPresentation().c_str());
+		return errorBindingAddress("same-address-different-port", differentPortBindAddress);
+	jsonLog("bind", {{"bind", AMF0::String("same-address-different-port")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
 	boundAddr = probePlatform.addUdpInterface(differentAddressBindAddress.getSockaddr(), &differentAddressInterface);
 	if(not boundAddr)
-		return errorBindingAddress("different address", differentAddressBindAddress);
-	printf(",probe-bind,different-address,%s\n", boundAddr->toPresentation().c_str());
+		return errorBindingAddress("different-address", differentAddressBindAddress);
+	jsonLog("bind", {{"bind", AMF0::String("different-address")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
 	boundAddr = probePlatform.addUdpInterface(introReplyBindAddress.getSockaddr(), &introReplyInterface);
 	if(not boundAddr)
-		return errorBindingAddress("introduction reply adddress", introReplyBindAddress);
-	printf(",probe-bind,intro-reply-address,%s\n", boundAddr->toPresentation().c_str());
+		return errorBindingAddress("intro", introReplyBindAddress);
+	jsonLog("bind", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
 	if(0 == introReplyAddress.getPort())
 		introReplyAddress.setPort(boundAddr->getPort());
 
-	printf(",probe-advertise,intro-reply-address,%s\n", introReplyAddress.toPresentation().c_str());
+	jsonLog("probe-advertise", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(introReplyAddress.toPresentation().c_str())}});
 
 	probeRtmfp.onUnmatchedRHello = Client::onUnmatchedRHello;
 
@@ -944,14 +956,14 @@ int main(int argc, char **argv)
 
 		redirectorClient->onReflexiveAddress = [hostname, redirectorClient_ptr] (const Address &addr) {
 			jsonLog("redirector-reflexive", {
-				{"redirector", AMF0::String(hostname)},
+				{"name", AMF0::String(hostname)},
 				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
 				{"reflexiveAddress", AMF0::String(addr.toPresentation())}
 			});
 		};
 		redirectorClient->onStatus = [hostname, redirectorClient_ptr] (RedirectorClient::Status status) {
 			jsonLog("redirector-status", {
-				{"redirector", AMF0::String(hostname)},
+				{"name", AMF0::String(hostname)},
 				{"address", AMF0::String(redirectorClient_ptr->getRedirectorAddress().toPresentation())},
 				{"status", AMF0::String(redirectorStatusDescription(status))}
 			});
@@ -967,7 +979,7 @@ int main(int argc, char **argv)
 		if(interrupted)
 		{
 			interrupted = false;
-			printf(",interrupted,%s\n", stopping ? "quitting" : "shutting down...");
+			jsonLog("interrupted", {{"shutdown", AMF0::Boolean(stopping)}});
 			if(stopping)
 			{
 				// failsafe
@@ -989,7 +1001,7 @@ int main(int argc, char **argv)
 
 	auto workerThread = std::thread([] { workerRL.run(); });
 
-	printf(",run\n");
+	jsonLog("run", {});
 	mainRL.run();
 
 	workerPerformer.perform([] { workerRL.stop(); });
@@ -998,7 +1010,7 @@ int main(int argc, char **argv)
 	mainPerformer.close();
 	workerPerformer.close();
 
-	printf(",end\n");
+	jsonLog("end", {});
 
 	return 0;
 }
