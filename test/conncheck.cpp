@@ -464,6 +464,7 @@ protected:
 		resultObject->putValueAtKey(AMF0::String("NetConnection.Connect.Success"), "code");
 		resultObject->putValueAtKey(AMF0::String("you connected!"), "description");
 		resultObject->putValueAtKey(objectEncoding, "objectEncoding");
+		resultObject->putValueAtKey(AMF0::String(m_farAddressStr), "publicAddress");
 		if(serverInfo)
 		{
 			resultObject->putValueAtKey(AMF0::String(serverInfo), "serverInfo");
@@ -524,15 +525,17 @@ protected:
 			probeRtmfpPtr->sendIHello(m_epd.data(), m_epd.size(), m_probeTag.data(), m_probeTag.size(), differentPortInterface, m_farAddress.getSockaddr());
 		}, testOffset, rto);
 
-		m_differentAddressTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
-			if(verbose) clientLog("send-probe", {{"probe", AMF0::String("different-address")}});
-			probeRtmfpPtr->sendIHello(m_epd.data(), m_epd.size(), m_probeTag.data(), m_probeTag.size(), differentAddressInterface, m_farAddress.getSockaddr());
-		}, testOffset * 2.0, rto);
+		if(differentAddressInterface >= 0)
+			m_differentAddressTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
+				if(verbose) clientLog("send-probe", {{"probe", AMF0::String("different-address")}});
+				probeRtmfpPtr->sendIHello(m_epd.data(), m_epd.size(), m_probeTag.data(), m_probeTag.size(), differentAddressInterface, m_farAddress.getSockaddr());
+			}, testOffset * 2.0, rto);
 
-		m_introTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
-			if(verbose) clientLog("send-probe", {{"probe", AMF0::String("intro")}});
-			m_controlRecv->forwardIHello(m_epd.data(), m_epd.size(), introReplyAddress.getSockaddr(), m_probeTag.data(), m_probeTag.size());
-		}, testOffset * 3.0, rto);
+		if(introReplyInterface >= 0)
+			m_introTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
+				if(verbose) clientLog("send-probe", {{"probe", AMF0::String("intro")}});
+				m_controlRecv->forwardIHello(m_epd.data(), m_epd.size(), introReplyAddress.getSockaddr(), m_probeTag.data(), m_probeTag.size());
+			}, testOffset * 3.0, rto);
 
 		m_timeoutTimer = mainRL.scheduleRel([this] (const std::shared_ptr<Timer> &sender, Time now) {
 			if(m_differentPortTimer)
@@ -616,9 +619,19 @@ protected:
 		{
 			std::shared_ptr<AMF0> publicAddressIsLocal = AMF0::Boolean(m_publicAddressIsLocal);
 			std::shared_ptr<AMF0> publicPortMatchesLocalPort = AMF0::Boolean(m_publicPortMatchesLocalPort);
+			std::shared_ptr<AMF0> receiveDifferentAddressDifferentPortAllowed = AMF0::Boolean(m_receiveDifferentAddressDifferentPortAllowed);
+			std::shared_ptr<AMF0> sendAfterIntroductionAllowed = AMF0::Boolean(m_sendAfterIntroductionAllowed);
+			std::shared_ptr<AMF0> sendAfterIntroductionPreservesSourceAddress = AMF0::Boolean(m_sendAfterIntroductionPreservesSourceAddress);
+			std::shared_ptr<AMF0> sendAfterIntroductionPreservesSourcePort = AMF0::Boolean(m_sendAfterIntroductionPreservesSourcePort);
 
 			if(m_additionalAddresses.empty())
 				publicAddressIsLocal = publicPortMatchesLocalPort = AMF0::Null();
+
+			if(differentAddressInterface < 0)
+				receiveDifferentAddressDifferentPortAllowed = AMF0::Null();
+
+			if(introReplyInterface < 0)
+				sendAfterIntroductionAllowed = sendAfterIntroductionPreservesSourceAddress = sendAfterIntroductionPreservesSourcePort = AMF0::Null();
 
 			write(0, TCMSG_COMMAND, 0, Message::command("onStatus", 0, nullptr, AMF0::Object()
 				->putValueAtKey(AMF0::String("status"), "level")
@@ -628,20 +641,20 @@ protected:
 				->putValueAtKey(publicAddressIsLocal, "publicAddressIsLocal")
 				->putValueAtKey(publicPortMatchesLocalPort, "publicPortMatchesLocalPort")
 				->putValueAtKey(AMF0::Boolean(m_receiveSameAddressDifferentPortAllowed), "receiveSameAddressDifferentPortAllowed")
-				->putValueAtKey(AMF0::Boolean(m_receiveDifferentAddressDifferentPortAllowed), "receiveDifferentAddressDifferentPortAllowed")
-				->putValueAtKey(AMF0::Boolean(m_sendAfterIntroductionAllowed), "sendAfterIntroductionAllowed")
-				->putValueAtKey(AMF0::Boolean(m_sendAfterIntroductionPreservesSourceAddress), "sendAfterIntroductionPreservesSourceAddress")
-				->putValueAtKey(AMF0::Boolean(m_sendAfterIntroductionPreservesSourcePort), "sendAfterIntroductionPreservesSourcePort")
+				->putValueAtKey(receiveDifferentAddressDifferentPortAllowed, "receiveDifferentAddressDifferentPortAllowed")
+				->putValueAtKey(sendAfterIntroductionAllowed, "sendAfterIntroductionAllowed")
+				->putValueAtKey(sendAfterIntroductionPreservesSourceAddress, "sendAfterIntroductionPreservesSourceAddress")
+				->putValueAtKey(sendAfterIntroductionPreservesSourcePort, "sendAfterIntroductionPreservesSourcePort")
 			), INFINITY, INFINITY);
 
 			clientLog("results", {
 				{"publicAddressIsLocal", publicAddressIsLocal},
 				{"publicPortMatchesLocalPort", publicPortMatchesLocalPort},
 				{"receiveSameAddressDifferentPortAllowed", AMF0::Boolean(m_receiveSameAddressDifferentPortAllowed)},
-				{"receiveDifferentAddressDifferentPortAllowed", AMF0::Boolean(m_receiveDifferentAddressDifferentPortAllowed)},
-				{"sendAfterIntroductionAllowed", AMF0::Boolean(m_sendAfterIntroductionAllowed)},
-				{"sendAfterIntroductionPreservesSourceAddress", AMF0::Boolean(m_sendAfterIntroductionPreservesSourceAddress)},
-				{"sendAfterIntroductionPreservesSourcePort", AMF0::Boolean(m_sendAfterIntroductionPreservesSourcePort)}
+				{"receiveDifferentAddressDifferentPortAllowed", receiveDifferentAddressDifferentPortAllowed},
+				{"sendAfterIntroductionAllowed", sendAfterIntroductionAllowed},
+				{"sendAfterIntroductionPreservesSourceAddress", sendAfterIntroductionPreservesSourceAddress},
+				{"sendAfterIntroductionPreservesSourcePort", sendAfterIntroductionPreservesSourcePort}
 			});
 
 			m_timeoutTimer->cancel();
@@ -709,9 +722,9 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	if(msg or arg)
 		printf("\n");
 
-	printf("usage: %s -B addr:port -p addr:port -a addr:port -i addr:port [options]\n", prog);
-	printf("  -B addr:port  -- listen for rtmfp connections on addr:port\n");
-	printf("  -p port       -- different port on bind address\n");
+	printf("usage: %s -B addr:port -p port [-a addr:port] [-i addr:port] [options]\n", prog);
+	printf("  -B addr:port  -- listen for rtmfp connections on addr:port - required\n");
+	printf("  -p port       -- different port on bind address - required\n");
 	printf("  -a addr:port  -- different address\n");
 	printf("  -i addr:port  -- introduction reply address\n");
 	printf("  -I addr:port  -- public introduction reply address (if different)\n");
@@ -854,26 +867,28 @@ int main(int argc, char **argv)
 	differentPortBindAddress = bindAddress;
 	differentPortBindAddress.setPort(differentPort);
 
-	if(Address::ORIGIN_UNKNOWN == differentAddressBindAddress.getOrigin())
-		return usage(argv[0], 1, "-a different address required");
-	if(Address::ORIGIN_UNKNOWN == introReplyBindAddress.getOrigin())
-		return usage(argv[0], 1, "-i introduction reply address required");
 	if(Address::ORIGIN_UNKNOWN == introReplyAddress.getOrigin())
 		introReplyAddress = introReplyBindAddress;
 
-	if(differentAddressBindAddress.getIPAddress() == bindAddress.getIPAddress())
-		return usage(argv[0], 1, "error: -a IP address must be different from -B listen address: ", differentAddressBindAddress.toPresentation(false).c_str());
+	if(Address::ORIGIN_UNKNOWN != differentAddressBindAddress.getOrigin())
+	{
+		if(differentAddressBindAddress.getIPAddress() == bindAddress.getIPAddress())
+			jsonLog("warning", {{"description", AMF0::String("-a IP address must be different from -B listen address, check will be inconclusive")}});
+		if(differentAddressBindAddress.getFamily() != bindAddress.getFamily())
+			jsonLog("warning", {{"description", AMF0::String("different-address not all in the same family; connectivity check will be inconclusive")}});
+	}
 
-	if(introReplyAddress.getIPAddress() == bindAddress.getIPAddress())
-		return usage(argv[0], 1, "error: intro reply IP address must be different from -B listen address: ", introReplyAddress.toPresentation(false).c_str());
-	if(introReplyAddress.getIPAddress() == differentAddressBindAddress.getIPAddress())
-		return usage(argv[0], 1, "error: intro reply IP address must be different from -a address: ", introReplyAddress.toPresentation(false).c_str());
-
-	if(introReplyBindAddress.getFamily() != introReplyAddress.getFamily())
-		jsonLog("warning", {{"description", AMF0::String("public intro reply address isn't in the same family as local intro reply address")}});
-
-	if((bindAddress.getFamily() != differentAddressBindAddress.getFamily()) or (bindAddress.getFamily() != introReplyAddress.getFamily()))
-		jsonLog("warning", {{"description", AMF0::String("addresses are not all in the same family; connectivity check will be inconclusive")}});
+	if(Address::ORIGIN_UNKNOWN != introReplyAddress.getOrigin())
+	{
+		if(introReplyAddress.getIPAddress() == bindAddress.getIPAddress())
+			jsonLog("warning", {{"description", AMF0::String("intro reply IP address must be different from -B listen address, check will be inconclusive")}});
+		if((Address::ORIGIN_UNKNOWN != differentAddressBindAddress.getOrigin()) and (introReplyAddress.getIPAddress() == differentAddressBindAddress.getIPAddress()))
+			jsonLog("warning", {{"description", AMF0::String("intro reply IP address must be different from -a address, check will be inconclusive")}});
+		if(bindAddress.getFamily() != introReplyAddress.getFamily())
+			jsonLog("warning", {{"description", AMF0::String("intro not all in the same family; connectivity check will be inconclusive")}});
+		if(introReplyBindAddress.getFamily() != introReplyAddress.getFamily())
+			jsonLog("warning", {{"description", AMF0::String("public intro reply address isn't in the same family as local intro reply address")}});
+	}
 
 	FlashCryptoAdapter_OpenSSL crypto;
 	if(not crypto.init(true, false, nullptr))
@@ -926,20 +941,29 @@ int main(int argc, char **argv)
 		return errorBindingAddress("same-address-different-port", differentPortBindAddress);
 	jsonLog("bind", {{"bind", AMF0::String("same-address-different-port")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
-	boundAddr = probePlatform.addUdpInterface(differentAddressBindAddress.getSockaddr(), &differentAddressInterface);
-	if(not boundAddr)
-		return errorBindingAddress("different-address", differentAddressBindAddress);
-	jsonLog("bind", {{"bind", AMF0::String("different-address")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
+	if(Address::ORIGIN_UNKNOWN == differentAddressBindAddress.getOrigin())
+		jsonLog("warning", {{"description", AMF0::String("skipping different-address")}});
+	else
+	{
+		boundAddr = probePlatform.addUdpInterface(differentAddressBindAddress.getSockaddr(), &differentAddressInterface);
+		if(not boundAddr)
+			return errorBindingAddress("different-address", differentAddressBindAddress);
+		jsonLog("bind", {{"bind", AMF0::String("different-address")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
+	}
 
-	boundAddr = probePlatform.addUdpInterface(introReplyBindAddress.getSockaddr(), &introReplyInterface);
-	if(not boundAddr)
-		return errorBindingAddress("intro", introReplyBindAddress);
-	jsonLog("bind", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
+	if(Address::ORIGIN_UNKNOWN == introReplyBindAddress.getOrigin())
+		jsonLog("warning", {{"description", AMF0::String("skipping intro")}});
+	else
+	{
+		boundAddr = probePlatform.addUdpInterface(introReplyBindAddress.getSockaddr(), &introReplyInterface);
+		if(not boundAddr)
+			return errorBindingAddress("intro", introReplyBindAddress);
+		jsonLog("bind", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(boundAddr->toPresentation().c_str())}});
 
-	if(0 == introReplyAddress.getPort())
-		introReplyAddress.setPort(boundAddr->getPort());
-
-	jsonLog("probe-advertise", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(introReplyAddress.toPresentation().c_str())}});
+		if(0 == introReplyAddress.getPort())
+			introReplyAddress.setPort(boundAddr->getPort());
+		jsonLog("probe-advertise", {{"bind", AMF0::String("intro")}, {"address", AMF0::String(introReplyAddress.toPresentation().c_str())}});
+	}
 
 	probeRtmfp.onUnmatchedRHello = Client::onUnmatchedRHello;
 
