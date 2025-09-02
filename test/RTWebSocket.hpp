@@ -91,6 +91,7 @@ protected:
 	bool onFlowCloseAckMessage(const uint8_t *bytes, const uint8_t *limit);
 	bool onFlowExceptionMessage(const uint8_t *bytes, const uint8_t *limit);
 
+	void ackIfNeeded();
 	void queueAck(std::shared_ptr<RecvFlow> recvFlow, bool immediate);
 	void scheduleAckNow();
 	void sendAcks();

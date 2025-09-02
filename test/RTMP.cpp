@@ -1071,7 +1071,7 @@ void RTMP::startRTT()
 		m_rttAnchor = getCurrentTime();
 		m_rttPosition = m_sentBytes;
 
-		m_rttAckSize = std::min(MAX_ACK_WINDOW, std::max(MIN_ACK_WINDOW, (m_sentBytes - m_ackedBytes) / 4));
+		m_rttAckSize = std::min(std::min(MAX_ACK_WINDOW, minOutstandingThresh), std::max(MIN_ACK_WINDOW, (m_sentBytes - m_ackedBytes) / 4));
 		refreshWindowAckSize();
 	}
 }

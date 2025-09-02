@@ -226,7 +226,7 @@ bool RTWebSocket::onAckWindowMessage(const uint8_t *bytes, const uint8_t *limit)
 		return false;
 
 	m_ackWindow = std::max((size_t)ackWindow, MIN_ACK_WINDOW);
-	m_recvAccumulator = 0;
+	ackIfNeeded();
 
 	return true;
 }
@@ -302,11 +302,7 @@ bool RTWebSocket::onDataMessage(uint8_t msgType, size_t messageLen, const uint8_
 		return false;
 
 	m_recvAccumulator += messageLen;
-	if(m_recvAccumulator >= m_ackWindow)
-	{
-		scheduleAckNow();
-		m_recvAccumulator = m_recvAccumulator % m_ackWindow;
-	}
+	ackIfNeeded();
 
 	it->second->onData(MSG_DATA_MORE == msgType, cursor, limit, messageLen);
 
@@ -423,6 +419,15 @@ bool RTWebSocket::onFlowExceptionMessage(const uint8_t *bytes, const uint8_t *li
 	return true;
 }
 
+void RTWebSocket::ackIfNeeded()
+{
+	if(m_recvAccumulator >= m_ackWindow)
+	{
+		scheduleAckNow();
+		m_recvAccumulator = m_recvAccumulator % m_ackWindow;
+	}
+}
+
 void RTWebSocket::queueAck(std::shared_ptr<RecvFlow> recvFlow, bool immediate)
 {
 	if(m_open)
@@ -511,7 +516,7 @@ void RTWebSocket::startRTT()
 		m_rttPosition = m_flowBytesSent;
 
 		size_t ackWin = std::max(MIN_ACK_WINDOW, (m_flowBytesSent - m_flowBytesAcked) / 4);
-		ackWin = std::min(ackWin, MAX_ACK_WINDOW);
+		ackWin = std::min(ackWin, std::min(MAX_ACK_WINDOW, minOutstandingThresh));
 
 		Bytes msg;
 		msg.push_back(MSG_ACK_WINDOW);
