@@ -32,6 +32,7 @@ extern "C" {
 #include "rtmfp/ReorderBuffer.hpp"
 #include "rtmfp/RedirectorClient.hpp"
 #include "rtmfp/Hex.hpp"
+#include "rtmfp/URIParse.hpp"
 
 #include "RTMP.hpp"
 #include "PosixStreamPlatformAdapter.hpp"
@@ -79,7 +80,7 @@ Protocol inputProtocol = PROTO_UNSPEC;
 Protocol outputProtocol = PROTO_UNSPEC;
 const char *desthostname = nullptr;
 const char *destservname = "1935";
-const char *overrideRtmfpUri = nullptr;
+const char *overrideTcUrlScheme = nullptr;
 const char *backupRtmfpUri = "rtmfp:";
 int dscp = 0;
 
@@ -123,6 +124,37 @@ public:
 	virtual void shutdown() = 0;
 
 	bool isFinished() const { return m_finished; }
+
+	std::shared_ptr<WriteReceipt> outgoingWrite(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len)
+	{
+		if(overrideTcUrlScheme and (not m_seenConnect) and ((TCMSG_COMMAND == messageType) or (TCMSG_COMMAND_EX == messageType)))
+		{
+			auto args = parseCommandMessage(messageType, payload, len);
+			if(  (args.size() >= 3)
+			 and (args[0]->isString())
+			 and (args[2]->isObject())
+			 and (0 == strcmp(args[0]->stringValue(), "connect"))
+			)
+			{
+				m_seenConnect = true;
+
+				auto tcUrl = args[2]->getValueAtKey("tcUrl");
+				if(tcUrl and tcUrl->isString())
+				{
+					std::string newScheme = overrideTcUrlScheme;
+					URIParse uri(tcUrl->stringValue());
+
+					std::string newUri = newScheme + (uri.authorityPart.empty() ? std::string(":") : std::string("://") + uri.hostinfo) + uri.path + uri.queryPart;
+					args[2]->asObject()->putValueAtKey(AMF0::String(newUri), "tcUrl");
+
+					auto newPayload = AMF0::encode(args);
+					return write(streamID, TCMSG_COMMAND, timestamp, newPayload.data(), newPayload.size());
+				}
+			}
+		}
+
+		return write(streamID, messageType, timestamp, payload, len);
+	}
 
 	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len)
 	{
@@ -296,6 +328,19 @@ protected:
 		return (TC_AUDIO_CODEC_AAC == (payload[0] & TC_AUDIO_CODEC_MASK)) and (TC_AUDIO_AACPACKET_AUDIO_SPECIFIC_CONFIG == payload[1]);
 	}
 
+	std::vector<std::shared_ptr<AMF0>> parseCommandMessage(uint8_t messageType, const void *payload, size_t len)
+	{
+		const uint8_t *cursor = (const uint8_t *)payload;
+		const uint8_t *limit = cursor + len;
+
+		if((TCMSG_COMMAND_EX == messageType) and (0 != *cursor++)) // only format 0 is defined for TCMSG_COMMAND_EX
+			return {};
+
+		std::vector<std::shared_ptr<AMF0>> rv;
+		AMF0::decode(cursor, limit, rv);
+		return rv;
+	}
+
 	struct StreamState {
 		WriteReceiptChain m_chain;
 		Bytes    m_lastKeyframe;
@@ -309,6 +354,7 @@ protected:
 	std::map<uint32_t, StreamState> m_streamStates;
 	bool m_open = { true };
 	bool m_finished = { false };
+	bool m_seenConnect { false };
 	size_t m_videoMessages { 0 };
 	size_t m_videoMessagesAbandoned { 0 };
 	size_t m_videoMessagesLate { 0 };
@@ -752,20 +798,10 @@ protected:
 
 	std::string findConnectUri(uint32_t streamID, uint8_t messageType, const uint8_t *payload, size_t len)
 	{
-		if(overrideRtmfpUri)
-			return overrideRtmfpUri;
-
 		if(len and (0 == streamID) and ((TCMSG_COMMAND == messageType) or (TCMSG_COMMAND_EX == messageType)))
 		{
-			const uint8_t *cursor = payload;
-			const uint8_t *limit = cursor + len;
-
-			if((TCMSG_COMMAND_EX == messageType) and (0 != *cursor++)) // COMMAND_EX has a format id, and only format id=0 is defined
-				goto notfound;
-
-			std::vector<std::shared_ptr<AMF0>> args;
-			if( (not AMF0::decode(cursor, limit, args))
-			 or (args.size() < 3)
+			auto args = parseCommandMessage(messageType, payload, len);
+			if( (args.size() < 3)
 			 or (not args[0]->isString())
 			 or (not args[2]->isObject())
 			 or (0 != strcmp(args[0]->stringValue(), "connect"))
@@ -1108,7 +1144,7 @@ protected:
 	{
 		m_incoming->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
 			printMessage("upstream", streamID, messageType, timestamp, payload, len);
-			m_outgoing->write(streamID, messageType, timestamp, payload, len);
+			m_outgoing->outgoingWrite(streamID, messageType, timestamp, payload, len);
 		};
 
 		m_outgoing->onmessage = [this] (uint32_t streamID, uint8_t messageType, uint32_t timestamp, const uint8_t *payload, size_t len) {
@@ -1286,7 +1322,7 @@ int usage(const char *prog, int rv, const char *msg = nullptr, const char *arg =
 	printf("  -4            -- bind to IPv4 0.0.0.0:%d\n", port);
 	printf("  -6            -- bind to IPv6 [::]:%d\n", port);
 	printf("  -B addr:port  -- bind to addr:port explicitly\n");
-	printf("  -u uri        -- override URI for IHello (rtmfp, default tcUrl from connect command)\n");
+	printf("  -U scheme     -- override scheme in tcUrl (default %s)\n", overrideTcUrlScheme ? overrideTcUrlScheme : "<as-is>");
 	printf("  -L redir-spec -- add redirector/LB spec <name>@<ip:port>[,ip:port...]\n");
 	printf("  -l user:passw -- add redirector username:password\n");
 	printf("  -d addr:port  -- advertise addr:port at redirector\n");
@@ -1310,7 +1346,7 @@ int main(int argc, char **argv)
 	std::vector<Address> advertiseAddresses;
 	std::vector<std::shared_ptr<RedirectorClient>> redirectors;
 
-	while((ch = getopt(argc, argv, "i:o:IV:A:F:e:Rr:GEcC:MT:X:HSp:46B:u:L:l:d:Dvh")) != -1)
+	while((ch = getopt(argc, argv, "i:o:IV:A:F:e:Rr:GEcC:MT:X:HSp:46B:U:L:l:d:Dvh")) != -1)
 	{
 		switch(ch)
 		{
@@ -1393,8 +1429,8 @@ int main(int argc, char **argv)
 		case 'p':
 			port = atoi(optarg);
 			break;
-		case 'u':
-			overrideRtmfpUri = optarg;
+		case 'U':
+			overrideTcUrlScheme = optarg;
 			break;
 		case 'L':
 			if(not parse_redirector_spec(optarg, redirectorSpecs))
