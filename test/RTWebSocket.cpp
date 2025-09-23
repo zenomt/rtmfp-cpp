@@ -10,6 +10,7 @@ namespace com { namespace zenomt { namespace rtws {
 
 constexpr Duration RTT_HISTORY_THRESH = 30.0;
 constexpr size_t RTT_HISTORY_CAPACITY = 6;
+constexpr Duration TRIM_QUEUE_THRESH = 1.0;
 
 // --- RTWebSocket
 
@@ -651,6 +652,7 @@ std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, D
 
 	m_sendBuffer.append(writeMessage);
 	queueTransmission();
+	queueTrimSendBufferIfNeeded();
 
 	return receipt;
 }
@@ -804,6 +806,17 @@ void SendFlow::queueTransmission()
 	m_owner->queueTransmission(share_ref(this));
 }
 
+void SendFlow::queueTrimSendBufferIfNeeded()
+{
+	Time now = m_owner->getCurrentTime();
+	if((not m_trimPending) and (now - m_lastTrimQueued > TRIM_QUEUE_THRESH))
+	{
+		m_owner->safeDoLater(this, [this] { trimSendBuffer(); });
+		m_trimPending = true;
+		m_lastTrimQueued = now;
+	}
+}
+
 void SendFlow::trimSendBuffer()
 {
 	Time now = m_owner->getCurrentTime();
@@ -824,6 +837,8 @@ void SendFlow::trimSendBuffer()
 		else
 			break;
 	}
+
+	m_trimPending = false;
 }
 
 bool SendFlow::transmitOneFragment()

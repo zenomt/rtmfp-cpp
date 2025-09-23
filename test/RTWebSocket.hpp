@@ -172,6 +172,7 @@ protected:
 	void doWritable();
 	bool transmit(int pri);
 	void queueTransmission();
+	void queueTrimSendBufferIfNeeded();
 	void trimSendBuffer();
 	bool transmitOneFragment();
 
@@ -193,6 +194,8 @@ protected:
 	bool m_writablePending { false };
 	size_t m_abandonCount { 0 };
 	bool m_exception { false };
+	bool m_trimPending { false };
+	Time m_lastTrimQueued { -INFINITY };
 
 	struct WriteMessage;
 	SumList<std::shared_ptr<WriteMessage>> m_sendBuffer;
