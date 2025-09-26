@@ -544,6 +544,8 @@ public:
 		return write(streamID, messageType, timestamp, payload.data(), payload.size(), startWithin, finishWithin);
 	}
 
+	virtual Duration unsentAge(uint32_t streamID, uint8_t messageType) = 0;
+
 	void sendRelay(Client *sender, const Bytes &message)
 	{
 		auto header = AMF0::Object();
@@ -612,13 +614,8 @@ public:
 					startWithin = netStream->m_videoLifetime;
 					isVideoCodingLayer = true;
 
-					if(not netStream->m_seenKeyframe)
-					{
-						if(Message::isVideoKeyframe(payload, len))
-							netStream->m_seenKeyframe = true;
-						else
-							return; // drop VCL messages until first keyframe
-					}
+					if((not netStream->m_seenKeyframe) and not Message::isVideoKeyframe(payload, len))
+						return; // drop VCL messages until next keyframe
 				}
 			}
 			break;
@@ -636,12 +633,26 @@ public:
 			break;
 		}
 
+		if(startWithin < INFINITY)
+		{
+			// to avoid exhausting memory, drop new non-special messages if the queue isn't draining.
+			if(unsentAge(netStream->m_streamID, messageType) > 2 * startWithin)
+			{
+				if(isVideoCodingLayer)
+					netStream->m_seenKeyframe = false;
+				return;
+			}
+		}
+
 		auto rv = write(netStream->m_streamID, messageType, adjustedTimestamp, payload, len, startWithin, startWithin + netStream->m_finishByMargin);
 
 		if(isVideoCodingLayer and rv)
 		{
 			if(Message::isVideoKeyframe(payload, len))
+			{
+				netStream->m_seenKeyframe = true;
 				netStream->expireChain();
+			}
 			netStream->m_chain.append(rv);
 		}
 
@@ -653,7 +664,7 @@ public:
 
 	void relayStreamMessage(std::shared_ptr<NetStream> netStream, uint8_t messageType, uint32_t timestamp, const Bytes &payload)
 	{
-		return relayStreamMessage(netStream, messageType, timestamp, payload.data(), payload.size());
+		relayStreamMessage(netStream, messageType, timestamp, payload.data(), payload.size());
 	}
 
 	void sendPublishNotify(std::shared_ptr<NetStream> netStream, const Stream &stream)
@@ -1694,6 +1705,12 @@ public:
 		return stream.write(m_controlRecv, streamID, messageType, timestamp, (const uint8_t *)payload, len, startWithin, finishWithin);
 	}
 
+	Duration unsentAge(uint32_t streamID, uint8_t messageType) override
+	{
+		auto &stream = m_netStreamTransports[streamID]; // create on demand
+		return stream.unsentAge(messageType);
+	}
+
 	Bytes getNearNonce() override
 	{
 		return m_controlRecv ? m_controlRecv->getNearNonce() : Client::getNearNonce();
@@ -1751,6 +1768,16 @@ protected:
 				Bytes message = FlowSyncManager::makeSyncMessage(syncID, 2);
 				m_audio->write(message, INFINITY, INFINITY);
 				m_data->write(message, INFINITY, INFINITY);
+			}
+		}
+
+		Duration unsentAge(uint8_t messageType) const
+		{
+			switch(messageType)
+			{
+			case TCMSG_VIDEO: return m_video ? m_video.get()->getUnstartedAge() : 0;
+			case TCMSG_AUDIO: return m_audio ? m_audio.get()->getUnstartedAge() : 0;
+			default: return m_data ? m_data.get()->getUnstartedAge() : 0;
 			}
 		}
 
@@ -2008,7 +2035,24 @@ public:
 
 	std::shared_ptr<WriteReceipt> write(uint32_t streamID, uint8_t messageType, uint32_t timestamp, const void *payload, size_t len, Duration startWithin, Duration finishWithin) override
 	{
-		Priority pri = PRI_ROUTINE;
+		return m_rtmp->write(priorityForMessageType(messageType), streamID, messageType, timestamp, payload, len, startWithin, finishWithin);
+	}
+
+	Duration unsentAge(uint32_t, uint8_t messageType) override
+	{
+		return m_rtmp->getUnsentAge(priorityForMessageType(messageType));
+	}
+
+protected:
+	std::string protocol() const override { return m_simple ? "rtmp-simple" : "rtmp"; }
+
+	void setCongestionDelay(Duration delay) override
+	{
+		m_rtmp->maxAdditionalDelay = delay;
+	}
+
+	Priority priorityForMessageType(uint8_t messageType) const
+	{
 		switch(messageType)
 		{
 		case TCMSG_COMMAND:
@@ -2018,22 +2062,13 @@ public:
 		case TCMSG_USER_CONTROL:
 			// think about cases for different priority for these
 		case TCMSG_AUDIO:
-			pri = PRI_IMMEDIATE;
+			return PRI_IMMEDIATE;
 			break;
 		case TCMSG_VIDEO:
-			pri = PRI_PRIORITY;
+			return PRI_PRIORITY;
 			break;
 		}
-
-		return m_rtmp->write(pri, streamID, messageType, timestamp, payload, len, startWithin, finishWithin);
-	}
-
-protected:
-	std::string protocol() const override { return m_simple ? "rtmp-simple" : "rtmp"; }
-
-	void setCongestionDelay(Duration delay) override
-	{
-		m_rtmp->maxAdditionalDelay = delay;
+		return PRI_ROUTINE;
 	}
 
 	std::shared_ptr<PosixStreamPlatformAdapter> m_adapter;
@@ -2106,6 +2141,12 @@ public:
 		return stream.write(m_controlRecv, streamID, messageType, timestamp, (const uint8_t *)payload, len, startWithin, finishWithin);
 	}
 
+	Duration unsentAge(uint32_t streamID, uint8_t messageType) override
+	{
+		auto &stream = m_netStreamTransports[streamID]; // create on demand
+		return stream.unsentAge(messageType);
+	}
+
 protected:
 	struct NetStreamTransport {
 		~NetStreamTransport()
@@ -2153,6 +2194,16 @@ protected:
 				Bytes message = FlowSyncManager::makeSyncMessage(syncID, 2);
 				m_audio->write(message, INFINITY, INFINITY);
 				m_data->write(message, INFINITY, INFINITY);
+			}
+		}
+
+		Duration unsentAge(uint8_t messageType) const
+		{
+			switch(messageType)
+			{
+			case TCMSG_VIDEO: return m_video ? m_video.get()->getUnsentAge() : 0;
+			case TCMSG_AUDIO: return m_audio ? m_audio.get()->getUnsentAge() : 0;
+			default: return m_data ? m_data.get()->getUnsentAge() : 0;
 			}
 		}
 

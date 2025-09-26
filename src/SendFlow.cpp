@@ -125,6 +125,32 @@ size_t SendFlow::getOutstandingBytes() const
 	return m_outstanding_bytes;
 }
 
+Duration SendFlow::getBufferedAge() const
+{
+	for(long name = m_send_queue.first(); name > m_send_queue.SENTINEL; name = m_send_queue.next(name))
+	{
+		if(not m_send_queue.at(name)->m_receipt->isAbandoned())
+			return m_rtmfp->getCurrentTime() - m_send_queue.at(name)->m_receipt->createdAt();
+	}
+	return 0;
+}
+
+Duration SendFlow::getUnstartedAge() const
+{
+	// maybe we can pick up where we left off instead of scanning the send queue from
+	// the beginning for each packet. can make a difference in high bandwidth × delay.
+	long startName = m_last_send_queue_name;
+	if(not (m_send_queue.has(startName) and m_send_queue.at(startName)->m_in_flight))
+		startName = m_send_queue.first();
+
+	for(long name = startName; name > m_send_queue.SENTINEL; name = m_send_queue.next(name))
+	{
+		if(not m_send_queue.at(name)->m_receipt->isStarted())
+			return m_rtmfp->getCurrentTime() - m_send_queue.at(name)->m_receipt->createdAt();
+	}
+	return 0;
+}
+
 std::shared_ptr<WriteReceipt> SendFlow::write(const void *message, size_t len, Duration startWithin, Duration finishWithin)
 {
 	if(not isOpen())

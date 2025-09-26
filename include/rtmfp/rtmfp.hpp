@@ -246,6 +246,9 @@ public:
 	size_t getRecvBufferBytesAvailable() const; // Latest buffer advertised by the receiver §3.6.3.5.
 	size_t getOutstandingBytes() const; // Count of unacknowledged bytes in the network §3.5.
 
+	Duration getBufferedAge() const; // The age of the oldest unacknowledged message in the transmit queue.
+	Duration getUnstartedAge() const; // The age of the oldest message for which no transmission has been attempted.
+
 	// Queue new data for transmission. Note the buffer capacity is advisory and writes are limited only by
 	// available system memory. Writes are not allowed if the flow is closed. Writes are allowed before the
 	// flow is bound to a session.
