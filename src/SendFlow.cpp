@@ -7,6 +7,7 @@
 #include "../include/rtmfp/params.hpp"
 #include "SendFrag.hpp"
 #include "../include/rtmfp/PacketAssembler.hpp"
+#include "../include/rtmfp/Retainer.hpp"
 
 namespace com { namespace zenomt { namespace rtmfp {
 
@@ -312,7 +313,7 @@ void SendFlow::queueWritableNotify()
 {
 	if(m_shouldNotifyWhenWritable and not m_writablePending)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_rtmfp->m_platform->perform(0, [myself] { myself->doWritable(); });
 		m_writablePending = true;
 	}
@@ -365,7 +366,7 @@ void SendFlow::scheduleTrimSendQueue()
 {
 	if(not m_trimPending)
 	{
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_trimPending = true;
 		m_rtmfp->m_platform->perform(0, [myself] {
 			myself->trimSendQueue(myself->m_rtmfp->getCurrentTime());
@@ -602,7 +603,7 @@ void SendFlow::onAck(uint8_t chunkType, size_t bufferBytesAvailable, uintmax_t c
 	if((F_CLOSING == m_state) and m_send_queue.empty())
 	{
 		m_state = F_COMPLETE_LINGER;
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_rtmfp->scheduleRel(F_COMPLETE_LINGER_PERIOD)->action = Timer::makeAction([myself] { myself->gotoStateClosed(); });
 	}
 	else
@@ -636,7 +637,7 @@ void SendFlow::setPersistTimer()
 
 	Duration interval = std::max(F_PERSIST_INITIAL_PERIOD, m_session->m_erto);
 	m_persistTimer = m_rtmfp->scheduleRel(interval, interval);
-	auto myself = share_ref(this);
+	auto myself = retain_ref(this);
 	m_persistTimer->action = [myself] (const std::shared_ptr<Timer> &sender, Time now) { myself->onPersistTimer(sender, now); };
 }
 
