@@ -128,11 +128,9 @@ size_t SendFlow::getOutstandingBytes() const
 
 Duration SendFlow::getBufferedAge() const
 {
-	for(long name = m_send_queue.first(); name > m_send_queue.SENTINEL; name = m_send_queue.next(name))
-	{
-		if(not m_send_queue.at(name)->m_receipt->isAbandoned())
-			return m_rtmfp->getCurrentTime() - m_send_queue.at(name)->m_receipt->createdAt();
-	}
+	if(not m_send_queue.empty())
+		return m_rtmfp->getCurrentTime() - m_send_queue.firstValue()->m_receipt->createdAt();
+
 	return 0;
 }
 
@@ -149,6 +147,7 @@ Duration SendFlow::getUnstartedAge() const
 		if(not m_send_queue.at(name)->m_receipt->isStarted())
 			return m_rtmfp->getCurrentTime() - m_send_queue.at(name)->m_receipt->createdAt();
 	}
+
 	return 0;
 }
 
