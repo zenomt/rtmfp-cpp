@@ -11,6 +11,7 @@
 #include "../include/rtmfp/packet.hpp"
 #include "../include/rtmfp/params.hpp"
 #include "../include/rtmfp/PacketAssembler.hpp"
+#include "../include/rtmfp/Retainer.hpp"
 #include "SendFrag.hpp"
 
 #ifndef _WIN32
@@ -897,7 +898,7 @@ void Session::scheduleAck(std::shared_ptr<RecvFlow> flow)
 	if((not m_ack_now) and not m_delack_alarm)
 	{
 		m_delack_alarm = m_rtmfp->scheduleRel(DELACK_ALARM_PERIOD);
-		auto myself = share_ref(this);
+		auto myself = retain_ref(this);
 		m_delack_alarm->action = Timer::makeAction([myself] { myself->ackNow(); });
 	}
 }
