@@ -3015,7 +3015,7 @@ int main(int argc, char **argv)
 	platform.setRtmfp(&rtmfp);
 
 	rtmfp.setDefaultSessionKeepalivePeriod(10);
-	rtmfp.setDefaultSessionRetransmitLimit(20);
+	rtmfp.setDefaultSessionRetransmitLimit(30);
 	rtmfp.setDefaultSessionIdleLimit(120);
 
 	jsonLog("rtmfp", {{"fingerprint", AMF0::String(Hex::encode(crypto.getFingerprint()))}});
