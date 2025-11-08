@@ -138,9 +138,8 @@ which can also serve as an example for how to use other cryptography
 libraries. If you don’t have OpenSSL or you don’t want to use it, you can suppress
 building this module by defining `make` variable `WITHOUT_OPENSSL`. If your
 OpenSSL is installed outside of your compiler’s default include and linker
-search paths, you can define `make` variables `OPENSSL_INCLUDEDIR` and
-`OPENSSL_LIBDIR` with appropriate directives (see the [`Makefile`](Makefile)
-for examples).
+search paths, you can define `make` variable `OPENSSL_DIR` with the appropriate
+value (see the [`Makefile`](Makefile) for an example).
 
 The OpenSSL implementation of the `FlashCryptoAdapter` implements
 [4096-bit Internet Key Exchange (IKE) Group 16][MODP 4096],

@@ -1,8 +1,9 @@
 AR = ar
 RANLIB = ranlib
 
-OPENSSL_INCLUDEDIR = -I/usr/local/openssl/include
-OPENSSL_LIBDIR = -L/usr/local/openssl/lib
+OPENSSL_DIR = /usr/local/openssl
+OPENSSL_INCLUDEDIR = -I$(OPENSSL_DIR)/include
+OPENSSL_LIBDIR = -L$(OPENSSL_DIR)/lib
 
 # CXXFLAGS = -g -Wall -pedantic -std=c++11
 # CXXFLAGS = -Os -Wall -pedantic -std=c++11 -fno-exceptions

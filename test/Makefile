@@ -1,5 +1,6 @@
-OPENSSL_INCLUDEDIR = -I/usr/local/openssl/include
-OPENSSL_LIBDIR = -L/usr/local/openssl/lib
+OPENSSL_DIR = /usr/local/openssl
+OPENSSL_INCLUDEDIR = -I$(OPENSSL_DIR)/include
+OPENSSL_LIBDIR = -L$(OPENSSL_DIR)/lib
 
 # CXXFLAGS = -Wall -pedantic -std=c++11 -g -I../include
 # CXXFLAGS = -Os -Wall -pedantic -std=c++11 -fno-exceptions -I../include
